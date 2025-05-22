@@ -17,7 +17,7 @@ alwaysApply: true
 - **Always create Pytest unit tests for new features** (functions, classes, routes, etc).
 - **After updating any logic**, check whether existing unit tests need to be updated. If so, do it.
 - **Tests should live in a `/tests` folder** mirroring the main app structure.
-- **Tests are using docker to run**
+- **Tests are using docker to run** using `docker build -f Dockerfile.test -t music-mcp-tests .` and `docker run --rm music-mcp-tests python -m pytest tests/test_cache.py -v`
   - Include at least:
     - 1 test for expected use
     - 1 edge case
