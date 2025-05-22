@@ -1,0 +1,28 @@
+# Dockerfile for testing
+FROM python:3.11-slim
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install dependencies
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the entire project
+COPY . .
+
+# Set environment variables for testing
+ENV PYTHONPATH=/app
+ENV MUSIC_ROOT_PATH=/app/test_music
+ENV CACHE_DURATION_DAYS=30
+
+# Create test music directory
+RUN mkdir -p /app/test_music
+
+# Default command runs all tests
+CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"] 
