@@ -1,10 +1,12 @@
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field, ValidationError
+from pydantic import Field, ValidationError
+from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
 # Load environment variables from a .env file if present
 load_dotenv()
+
 
 class Config(BaseSettings):
     """
@@ -20,9 +22,11 @@ class Config(BaseSettings):
         description="Cache expiration in days (default: 30)."
     )
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {
+        'env_file': '.env',
+        'env_file_encoding': 'utf-8'
+    }
+
 
 try:
     config = Config()
