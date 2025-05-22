@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.*
+.venv
+venv/
+build/
+dist/
+.git/
+.gitignore
+site/
+.mypy_cache/
+.pytest_cache/
+tests/fixtures/sample_music/ 
