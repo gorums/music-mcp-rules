@@ -9,10 +9,13 @@ import json
 import os
 import tempfile
 import time
+import unittest
+import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
+from src.tools import storage
 from src.tools.storage import (
     AtomicFileWriter,
     file_lock,
@@ -34,7 +37,8 @@ from src.models import (
     Album,
     CollectionInsight,
     CollectionIndex,
-    BandIndexEntry
+    BandIndexEntry,
+    CollectionStats
 )
 
 
@@ -220,7 +224,7 @@ class TestMetadataOperations:
         self.temp_dir = tempfile.mkdtemp()
         self.config_patch = patch('src.tools.storage.Config')
         self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.music_root_path = self.temp_dir
+        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
@@ -352,7 +356,7 @@ class TestBandListOperations:
         self.temp_dir = tempfile.mkdtemp()
         self.config_patch = patch('src.tools.storage.Config')
         self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.music_root_path = self.temp_dir
+        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
@@ -457,7 +461,7 @@ class TestBackupOperations:
         self.temp_dir = tempfile.mkdtemp()
         self.config_patch = patch('src.tools.storage.Config')
         self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.music_root_path = self.temp_dir
+        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
@@ -517,7 +521,7 @@ class TestErrorHandling:
         self.temp_dir = tempfile.mkdtemp()
         self.config_patch = patch('src.tools.storage.Config')
         self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.music_root_path = self.temp_dir
+        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
@@ -528,7 +532,7 @@ class TestErrorHandling:
     def test_save_metadata_invalid_path(self):        
         """Test saving metadata with invalid path."""        
         # Mock config to return invalid path that cannot be created        
-        self.mock_config.return_value.music_root_path = "/proc/invalid/path"                
+        self.mock_config.return_value.MUSIC_ROOT_PATH = "/proc/invalid/path"                
         metadata = BandMetadata(band_name="Test Band")               
         with pytest.raises(StorageError):            
             save_band_metadata("Test Band", metadata)
@@ -560,4 +564,378 @@ class TestErrorHandling:
         collection_file.write_text("{corrupted json")
         
         with pytest.raises(StorageError):
-            get_band_list() 
+            get_band_list()
+
+
+class TestEnhancedBandListOperations(unittest.TestCase):
+    """Test enhanced band list operations with filtering, sorting, and pagination."""
+    
+    def setUp(self):
+        """Set up test environment."""
+        self.test_dir = Path("test_music_collection")
+        self.test_dir.mkdir(exist_ok=True)
+        
+        # Mock config to use test directory
+        self.original_config = storage.Config
+        storage.Config = lambda: type('MockConfig', (), {'MUSIC_ROOT_PATH': str(self.test_dir)})()
+        
+        # Create test collection index with diverse data
+        self.collection_index = CollectionIndex(
+            stats=CollectionStats(
+                total_bands=5,
+                total_albums=20,
+                total_missing_albums=3,
+                bands_with_metadata=3,
+                completion_percentage=85.0
+            ),
+            bands=[
+                BandIndexEntry(
+                    name="Alice in Chains",
+                    albums_count=4,
+                    folder_path="Alice in Chains",
+                    missing_albums_count=1,
+                    has_metadata=True,
+                    last_updated="2024-01-15T10:00:00Z"
+                ),
+                BandIndexEntry(
+                    name="Black Sabbath", 
+                    albums_count=8,
+                    folder_path="Black Sabbath",
+                    missing_albums_count=0,
+                    has_metadata=True,
+                    last_updated="2024-01-20T15:30:00Z"
+                ),
+                BandIndexEntry(
+                    name="Metallica",
+                    albums_count=5,
+                    folder_path="Metallica", 
+                    missing_albums_count=2,
+                    has_metadata=False,
+                    last_updated="2024-01-10T08:45:00Z"
+                ),
+                BandIndexEntry(
+                    name="Iron Maiden",
+                    albums_count=3,
+                    folder_path="Iron Maiden",
+                    missing_albums_count=0,
+                    has_metadata=True,
+                    last_updated="2024-01-25T12:15:00Z"
+                ),
+                BandIndexEntry(
+                    name="Pink Floyd",
+                    albums_count=0,
+                    folder_path="Pink Floyd",
+                    missing_albums_count=0,
+                    has_metadata=False,
+                    last_updated="2024-01-05T09:00:00Z"
+                )
+            ],
+            last_scan="2024-01-25T14:00:00Z"
+        )
+        
+        # Save collection index
+        index_file = self.test_dir / ".collection_index.json"
+        storage.JSONStorage.save_json(index_file, self.collection_index.model_dump())
+        
+        # Create test band metadata files
+        self._create_test_metadata()
+    
+    def tearDown(self):
+        """Clean up test environment."""
+        storage.Config = self.original_config
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+    
+    def _create_test_metadata(self):
+        """Create test band metadata files."""
+        # Alice in Chains metadata
+        alice_metadata = BandMetadata(
+            band_name="Alice in Chains",
+            formed="1987",
+            genre=["Grunge", "Alternative Metal"],
+            origin="Seattle, USA",
+            members=["Layne Staley", "Jerry Cantrell"],
+            albums=[
+                Album(album_name="Facelift", missing=False, tracks_count=12, year="1990", genre=["Grunge"]),
+                Album(album_name="Dirt", missing=False, tracks_count=13, year="1992", genre=["Grunge"]),
+                Album(album_name="Alice in Chains", missing=False, tracks_count=12, year="1995", genre=["Grunge"]),
+                Album(album_name="Black Gives Way to Blue", missing=True, tracks_count=11, year="2009", genre=["Alternative Metal"])
+            ]
+        )
+        alice_dir = self.test_dir / "Alice in Chains"
+        alice_dir.mkdir(exist_ok=True)
+        alice_metadata_file = alice_dir / ".band_metadata.json"
+        storage.JSONStorage.save_json(alice_metadata_file, alice_metadata.model_dump())
+        
+        # Black Sabbath metadata  
+        sabbath_metadata = BandMetadata(
+            band_name="Black Sabbath",
+            formed="1968",
+            genre=["Heavy Metal", "Hard Rock"],
+            origin="Birmingham, UK",
+            members=["Ozzy Osbourne", "Tony Iommi", "Geezer Butler"],
+            albums=[
+                Album(album_name="Paranoid", missing=False, tracks_count=8, year="1970", genre=["Heavy Metal"]),
+                Album(album_name="Master of Reality", missing=False, tracks_count=8, year="1971", genre=["Heavy Metal"]),
+                Album(album_name="Vol. 4", missing=False, tracks_count=9, year="1972", genre=["Heavy Metal"]),
+                Album(album_name="Sabbath Bloody Sabbath", missing=False, tracks_count=8, year="1973", genre=["Heavy Metal"]),
+                Album(album_name="Sabotage", missing=False, tracks_count=8, year="1975", genre=["Heavy Metal"]),
+                Album(album_name="Technical Ecstasy", missing=False, tracks_count=8, year="1976", genre=["Heavy Metal"]),
+                Album(album_name="Never Say Die!", missing=False, tracks_count=9, year="1978", genre=["Heavy Metal"]),
+                Album(album_name="Heaven and Hell", missing=False, tracks_count=8, year="1980", genre=["Heavy Metal"])
+            ]
+        )
+        sabbath_dir = self.test_dir / "Black Sabbath"
+        sabbath_dir.mkdir(exist_ok=True)
+        sabbath_metadata_file = sabbath_dir / ".band_metadata.json"
+        storage.JSONStorage.save_json(sabbath_metadata_file, sabbath_metadata.model_dump())
+        
+        # Iron Maiden metadata
+        maiden_metadata = BandMetadata(
+            band_name="Iron Maiden",
+            formed="1975",
+            genre=["Heavy Metal", "Power Metal"],
+            origin="London, UK",
+            members=["Bruce Dickinson", "Steve Harris", "Dave Murray"],
+            albums=[
+                Album(album_name="The Number of the Beast", missing=False, tracks_count=8, year="1982", genre=["Heavy Metal"]),
+                Album(album_name="Piece of Mind", missing=False, tracks_count=9, year="1983", genre=["Heavy Metal"]),
+                Album(album_name="Powerslave", missing=False, tracks_count=8, year="1984", genre=["Heavy Metal"])
+            ]
+        )
+        maiden_dir = self.test_dir / "Iron Maiden"
+        maiden_dir.mkdir(exist_ok=True)
+        maiden_metadata_file = maiden_dir / ".band_metadata.json"
+        storage.JSONStorage.save_json(maiden_metadata_file, maiden_metadata.model_dump())
+    
+    def test_get_band_list_default_parameters(self):
+        """Test get_band_list with default parameters."""
+        result = storage.get_band_list()
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 5)
+        self.assertEqual(result['pagination']['total_bands'], 5)
+        self.assertEqual(result['pagination']['page'], 1)
+        self.assertEqual(result['pagination']['page_size'], 50)
+        self.assertEqual(result['pagination']['total_pages'], 1)
+        self.assertFalse(result['pagination']['has_next'])
+        self.assertFalse(result['pagination']['has_previous'])
+        
+        # Check bands are sorted by name (default)
+        band_names = [band['name'] for band in result['bands']]
+        self.assertEqual(band_names, sorted(band_names))
+    
+    def test_search_by_band_name(self):
+        """Test searching bands by name."""
+        result = storage.get_band_list(search_query="alice")
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 1)
+        self.assertEqual(result['bands'][0]['name'], "Alice in Chains")
+        self.assertEqual(result['filters_applied']['search_query'], "alice")
+    
+    def test_search_by_album_name(self):
+        """Test searching bands by album name."""
+        result = storage.get_band_list(search_query="paranoid", include_albums=True)
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 1)
+        self.assertEqual(result['bands'][0]['name'], "Black Sabbath")
+        self.assertEqual(result['filters_applied']['search_query'], "paranoid")
+    
+    def test_filter_by_genre(self):
+        """Test filtering bands by genre."""
+        result = storage.get_band_list(filter_genre="grunge")
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 1)
+        self.assertEqual(result['bands'][0]['name'], "Alice in Chains")
+        self.assertEqual(result['filters_applied']['genre'], "grunge")
+    
+    def test_filter_has_metadata(self):
+        """Test filtering by metadata availability."""
+        # Test bands with metadata
+        result = storage.get_band_list(filter_has_metadata=True)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 3)
+        band_names = {band['name'] for band in result['bands']}
+        self.assertEqual(band_names, {"Alice in Chains", "Black Sabbath", "Iron Maiden"})
+        
+        # Test bands without metadata
+        result = storage.get_band_list(filter_has_metadata=False)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 2)
+        band_names = {band['name'] for band in result['bands']}
+        self.assertEqual(band_names, {"Metallica", "Pink Floyd"})
+    
+    def test_filter_missing_albums(self):
+        """Test filtering by missing albums."""
+        # Test bands with missing albums
+        result = storage.get_band_list(filter_missing_albums=True)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 2)
+        band_names = {band['name'] for band in result['bands']}
+        self.assertEqual(band_names, {"Alice in Chains", "Metallica"})
+        
+        # Test bands without missing albums
+        result = storage.get_band_list(filter_missing_albums=False)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 3)
+        band_names = {band['name'] for band in result['bands']}
+        self.assertEqual(band_names, {"Black Sabbath", "Iron Maiden", "Pink Floyd"})
+    
+    def test_sort_by_albums_count(self):
+        """Test sorting by album count."""
+        # Ascending order
+        result = storage.get_band_list(sort_by="albums_count", sort_order="asc")
+        self.assertEqual(result['status'], 'success')
+        album_counts = [band['albums_count'] for band in result['bands']]
+        self.assertEqual(album_counts, sorted(album_counts))
+        self.assertEqual(result['bands'][0]['name'], "Pink Floyd")  # 0 albums
+        self.assertEqual(result['bands'][-1]['name'], "Black Sabbath")  # 8 albums
+        
+        # Descending order
+        result = storage.get_band_list(sort_by="albums_count", sort_order="desc")
+        self.assertEqual(result['status'], 'success')
+        album_counts = [band['albums_count'] for band in result['bands']]
+        self.assertEqual(album_counts, sorted(album_counts, reverse=True))
+        self.assertEqual(result['bands'][0]['name'], "Black Sabbath")  # 8 albums
+        self.assertEqual(result['bands'][-1]['name'], "Pink Floyd")  # 0 albums
+    
+    def test_sort_by_completion_percentage(self):
+        """Test sorting by completion percentage."""
+        result = storage.get_band_list(sort_by="completion", sort_order="desc")
+        self.assertEqual(result['status'], 'success')
+        
+        # Calculate expected completion percentages
+        expected_completions = []
+        for band in result['bands']:
+            if band['albums_count'] == 0:
+                completion = 100.0
+            else:
+                completion = ((band['albums_count'] - band['missing_albums_count']) / band['albums_count']) * 100
+            expected_completions.append(completion)
+        
+        # Should be sorted by completion percentage descending
+        self.assertEqual(expected_completions, sorted(expected_completions, reverse=True))
+    
+    def test_pagination(self):
+        """Test pagination functionality."""
+        # Test first page with small page size
+        result = storage.get_band_list(page=1, page_size=2)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 2)
+        self.assertEqual(result['pagination']['page'], 1)
+        self.assertEqual(result['pagination']['page_size'], 2)
+        self.assertEqual(result['pagination']['total_pages'], 3)
+        self.assertTrue(result['pagination']['has_next'])
+        self.assertFalse(result['pagination']['has_previous'])
+        
+        # Test middle page
+        result = storage.get_band_list(page=2, page_size=2)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 2)
+        self.assertEqual(result['pagination']['page'], 2)
+        self.assertTrue(result['pagination']['has_next'])
+        self.assertTrue(result['pagination']['has_previous'])
+        
+        # Test last page
+        result = storage.get_band_list(page=3, page_size=2)
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 1)
+        self.assertEqual(result['pagination']['page'], 3)
+        self.assertFalse(result['pagination']['has_next'])
+        self.assertTrue(result['pagination']['has_previous'])
+    
+    def test_include_albums_detail(self):
+        """Test including detailed album information."""
+        result = storage.get_band_list(
+            search_query="alice",
+            include_albums=True
+        )
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 1)
+        
+        band = result['bands'][0]
+        self.assertIn('metadata', band)
+        self.assertIn('albums', band)
+        self.assertEqual(len(band['albums']), 4)
+        
+        # Check album details
+        album_names = [album['album_name'] for album in band['albums']]
+        self.assertIn("Facelift", album_names)
+        self.assertIn("Dirt", album_names)
+        
+        # Check missing album flag
+        missing_albums = [album for album in band['albums'] if album['missing']]
+        self.assertEqual(len(missing_albums), 1)
+        self.assertEqual(missing_albums[0]['album_name'], "Black Gives Way to Blue")
+    
+    def test_combined_filters(self):
+        """Test combining multiple filters."""
+        result = storage.get_band_list(
+            filter_has_metadata=True,
+            filter_missing_albums=False,
+            sort_by="albums_count",
+            sort_order="desc"
+        )
+        
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 2)  # Black Sabbath and Iron Maiden
+        
+        # Should be sorted by album count descending
+        self.assertEqual(result['bands'][0]['name'], "Black Sabbath")  # 8 albums
+        self.assertEqual(result['bands'][1]['name'], "Iron Maiden")    # 3 albums
+        
+        # Check filters applied
+        self.assertTrue(result['filters_applied']['has_metadata'])
+        self.assertFalse(result['filters_applied']['missing_albums'])
+    
+    def test_page_size_limits(self):
+        """Test page size validation and limits."""
+        # Test minimum page size
+        result = storage.get_band_list(page_size=0)
+        self.assertEqual(result['pagination']['page_size'], 1)  # Should be clamped to 1
+        
+        # Test maximum page size
+        result = storage.get_band_list(page_size=200)
+        self.assertEqual(result['pagination']['page_size'], 100)  # Should be clamped to 100
+    
+    def test_invalid_page_numbers(self):
+        """Test handling of invalid page numbers."""
+        # Test page 0 (should be clamped to 1)
+        result = storage.get_band_list(page=0)
+        self.assertEqual(result['pagination']['page'], 1)
+        
+        # Test negative page (should be clamped to 1)
+        result = storage.get_band_list(page=-5)
+        self.assertEqual(result['pagination']['page'], 1)
+    
+    def test_empty_collection(self):
+        """Test behavior with empty collection."""
+        # Remove collection index
+        index_file = self.test_dir / ".collection_index.json"
+        if index_file.exists():
+            index_file.unlink()
+        
+        result = storage.get_band_list()
+        self.assertEqual(result['status'], 'success')
+        self.assertEqual(len(result['bands']), 0)
+        self.assertEqual(result['pagination']['total_bands'], 0)
+        self.assertEqual(result['pagination']['total_pages'], 0)
+    
+    def test_cache_status_information(self):
+        """Test that cache status is properly reported."""
+        result = storage.get_band_list()
+        
+        self.assertEqual(result['status'], 'success')
+        
+        # Check bands with metadata have cached status
+        bands_with_metadata = [band for band in result['bands'] if band['has_metadata']]
+        for band in bands_with_metadata:
+            self.assertEqual(band['cache_status'], 'cached')
+        
+        # Check bands without metadata have no_cache status
+        bands_without_metadata = [band for band in result['bands'] if not band['has_metadata']]
+        for band in bands_without_metadata:
+            self.assertEqual(band['cache_status'], 'no_cache') 

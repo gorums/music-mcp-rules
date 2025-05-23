@@ -135,4 +135,10 @@ cython_debug/
 
 # Local music cache
 *.band_metadata.json
-*.collection_index.json 
+*.collection_index.json
+
+# Backup files created by storage operations
+*.backup
+*.backup_*
+*.json.backup
+*.json.backup_* 

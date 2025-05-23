@@ -229,7 +229,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
     """
     try:
         config = Config()
-        band_folder = Path(config.music_root_path) / band_name
+        band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
         # Ensure band name matches metadata
@@ -273,7 +273,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
     """
     try:
         config = Config()
-        band_folder = Path(config.music_root_path) / band_name
+        band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
         # Load existing metadata or create new
@@ -324,7 +324,7 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
     """
     try:
         config = Config()
-        collection_file = Path(config.music_root_path) / ".collection_index.json"
+        collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         # Load existing collection index or create new
         if collection_file.exists():
@@ -358,63 +358,287 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
         raise StorageError(f"Failed to save collection insights: {e}")
 
 
-def get_band_list() -> Dict[str, Any]:
+def get_band_list(
+    search_query: Optional[str] = None,
+    filter_genre: Optional[str] = None,
+    filter_has_metadata: Optional[bool] = None,
+    filter_missing_albums: Optional[bool] = None,
+    sort_by: str = "name",
+    sort_order: str = "asc",
+    page: int = 1,
+    page_size: int = 50,
+    include_albums: bool = False
+) -> Dict[str, Any]:
     """
-    Get list of all bands with album information from collection index.
+    Get a list of all discovered bands with enhanced filtering, sorting, and pagination.
     
+    Args:
+        search_query: Search term to filter bands by name or album name
+        filter_genre: Filter bands by genre (if metadata available)
+        filter_has_metadata: Filter bands that have/don't have metadata files
+        filter_missing_albums: Filter bands with/without missing albums
+        sort_by: Field to sort by ('name', 'albums_count', 'last_updated', 'completion')
+        sort_order: Sort order ('asc' or 'desc')
+        page: Page number for pagination (1-based)
+        page_size: Number of results per page (1-100)
+        include_albums: Include album details for each band
+        
     Returns:
-        Dict containing band list and collection statistics
+        Dict containing filtered and paginated band list with metadata
         
     Raises:
         StorageError: If operation fails
     """
     try:
         config = Config()
-        collection_file = Path(config.music_root_path) / ".collection_index.json"
+        collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         if not collection_file.exists():
             return {
                 "status": "success",
                 "message": "No collection index found",
                 "bands": [],
+                # Backward compatibility - keep original fields at top level
                 "total_bands": 0,
-                "total_albums": 0
+                "total_albums": 0,
+                "total_missing_albums": 0,
+                "collection_completion": 100.0,
+                "last_scan": "",
+                # Enhanced functionality - new fields
+                "pagination": {
+                    "total_bands": 0,
+                    "page": page,
+                    "page_size": page_size,
+                    "total_pages": 0
+                },
+                "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums),
+                "sort": {"by": sort_by, "order": sort_order}
             }
         
         # Load collection index
         index_dict = JSONStorage.load_json(collection_file)
         index = CollectionIndex(**index_dict)
         
-        # Prepare band list with detailed information
+        # Start with all bands
+        bands_to_process = index.bands.copy()
+        
+        # Apply search filter
+        if search_query:
+            bands_to_process = _filter_bands_by_search(bands_to_process, search_query.lower(), include_albums)
+        
+        # Apply genre filter (requires loading metadata)
+        if filter_genre:
+            bands_to_process = _filter_bands_by_genre(bands_to_process, filter_genre.lower())
+        
+        # Apply metadata filter
+        if filter_has_metadata is not None:
+            bands_to_process = [b for b in bands_to_process if b.has_metadata == filter_has_metadata]
+        
+        # Apply missing albums filter
+        if filter_missing_albums is not None:
+            if filter_missing_albums:
+                bands_to_process = [b for b in bands_to_process if b.missing_albums_count > 0]
+            else:
+                bands_to_process = [b for b in bands_to_process if b.missing_albums_count == 0]
+        
+        # Apply sorting
+        bands_to_process = _sort_bands(bands_to_process, sort_by, sort_order)
+        
+        # Calculate pagination
+        total_bands = len(bands_to_process)
+        page_size = max(1, min(100, page_size))  # Clamp between 1-100
+        page = max(1, page)  # Ensure page is at least 1
+        total_pages = (total_bands + page_size - 1) // page_size if total_bands > 0 else 0
+        
+        # Apply pagination
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_bands = bands_to_process[start_idx:end_idx]
+        
+        # Build detailed band information
         bands_info = []
-        for band_entry in index.bands:
-            band_info = {
-                "name": band_entry.name,
-                "albums_count": band_entry.albums_count,
-                "missing_albums_count": band_entry.missing_albums_count,
-                "has_metadata": band_entry.has_metadata,
-                "folder_path": band_entry.folder_path,
-                "last_updated": band_entry.last_updated,
-                "completion_percentage": round(
-                    ((band_entry.albums_count - band_entry.missing_albums_count) / 
-                     max(band_entry.albums_count, 1)) * 100, 1
-                )
-            }
+        for band_entry in paginated_bands:
+            band_info = _build_band_info(band_entry, include_albums)
             bands_info.append(band_info)
         
         return {
             "status": "success",
-            "message": f"Found {len(bands_info)} bands",
+            "message": f"Found {total_bands} bands (showing page {page} of {total_pages})",
             "bands": bands_info,
+            # Backward compatibility - keep original fields at top level
             "total_bands": index.stats.total_bands,
             "total_albums": index.stats.total_albums,
             "total_missing_albums": index.stats.total_missing_albums,
             "collection_completion": index.stats.completion_percentage,
-            "last_scan": index.last_scan
+            "last_scan": index.last_scan,
+            # Enhanced functionality - new fields
+            "pagination": {
+                "total_bands": total_bands,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_previous": page > 1
+            },
+            "collection_summary": {
+                "total_bands": index.stats.total_bands,
+                "total_albums": index.stats.total_albums,
+                "total_missing_albums": index.stats.total_missing_albums,
+                "collection_completion": index.stats.completion_percentage,
+                "last_scan": index.last_scan
+            },
+            "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums),
+            "sort": {"by": sort_by, "order": sort_order}
         }
         
     except Exception as e:
         raise StorageError(f"Failed to get band list: {e}")
+
+
+def _filter_bands_by_search(bands: List[BandIndexEntry], search_query: str, include_albums: bool = False) -> List[BandIndexEntry]:
+    """Filter bands by search query in band names or album names."""
+    filtered_bands = []
+    
+    for band in bands:
+        # Search in band name
+        if search_query in band.name.lower():
+            filtered_bands.append(band)
+            continue
+        
+        # Search in album names if include_albums is True
+        if include_albums:
+            try:
+                metadata = load_band_metadata(band.name)
+                if metadata:
+                    for album in metadata.albums:
+                        if search_query in album.album_name.lower():
+                            filtered_bands.append(band)
+                            break
+            except:
+                # Skip if metadata can't be loaded
+                continue
+    
+    return filtered_bands
+
+
+def _filter_bands_by_genre(bands: List[BandIndexEntry], genre_filter: str) -> List[BandIndexEntry]:
+    """Filter bands by genre (requires loading metadata)."""
+    filtered_bands = []
+    
+    for band in bands:
+        try:
+            metadata = load_band_metadata(band.name)
+            if metadata and metadata.genre:
+                # Check if any of the band's genres match the filter
+                band_genres = [g.lower() for g in metadata.genre]
+                if any(genre_filter in genre for genre in band_genres):
+                    filtered_bands.append(band)
+        except:
+            # Skip if metadata can't be loaded
+            continue
+    
+    return filtered_bands
+
+
+def _sort_bands(bands: List[BandIndexEntry], sort_by: str, sort_order: str) -> List[BandIndexEntry]:
+    """Sort bands by specified field and order."""
+    reverse = sort_order.lower() == "desc"
+    
+    if sort_by == "name":
+        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
+    elif sort_by == "albums_count":
+        return sorted(bands, key=lambda b: b.albums_count, reverse=reverse)
+    elif sort_by == "last_updated":
+        return sorted(bands, key=lambda b: b.last_updated, reverse=reverse)
+    elif sort_by == "completion":
+        def completion_percentage(band):
+            if band.albums_count == 0:
+                return 100.0
+            return ((band.albums_count - band.missing_albums_count) / band.albums_count) * 100
+        return sorted(bands, key=completion_percentage, reverse=reverse)
+    else:
+        # Default to name sorting
+        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
+
+
+def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -> Dict[str, Any]:
+    """Build detailed band information dictionary."""
+    band_info = {
+        "name": band_entry.name,
+        "albums_count": band_entry.albums_count,
+        "missing_albums_count": band_entry.missing_albums_count,
+        "has_metadata": band_entry.has_metadata,
+        "folder_path": band_entry.folder_path,
+        "last_updated": band_entry.last_updated,
+        "completion_percentage": round(
+            ((band_entry.albums_count - band_entry.missing_albums_count) / 
+             max(band_entry.albums_count, 1)) * 100, 1
+        ),
+        "cache_status": "cached" if band_entry.has_metadata else "no_cache"
+    }
+    
+    # Include detailed album information if requested
+    if include_albums and band_entry.has_metadata:
+        try:
+            metadata = load_band_metadata(band_entry.name)
+            if metadata:
+                band_info["metadata"] = {
+                    "formed": metadata.formed,
+                    "genre": metadata.genre,
+                    "origin": metadata.origin,
+                    "members": metadata.members,
+                    "description": metadata.description
+                }
+                
+                band_info["albums"] = []
+                for album in metadata.albums:
+                    album_info = {
+                        "album_name": album.album_name,
+                        "missing": album.missing,
+                        "tracks_count": album.tracks_count,
+                        "duration": album.duration,
+                        "year": album.year,
+                        "genre": album.genre
+                    }
+                    band_info["albums"].append(album_info)
+                
+                # Include analysis if available
+                if metadata.analyze:
+                    band_info["analysis"] = {
+                        "review": metadata.analyze.review,
+                        "rate": metadata.analyze.rate,
+                        "similar_bands": metadata.analyze.similar_bands
+                    }
+                    
+                    if metadata.analyze.albums:
+                        band_info["album_analysis"] = []
+                        for album_analysis in metadata.analyze.albums:
+                            band_info["album_analysis"].append({
+                                "review": album_analysis.review,
+                                "rate": album_analysis.rate
+                            })
+        except:
+            # If metadata can't be loaded, just mark as unavailable
+            band_info["metadata_error"] = "Could not load band metadata"
+    
+    return band_info
+
+
+def _build_filters_summary(search_query: Optional[str], filter_genre: Optional[str], 
+                          filter_has_metadata: Optional[bool], filter_missing_albums: Optional[bool]) -> Dict[str, Any]:
+    """Build a summary of applied filters."""
+    filters = {}
+    
+    if search_query:
+        filters["search_query"] = search_query
+    if filter_genre:
+        filters["genre"] = filter_genre
+    if filter_has_metadata is not None:
+        filters["has_metadata"] = filter_has_metadata
+    if filter_missing_albums is not None:
+        filters["missing_albums"] = filter_missing_albums
+    
+    return filters
 
 
 def load_band_metadata(band_name: str) -> Optional[BandMetadata]:
@@ -432,7 +656,7 @@ def load_band_metadata(band_name: str) -> Optional[BandMetadata]:
     """
     try:
         config = Config()
-        band_folder = Path(config.music_root_path) / band_name
+        band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
         if not metadata_file.exists():
@@ -457,7 +681,7 @@ def load_collection_index() -> Optional[CollectionIndex]:
     """
     try:
         config = Config()
-        collection_file = Path(config.music_root_path) / ".collection_index.json"
+        collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         if not collection_file.exists():
             return None
@@ -484,7 +708,7 @@ def update_collection_index(index: CollectionIndex) -> Dict[str, Any]:
     """
     try:
         config = Config()
-        collection_file = Path(config.music_root_path) / ".collection_index.json"
+        collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         # Update timestamp
         index.last_scan = datetime.now().isoformat()
@@ -518,7 +742,7 @@ def cleanup_backups(max_backups: int = 5) -> Dict[str, Any]:
     """
     try:
         config = Config()
-        music_root = Path(config.music_root_path)
+        music_root = Path(config.MUSIC_ROOT_PATH)
         
         cleaned_count = 0
         total_freed_size = 0
