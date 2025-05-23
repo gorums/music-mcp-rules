@@ -609,7 +609,7 @@
 
 **Key Features Implemented**:
 - ✅ **MCP Tool Schema**: Proper FastMCP `@mcp.tool()` decorator with comprehensive docstring
-- ✅ **Tool Parameters**: Optional `music_root_path`, `force_rescan`, and `include_missing_albums` parameters
+- ✅ **Tool Parameters**: `force_rescan` and `include_missing_albums` parameters
 - ✅ **Folder Scanning Logic**: Full integration with existing `scan_music_folders()` function
 - ✅ **Album Discovery**: Complete band and album folder discovery with track counting
 - ✅ **Progress Reporting**: Structured results with detailed scan statistics
@@ -620,8 +620,8 @@
 
 **MCP Tool Implementation Details**:
 - ✅ **Tool Name**: `scan_music_folders` with proper MCP registration
-- ✅ **Parameter Validation**: Optional parameters with sensible defaults
-- ✅ **Configuration Integration**: Dynamic music root path override capability
+- ✅ **Parameter Validation**: Boolean parameters with sensible defaults
+- ✅ **Configuration Integration**: Uses environment variable MUSIC_ROOT_PATH from Docker volume mapping
 - ✅ **Result Format**: Structured dictionary with scan statistics and band data
 - ✅ **Tool Metadata**: Version information and execution parameters in response
 - ✅ **Logging Integration**: Comprehensive logging for debugging and monitoring
@@ -661,3 +661,52 @@
 - Task 3.2 Tool 1 objectives are complete and fully functional
 - MCP tool provides comprehensive music collection scanning capability
 - Ready to proceed to Tool 2: `get_band_list` implementation
+
+### Task 3.2.1: Remove music_root_path Parameter - COMPLETED (2025-01-22)
+
+**Status**: ✅ COMPLETED - Removed unnecessary music_root_path parameter from scan_music_folders tool
+
+**Implementation Summary**:
+- Removed `music_root_path` parameter from `scan_music_folders` MCP tool
+- Updated documentation to reflect that Docker volume mapping handles path configuration
+- All tests remain passing (143/143) after parameter removal
+
+**Changes Made**:
+- ✅ **MCP Tool Update**: Removed `music_root_path` parameter from `scan_music_folders()` function in `src/music_mcp_server.py`
+- ✅ **Documentation Updates**: Updated README.md and TASKS.md to remove references to the removed parameter
+- ✅ **Tool Simplification**: Tool now uses only environment variable `MUSIC_ROOT_PATH` from Docker volume mapping
+- ✅ **Parameter Cleanup**: Removed temporary config override logic that was no longer needed
+
+**Rationale**:
+Since the MCP server runs in Docker with volume mapping (`-v /path/to/music:/music`), the music root path is fixed at container runtime and set via the `MUSIC_ROOT_PATH=/music` environment variable. The `music_root_path` parameter was unnecessary complexity that could potentially override the containerized configuration.
+
+**Docker Integration Benefits**:
+- ✅ **Simplified Configuration**: Single source of truth for music directory path
+- ✅ **Container Security**: No runtime path overrides that could access unintended directories
+- ✅ **Cleaner API**: Fewer optional parameters for MCP clients to manage
+- ✅ **Consistent Behavior**: All tool calls use the same music root path
+
+**Test Verification**:
+- ✅ All 143 tests still passing after parameter removal
+- ✅ MCP tool functionality unchanged - still provides full scanning capabilities
+- ✅ Docker container builds and runs successfully
+- ✅ No breaking changes to existing functionality
+
+**Updated Tool Interface**:
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "scan_music_folders",
+    "arguments": {
+      "force_rescan": true,
+      "include_missing_albums": true
+    }
+  }
+}
+```
+
+**Next Steps**: 
+- Parameter removal complete and verified
+- Tool interface simplified for better Docker integration
+- Ready to proceed with remaining MCP tool implementations

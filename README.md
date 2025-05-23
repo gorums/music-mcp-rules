@@ -27,7 +27,6 @@ A Model Context Protocol (MCP) server that provides intelligent access to your l
 #### MCP Server Implementation
 - **FastMCP Framework**: Production MCP server using FastMCP library
 - **Tool 1 - scan_music_folders**: Comprehensive music scanning tool with:
-  - Optional `music_root_path` parameter for targeted scanning
   - `force_rescan` option to bypass cache
   - `include_missing_albums` for missing album detection
   - Structured JSON responses with status, results, and tool info
@@ -178,15 +177,12 @@ Once connected, your MCP client will have access to:
 }
 ```
 
-**Note**: No `music_root_path` parameter needed - the environment variable handles this automatically!
-
 ## MCP Tools
 
 ### Tool 1: scan_music_folders
 Comprehensive music collection scanning tool.
 
 **Parameters:**
-- `music_root_path` (optional): Override default music root path
 - `force_rescan` (bool): Bypass cache and force fresh scan
 - `include_missing_albums` (bool): Include missing album detection
 

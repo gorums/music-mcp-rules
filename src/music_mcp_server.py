@@ -37,7 +37,6 @@ mcp = FastMCP("music-collection-mcp")
 
 @mcp.tool()
 def scan_music_folders(
-    music_root_path: Optional[str] = None,
     force_rescan: bool = False,
     include_missing_albums: bool = True
 ) -> Dict[str, Any]:
@@ -52,7 +51,6 @@ def scan_music_folders(
     - Updates the collection index with current state
     
     Args:
-        music_root_path: Optional path to music directory. If not provided, uses config default.
         force_rescan: If True, forces a complete rescan ignoring cache.
         include_missing_albums: If True, includes detection of missing albums.
     
@@ -63,21 +61,8 @@ def scan_music_folders(
         - collection_path: Path to the scanned music collection
     """
     try:
-        # Import config here to avoid circular imports
-        from src.config import config
-        
-        # Use provided path or fall back to config
-        if music_root_path:
-            # Temporarily update config for this scan
-            original_path = config.MUSIC_ROOT_PATH
-            config.MUSIC_ROOT_PATH = music_root_path
-        
-        # Call the actual scanner function
+        # Call the actual scanner function using config MUSIC_ROOT_PATH
         result = scanner_scan_music_folders()
-        
-        # Restore original path if it was changed
-        if music_root_path:
-            config.MUSIC_ROOT_PATH = original_path
             
         # Add tool-specific metadata
         if result.get('status') == 'success':
