@@ -111,7 +111,7 @@ The server will be configured as a local MCP server in Claude Desktop or other M
   "mcpServers": {
     "music-collection": {
       "command": "python",
-      "args": ["/path/to/music_mcp_server.py"],
+      "args": ["/path/to/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/your/music"
       }

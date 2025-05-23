@@ -1,0 +1,32 @@
+{
+  "stats": {
+    "total_bands": 2,
+    "total_albums": 2,
+    "total_missing_albums": 0,
+    "bands_with_metadata": 0,
+    "top_genres": {},
+    "avg_albums_per_band": 1.0,
+    "completion_percentage": 100.0
+  },
+  "bands": [
+    {
+      "name": "Pink Floyd",
+      "albums_count": 1,
+      "folder_path": "Pink Floyd",
+      "missing_albums_count": 0,
+      "has_metadata": false,
+      "last_updated": "2025-05-23T16:06:59.882494"
+    },
+    {
+      "name": "The Beatles",
+      "albums_count": 1,
+      "folder_path": "The Beatles",
+      "missing_albums_count": 0,
+      "has_metadata": false,
+      "last_updated": "2025-05-23T16:06:59.888209"
+    }
+  ],
+  "last_scan": "2025-05-23T16:06:59.888248",
+  "insights": null,
+  "metadata_version": "1.0"
+}

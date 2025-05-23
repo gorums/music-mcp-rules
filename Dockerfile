@@ -19,8 +19,15 @@ COPY . .
 ENV MUSIC_ROOT_PATH=/music
 ENV CACHE_DURATION_DAYS=30
 ENV LOG_LEVEL=INFO
+ENV PYTHONPATH=/app
+
+# Create mount point for music collection
+RUN mkdir -p /music
+
+# Define volume for external music collection
+VOLUME ["/music"]
 
 # Expose no ports (stdio server)
 
-# Default command
-CMD ["python", "src/music_mcp_server.py"] 
+# Default command - run as module with proper package context
+CMD ["python", "-m", "main"] 

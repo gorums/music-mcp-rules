@@ -7,6 +7,7 @@ alwaysApply: true
 - **Always read `docs/PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
 - **Check `docs/TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
 - **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
+- **Avoid corrupt the files** doing the edit
 
 ### 🧱 Code Structure & Modularity
 - **Never create a file longer than 200 lines of code.** If a file approaches this limit, refactor by splitting it into modules or helper files.
@@ -17,7 +18,7 @@ alwaysApply: true
 - **Always create Pytest unit tests for new features** (functions, classes, routes, etc).
 - **After updating any logic**, check whether existing unit tests need to be updated. If so, do it.
 - **Tests should live in a `/tests` folder** mirroring the main app structure.
-- **Tests are using docker to run** using `docker build -f Dockerfile.test -t music-mcp-tests .` and `docker run --rm music-mcp-tests python -m pytest tests/test_cache.py -v`
+- **Tests are using docker to run** using `docker build -f Dockerfile.test -t music-mcp-tests .` and `docker run --rm music-mcp-tests python -m pytest . -v`
   - Include at least:
     - 1 test for expected use
     - 1 edge case
