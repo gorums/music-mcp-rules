@@ -231,11 +231,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         config = Config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
-        
-        # Ensure band name matches metadata
-        if metadata.band_name != band_name:
-            metadata.band_name = band_name
-        
+                
         # Update timestamp
         metadata.update_timestamp()
         
