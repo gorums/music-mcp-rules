@@ -126,6 +126,117 @@ docker build -t music-mcp-server .
 docker run -it music-mcp-server
 ```
 
+## Schema Discovery and Validation
+
+### How MCP Clients Can Discover Correct Metadata Structure
+
+The server provides multiple ways for MCP clients to discover and validate the correct metadata structure:
+
+#### 1. Schema Documentation Resource
+```
+schema://band_metadata
+```
+**Purpose**: Get complete BandMetadata schema documentation in markdown format
+**Contains**: 
+- Required and optional fields with types and examples
+- Complete JSON example with proper structure
+- Common validation errors table
+- Field name corrections guide
+
+#### 2. Validation Tool (Dry-Run)
+```json
+{
+  "tool": "validate_band_metadata_tool",
+  "arguments": {
+    "band_name": "Pink Floyd",
+    "metadata": { ... }
+  }
+}
+```
+**Purpose**: Validate metadata structure WITHOUT saving anything
+**Returns**:
+- Validation status (valid/invalid)
+- Detailed error descriptions
+- Actionable suggestions to fix issues
+- Example corrections for common errors
+- Points to schema documentation resource
+
+#### 3. Enhanced Error Messages
+The `save_band_metadata_tool` provides comprehensive error reporting when validation fails:
+```json
+{
+  "status": "error",
+  "error": "Metadata validation failed: ...",
+  "validation_results": {
+    "schema_valid": false,
+    "validation_errors": ["Specific field errors"],
+    "suggestions": ["How to fix each error"]
+  }
+}
+```
+
+### Common Schema Issues and Solutions
+
+| ❌ Incorrect | ✅ Correct | Issue |
+|-------------|-----------|--------|
+| `"genres": [...]` | `"genre": [...]` | Wrong field name |
+| `formed_year: 1965` | `"formed": "1965"` | Integer vs string, wrong name |
+| `members: {former: [...], current: [...]}` | `members: [...]` | Nested vs flat structure |
+| `"notable_albums": [...]` | `"albums": [...]` | Wrong field name |
+| `year: 1973` | `"year": "1973"` | Integer vs string in albums |
+| `tracks_count: -1` | `tracks_count: 8` | Negative numbers not allowed |
+| `rate: 11` | `rate: 10` | Rating must be 0-10 |
+
+### Client Workflow for Schema Discovery
+
+1. **Test Structure**: Use `validate_band_metadata_tool` to test your metadata structure
+2. **Fix Errors**: Follow the suggestions and example corrections provided
+3. **Verify**: Re-validate until status is "valid"
+4. **Save**: Use `save_band_metadata_tool` when validation passes
+5. **Reference**: Access `schema://band_metadata` resource for complete documentation
+
+### Example: Converting Incorrect to Correct Structure
+
+**❌ Original (Incorrect):**
+```json
+{
+  "genres": ["Progressive Rock"],
+  "formed_year": 1965,
+  "members": {
+    "former": ["David Gilmour", "Roger Waters"],
+    "current": []
+  },
+  "notable_albums": [
+    {
+      "type": "studio",
+      "year": 1973,
+      "title": "The Dark Side of the Moon"
+    }
+  ],
+  "formed_location": "London, England"
+}
+```
+
+**✅ Corrected:**
+```json
+{
+  "band_name": "Pink Floyd",
+  "formed": "1965",
+  "genre": ["Progressive Rock"],
+  "origin": "London, England",
+  "members": ["David Gilmour", "Roger Waters"],
+  "description": "Legendary progressive rock band...",
+  "albums": [
+    {
+      "album_name": "The Dark Side of the Moon",
+      "year": "1973",
+      "tracks_count": 10,
+      "missing": false
+    }
+  ]
+}
+```
+
 ## MCP Client Integration
 
 **MCP Client Configuration:**

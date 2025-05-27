@@ -179,22 +179,242 @@ def save_band_metadata_tool(
     metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save band metadata to the local storage.
+    Save band metadata to local storage with complete schema validation and collection sync.
+    
+    This tool performs comprehensive metadata storage operations:
+    - Validates metadata against the enhanced BandMetadata schema
+    - Handles complete schema with albums array and all fields
+    - Creates automatic backup of existing metadata before overwriting
+    - Updates last_updated timestamp automatically
+    - Syncs band information with the collection index
+    - Returns detailed operation status with validation results
     
     Args:
-        band_name: The name of the band
-        metadata: Complete metadata dictionary for the band
+        band_name: The name of the band (must match metadata.band_name if provided)
+        metadata: Complete metadata dictionary following BandMetadata schema:
         
+            REQUIRED FIELDS:
+            - band_name (str): Name of the band
+            - formed (str): Formation year in YYYY format (e.g., "1965")
+            - genres (List[str]): List of band genres (e.g., ["Progressive Rock", "Psychedelic Rock"])
+            - origin (str): Country/location of origin (e.g., "London, England")
+            - members (List[str]): Flat list of all band member names
+            - description (str): Band description/biography
+            - albums (List[Album]): Array of album objects with structure:
+                - album_name (str): Name of the album
+                - year (str): Release year in YYYY format
+                - tracks_count (int): Number of tracks (>= 0)
+                - missing (bool): True if album not in local folders
+                - duration (str, optional): Album duration (e.g., "43min")
+                - genres (List[str], optional): Album-specific genres
+            
+            OPTIONAL FIELDS:
+            - analyze (BandAnalysis, optional): Analysis data with:
+                - review (str): Overall band review
+                - rate (int): Rating 1-10 scale
+                - albums (List[AlbumAnalysis]): Per-album analysis
+                - similar_bands (List[str]): Names of similar bands
+    
+    EXAMPLE METADATA STRUCTURE:
+    {
+        "band_name": "Pink Floyd",
+        "formed": "1965",
+        "genres": ["Progressive Rock", "Psychedelic Rock"],
+        "origin": "London, England", 
+        "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright"],
+        "description": "Legendary progressive rock band...",
+        "albums": [
+            {
+                "album_name": "The Dark Side of the Moon",
+                "year": "1973",
+                "tracks_count": 10,
+                "missing": false,
+                "duration": "43min",
+                "genre": ["Progressive Rock"]
+            },
+            {
+                "album_name": "The Wall",
+                "year": "1979",
+                "tracks_count": 26,
+                "missing": false,
+                "duration": "81min",
+                "genre": ["Progressive Rock", "Rock Opera"]
+            }
+        ],
+        "analyze": {
+            "review": "One of the greatest bands of all time",
+            "rate": 10,
+            "albums": [{"review": "Masterpiece", "rate": 10}],
+            "similar_bands": ["Yes", "Genesis"]
+        }
+    }
+    
+    COMMON VALIDATION ERRORS:
+    - Using formed_year (int) instead of "formed" (str)
+    - Using nested members.former/current instead of flat "members" list
+    - Using "notable_albums" instead of "albums"
+    - Missing required album fields (album_name, year, tracks_count)
+    - Invalid year format (must be "YYYY" string)
+    - Invalid tracks_count (must be >= 0)
+    - Invalid rating (must be 0-10)
+    
     Returns:
-        Dict containing the operation status
+        Dict containing comprehensive operation results including:
+        - status: 'success' or 'error'
+        - message: Descriptive result message
+        - validation_results: Details about schema validation
+        - file_operations: Information about file saves and backups
+        - collection_sync: Results of collection index synchronization
+        - band_info: Summary of saved band information
     """
     try:
-        return save_band_metadata(band_name, metadata)
+        # Import required models and functions
+        from src.models.band import BandMetadata
+        from src.tools.storage import update_collection_index, load_collection_index
+        from src.models.collection import BandIndexEntry
+        
+        # Step 1: Data validation against enhanced schema
+        validation_results = {
+            "schema_valid": False,
+            "validation_errors": [],
+            "fields_validated": [],
+            "albums_count": 0,
+            "missing_albums_count": 0
+        }
+        
+        try:
+            # Ensure band_name is set correctly in metadata
+            if 'band_name' not in metadata:
+                metadata['band_name'] = band_name
+            elif metadata['band_name'] != band_name:
+                # Update metadata to match parameter
+                metadata['band_name'] = band_name
+                validation_results["validation_errors"].append(
+                    f"band_name updated from '{metadata['band_name']}' to '{band_name}'"
+                )
+            
+            # Create BandMetadata object for validation
+            band_metadata = BandMetadata(**metadata)
+            validation_results["schema_valid"] = True
+            validation_results["fields_validated"] = list(metadata.keys())
+            validation_results["albums_count"] = len(band_metadata.albums)
+            validation_results["missing_albums_count"] = len(band_metadata.get_missing_albums())
+            
+        except Exception as e:
+            validation_results["validation_errors"].append(f"Schema validation failed: {str(e)}")
+            return {
+                'status': 'error',
+                'error': f"Metadata validation failed: {str(e)}",
+                'validation_results': validation_results,
+                'tool_info': {
+                    'tool_name': 'save_band_metadata',
+                    'version': '1.0.0'
+                }
+            }
+        
+        # Step 2: Save metadata with backup mechanism (handled by storage layer)
+        storage_result = save_band_metadata(band_name, band_metadata)
+        
+        # Step 3: Sync with collection index
+        collection_sync_results = {
+            "index_updated": False,
+            "index_errors": [],
+            "band_entry_created": False
+        }
+        
+        try:
+            # Load existing collection index or create new
+            collection_index = load_collection_index()
+            if collection_index is None:
+                from src.models.collection import CollectionIndex
+                collection_index = CollectionIndex()
+            
+            # Create or update band entry
+            band_entry = BandIndexEntry(
+                name=band_name,
+                albums_count=band_metadata.albums_count,
+                folder_path=band_name,
+                missing_albums_count=len(band_metadata.get_missing_albums()),
+                has_metadata=True,
+                last_updated=band_metadata.last_updated
+            )
+            
+            # Check if band already exists in index
+            existing_band = None
+            for i, existing in enumerate(collection_index.bands):
+                if existing.name == band_name:
+                    existing_band = i
+                    break
+            
+            if existing_band is not None:
+                # Update existing entry
+                collection_index.bands[existing_band] = band_entry
+            else:
+                # Add new entry
+                collection_index.bands.append(band_entry)
+                collection_sync_results["band_entry_created"] = True
+            
+            # Update collection index
+            index_update_result = update_collection_index(collection_index)
+            if index_update_result.get("status") == "success":
+                collection_sync_results["index_updated"] = True
+            else:
+                collection_sync_results["index_errors"].append("Failed to update collection index")
+                
+        except Exception as e:
+            collection_sync_results["index_errors"].append(f"Collection sync failed: {str(e)}")
+        
+        # Step 4: Prepare comprehensive response
+        response = {
+            'status': 'success',
+            'message': f"Band metadata successfully saved and validated for {band_name}",
+            'validation_results': validation_results,
+            'file_operations': {
+                'metadata_file': storage_result.get('file_path', ''),
+                'backup_created': True,  # Always true due to JSONStorage.save_json(backup=True)
+                'last_updated': storage_result.get('last_updated', ''),
+                'file_size_bytes': 0  # Could be enhanced to get actual file size
+            },
+            'collection_sync': collection_sync_results,
+            'band_info': {
+                'band_name': band_name,
+                'albums_count': band_metadata.albums_count,
+                'missing_albums_count': validation_results["missing_albums_count"],
+                'completion_percentage': round(
+                    ((band_metadata.albums_count - validation_results["missing_albums_count"]) / max(band_metadata.albums_count, 1)) * 100, 1
+                ) if band_metadata.albums_count > 0 else 100.0,
+                'has_analysis': band_metadata.analyze is not None,
+                'genre_count': len(band_metadata.genre),
+                'members_count': len(band_metadata.members)
+            },
+            'tool_info': {
+                'tool_name': 'save_band_metadata',
+                'version': '1.0.0',
+                'parameters_used': {
+                    'band_name': band_name,
+                    'metadata_fields': list(metadata.keys())
+                }
+            }
+        }
+        
+        return response
+        
     except Exception as e:
         logger.error(f"Error in save_band_metadata tool: {str(e)}")
         return {
             'status': 'error',
-            'error': f"Tool execution failed: {str(e)}"
+            'error': f"Tool execution failed: {str(e)}",
+            'validation_results': {
+                "schema_valid": False,
+                "validation_errors": [str(e)],
+                "fields_validated": [],
+                "albums_count": 0,
+                "missing_albums_count": 0
+            },
+            'tool_info': {
+                'tool_name': 'save_band_metadata',
+                'version': '1.0.0'
+            }
         }
 
 @mcp.tool()
@@ -243,6 +463,176 @@ def save_collection_insight_tool(
             'error': f"Tool execution failed: {str(e)}"
         }
 
+@mcp.tool()
+def validate_band_metadata_tool(
+    band_name: str,
+    metadata: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Validate band metadata structure without saving it.
+    
+    This tool performs dry-run validation to help clients test their metadata format:
+    - Validates metadata against the BandMetadata schema
+    - Returns detailed validation results and errors
+    - Does NOT save any data or modify files
+    - Useful for testing metadata structure before calling save_band_metadata_tool
+    
+    Args:
+        band_name: The name of the band
+        metadata: Metadata dictionary to validate (same format as save_band_metadata_tool)
+    
+    Returns:
+        Dict containing validation results:
+        - status: 'valid' or 'invalid'
+        - validation_results: Detailed schema validation information
+        - suggestions: Helpful suggestions to fix validation errors
+        - example_corrections: Examples of how to fix common errors
+    """
+    try:
+        # Import required models
+        from src.models.band import BandMetadata
+        
+        # Prepare validation results
+        validation_results = {
+            "schema_valid": False,
+            "validation_errors": [],
+            "fields_validated": [],
+            "albums_count": 0,
+            "missing_albums_count": 0,
+            "field_types_correct": {},
+            "missing_required_fields": [],
+            "unexpected_fields": []
+        }
+        
+        suggestions = []
+        example_corrections = {}
+        
+        # Check for common field name errors
+        common_field_errors = {
+            "genres": "genre",
+            "formed_year": "formed", 
+            "formed_location": "origin",
+            "notable_albums": "albums"
+        }
+        
+        for wrong_field, correct_field in common_field_errors.items():
+            if wrong_field in metadata:
+                validation_results["validation_errors"].append(
+                    f"Field '{wrong_field}' should be '{correct_field}'"
+                )
+                suggestions.append(f"Rename '{wrong_field}' to '{correct_field}'")
+                example_corrections[wrong_field] = correct_field
+        
+        # Check for nested members structure
+        if isinstance(metadata.get("members"), dict):
+            validation_results["validation_errors"].append(
+                "Field 'members' should be a flat list, not nested object with 'former'/'current'"
+            )
+            suggestions.append("Flatten members structure: combine all members into single array")
+            example_corrections["members"] = {
+                "wrong": {"former": ["..."], "current": ["..."]},
+                "correct": ["member1", "member2", "member3"]
+            }
+        
+        # Check required fields
+        required_fields = ["band_name", "formed", "genre", "origin", "members", "description", "albums"]
+        for field in required_fields:
+            if field not in metadata:
+                validation_results["missing_required_fields"].append(field)
+                suggestions.append(f"Add required field '{field}'")
+        
+        # Check field types
+        if "formed" in metadata and not isinstance(metadata["formed"], str):
+            validation_results["validation_errors"].append(
+                f"Field 'formed' should be string (YYYY format), got {type(metadata['formed']).__name__}"
+            )
+            suggestions.append("Convert 'formed' to string format: '1965' not 1965")
+            example_corrections["formed"] = {
+                "wrong": 1965,
+                "correct": "1965"
+            }
+        
+        # Ensure band_name consistency
+        if 'band_name' not in metadata:
+            metadata['band_name'] = band_name
+        elif metadata['band_name'] != band_name:
+            metadata['band_name'] = band_name
+            validation_results["validation_errors"].append(
+                f"band_name updated to match parameter: '{band_name}'"
+            )
+        
+        # Try to create BandMetadata object for full validation
+        try:
+            band_metadata = BandMetadata(**metadata)
+            validation_results["schema_valid"] = True
+            validation_results["fields_validated"] = list(metadata.keys())
+            validation_results["albums_count"] = len(band_metadata.albums)
+            validation_results["missing_albums_count"] = len(band_metadata.get_missing_albums())
+            
+            # Validate each field type
+            validation_results["field_types_correct"] = {
+                "band_name": isinstance(metadata.get("band_name"), str),
+                "formed": isinstance(metadata.get("formed"), str),
+                "genre": isinstance(metadata.get("genre"), list),
+                "origin": isinstance(metadata.get("origin"), str),
+                "members": isinstance(metadata.get("members"), list),
+                "description": isinstance(metadata.get("description"), str),
+                "albums": isinstance(metadata.get("albums"), list)
+            }
+            
+        except Exception as e:
+            validation_error = str(e)
+            validation_results["validation_errors"].append(f"Schema validation failed: {validation_error}")
+            
+            # Add specific suggestions based on error message
+            if "String should match pattern" in validation_error and "formed" in validation_error:
+                suggestions.append("'formed' field must be 4-digit year as string (e.g., '1965')")
+            if "ensure this value is greater than or equal to 0" in validation_error:
+                suggestions.append("'tracks_count' must be 0 or positive integer")
+            if "ensure this value is less than or equal to 10" in validation_error:
+                suggestions.append("'rate' fields must be between 0-10")
+        
+        # Check for unexpected fields
+        expected_fields = ["band_name", "formed", "genre", "origin", "members", "description", "albums", "analyze", "last_updated", "albums_count"]
+        for field in metadata.keys():
+            if field not in expected_fields:
+                validation_results["unexpected_fields"].append(field)
+                suggestions.append(f"Unexpected field '{field}' - check field name spelling")
+        
+        # Determine overall status
+        has_validation_errors = len(validation_results["validation_errors"]) > 0
+        has_missing_required = len(validation_results["missing_required_fields"]) > 0
+        schema_invalid = not validation_results["schema_valid"]
+        
+        status = "valid" if (validation_results["schema_valid"] and not has_validation_errors and not has_missing_required) else "invalid"
+        
+        return {
+            "status": status,
+            "message": f"Metadata validation {'successful' if status == 'valid' else 'failed'} for {band_name}",
+            "validation_results": validation_results,
+            "suggestions": suggestions,
+            "example_corrections": example_corrections,
+            "schema_resource": "Use resource 'schema://band_metadata' for complete documentation",
+            "tool_info": {
+                "tool_name": "validate_band_metadata",
+                "version": "1.0.0",
+                "dry_run": True
+            }
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": f"Validation tool failed: {str(e)}",
+            "suggestions": ["Check that metadata is a valid JSON object"],
+            "schema_resource": "Use resource 'schema://band_metadata' for complete documentation",
+            "tool_info": {
+                "tool_name": "validate_band_metadata",
+                "version": "1.0.0",
+                "dry_run": True
+            }
+        }
+
 # Register resources
 @mcp.resource("band://info/{band_name}")
 def band_info_resource(band_name: str) -> str:
@@ -274,6 +664,163 @@ def collection_summary_resource() -> str:
     except Exception as e:
         logger.error(f"Error in collection_summary resource: {str(e)}")
         return f"Error retrieving collection summary: {str(e)}"
+
+@mcp.resource("schema://band_metadata")
+def band_metadata_schema_resource() -> str:
+    """
+    Get the complete BandMetadata schema documentation in markdown format.
+    
+    Returns:
+        Markdown-formatted schema documentation with examples
+    """
+    try:
+        return """# BandMetadata Schema Documentation
+
+## Overview
+The `save_band_metadata_tool` requires metadata to follow the BandMetadata schema. This resource provides the complete schema specification, examples, and common validation errors.
+
+## Required Fields
+
+### `band_name` (string)
+- **Description**: Name of the band
+- **Example**: `"Pink Floyd"`
+- **Validation**: Must match the band_name parameter
+
+### `formed` (string)
+- **Description**: Formation year in YYYY format
+- **Example**: `"1965"`
+- **Validation**: Must be 4-digit year as string
+- **Common Error**: Using integer `1965` instead of string `"1965"`
+
+### `genre` (array of strings)
+- **Description**: List of band genres
+- **Example**: `["Progressive Rock", "Psychedelic Rock", "Space Rock"]`
+- **Common Error**: Using `"genres"` field name instead of `"genre"`
+
+### `origin` (string)
+- **Description**: Country/location where band was formed
+- **Example**: `"London, England"`
+- **Common Error**: Using `"formed_location"` field name
+
+### `members` (array of strings)
+- **Description**: Flat list of all band member names
+- **Example**: `["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright"]`
+- **Common Error**: Using nested structure with `members.former` and `members.current`
+
+### `description` (string)
+- **Description**: Band biography or description
+- **Example**: `"Legendary progressive rock band known for..."`
+
+### `albums` (array of Album objects)
+- **Description**: Array of album metadata objects
+- **Common Error**: Using `"notable_albums"` field name instead of `"albums"`
+
+#### Album Object Schema:
+- `album_name` (string, required): Name of the album
+- `year` (string, required): Release year in YYYY format
+- `tracks_count` (integer, required): Number of tracks (>= 0)
+- `missing` (boolean, required): True if album not in local folders
+- `duration` (string, optional): Album duration (e.g., "43min")
+- `genre` (array of strings, optional): Album-specific genres
+
+## Optional Fields
+
+### `analyze` (BandAnalysis object, optional)
+Analysis data including reviews and ratings.
+
+#### BandAnalysis Schema:
+- `review` (string): Overall band review
+- `rate` (integer): Rating on 1-10 scale (0 = unrated)
+- `albums` (array of AlbumAnalysis): Per-album analysis
+- `similar_bands` (array of strings): Names of similar bands
+
+#### AlbumAnalysis Schema:
+- `review` (string): Album review
+- `rate` (integer): Album rating on 1-10 scale
+
+## Complete Example
+
+```json
+{
+  "band_name": "Pink Floyd",
+  "formed": "1965",
+  "genre": ["Progressive Rock", "Psychedelic Rock", "Space Rock"],
+  "origin": "London, England",
+  "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright", "Syd Barrett"],
+  "description": "One of the most influential progressive rock bands, known for concept albums and innovative soundscapes.",
+  "albums": [
+    {
+      "album_name": "The Dark Side of the Moon",
+      "year": "1973",
+      "tracks_count": 10,
+      "missing": false,
+      "duration": "43min",
+      "genre": ["Progressive Rock"]
+    },
+    {
+      "album_name": "The Wall",
+      "year": "1979", 
+      "tracks_count": 26,
+      "missing": false,
+      "duration": "81min",
+      "genre": ["Progressive Rock", "Rock Opera"]
+    }
+  ],
+  "analyze": {
+    "review": "Pioneers of progressive and psychedelic rock with unmatched artistic vision",
+    "rate": 10,
+    "albums": [
+      {
+        "review": "Timeless masterpiece exploring themes of life and death",
+        "rate": 10
+      },
+      {
+        "review": "Ambitious rock opera about isolation and alienation", 
+        "rate": 9
+      }
+    ],
+    "similar_bands": ["Yes", "Genesis", "King Crimson", "Led Zeppelin"]
+  }
+}
+```
+
+## Common Validation Errors
+
+| ❌ Incorrect | ✅ Correct | Issue |
+|-------------|-----------|--------|
+| `formed_year: 1965` | `"formed": "1965"` | Integer vs string, wrong name |
+| `members: {former: [...], current: [...]}` | `members: [...]` | Nested vs flat structure |
+| `"notable_albums"` | `"albums"` | Wrong field name |
+| `year: 1973` | `"year": "1973"` | Integer vs string |
+| `tracks_count: -1` | `tracks_count: 8` | Negative numbers not allowed |
+| `rate: 11` | `rate: 10` | Rating must be 0-10 |
+
+## Schema Validation Response
+
+When validation fails, the tool returns detailed error information:
+
+```json
+{
+  "status": "error",
+  "error": "Metadata validation failed: ...",
+  "validation_results": {
+    "schema_valid": false,
+    "validation_errors": ["List of specific errors"],
+    "fields_validated": [],
+    "albums_count": 0,
+    "missing_albums_count": 0
+  }
+}
+```
+
+## Additional Resources
+
+- Use `band://info/{band_name}` resource to see existing band metadata
+- Use `collection://summary` resource to see collection overview
+- Use the `get_band_list_tool` to see all bands in your collection
+"""
+    except Exception as e:
+        return f"Error generating schema documentation: {str(e)}"
 
 # Register prompts
 @mcp.prompt()
