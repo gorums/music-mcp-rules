@@ -67,7 +67,7 @@ music_root/
 {
   "band_name": "string",
   "formed": "YYYY",
-  "genre": ["string"],
+  "genres": ["string"],
   "origin": "string",
   "members": ["string"],
   "albums_count": number,
@@ -79,7 +79,7 @@ music_root/
                      "tracks_count": number,
                      "duration": "string", // "67min"
                      "year": "YYYY",
-                     "genre": ["string"],
+                     "genres": ["string"],
               }
        ],
   "last_updated": "ISO datetime", 

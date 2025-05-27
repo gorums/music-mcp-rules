@@ -48,7 +48,7 @@ class TestMetadataFunctions:
         metadata = BandMetadata(
             band_name=band_name,
             formed="2000",
-            genre=["Rock"]
+            genres=["Rock"]
         )
         
         # Call function

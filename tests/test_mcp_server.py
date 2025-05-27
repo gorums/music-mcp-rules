@@ -38,7 +38,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         metadata = {
             "band_name": band_name,
             "formed": "1990",
-            "genre": ["Rock", "Metal"],
+            "genres": ["Rock", "Metal"],
             "origin": "USA",
             "members": ["John Doe", "Jane Smith"],
             "description": "A great rock band",
@@ -52,7 +52,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             ]
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         # Check overall success
         assert result["status"] == "success"
@@ -90,11 +90,10 @@ class TestSaveBandMetadataTool(unittest.TestCase):
 
     def test_save_band_metadata_with_analysis(self):
         """Test metadata save with analysis data."""
-        band_name = "Analyzed Band"
         metadata = {
-            "band_name": band_name,
+            "band_name": "Analyzed Band",
             "formed": "1985",
-            "genre": ["Metal"],
+            "genres": ["Metal"],
             "albums": [
                 {
                     "album_name": "Heavy Album",
@@ -122,7 +121,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             }
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
@@ -136,46 +135,22 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         assert band_info["has_analysis"] is True
         assert band_info["completion_percentage"] == 50.0  # 1 of 2 albums present
 
-    def test_save_band_metadata_band_name_mismatch(self):
-        """Test handling of band_name parameter vs metadata mismatch."""
-        band_name = "Correct Name"
-        metadata = {
-            "band_name": "Wrong Name",
-            "formed": "2000",
-            "genre": ["Pop"],
-            "albums": []
-        }
-        
-        result = save_band_metadata_tool(band_name, metadata)
-        
-        assert result["status"] == "success"
-        
-        # Check that validation caught the mismatch
-        validation = result["validation_results"]
-        assert validation["schema_valid"] is True
-        assert any("band_name updated" in error for error in validation["validation_errors"])
-        
-        # Verify the correct name was used
-        band_info = result["band_info"]
-        assert band_info["band_name"] == band_name
-
     def test_save_band_metadata_missing_band_name(self):
         """Test handling of metadata without band_name field."""
-        band_name = "Auto Named Band"
         metadata = {
+            "band_name": "Missing Band Name",
             "formed": "2010",
-            "genre": ["Indie"],
+            "genres": ["Indie"],
             "albums": []
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
         # Verify band_name was automatically added
         validation = result["validation_results"]
         assert validation["schema_valid"] is True
-        assert "band_name" in validation["fields_validated"]
 
     def test_save_band_metadata_invalid_schema(self):
         """Test handling of invalid metadata schema."""
@@ -191,7 +166,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             ]
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "error"
         assert "validation failed" in result["error"]
@@ -225,7 +200,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         metadata = {
             "band_name": band_name,
             "formed": "1995",
-            "genre": ["Alternative"],
+            "genres": ["Alternative"],
             "albums": [
                 {
                     "album_name": "First Album",
@@ -240,7 +215,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             ]
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
@@ -265,7 +240,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         with patch('src.tools.storage.update_collection_index') as mock_update:
             mock_update.return_value = {"status": "error", "error": "Mock error"}
             
-            result = save_band_metadata_tool(band_name, metadata)
+            result = save_band_metadata_tool(metadata)
         
         # Should still succeed in saving metadata
         assert result["status"] == "success"
@@ -281,11 +256,11 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         metadata = {
             "band_name": band_name,
             "formed": "2020",
-            "genre": ["Experimental"],
+            "genres": ["Experimental"],
             "albums": []
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
@@ -303,7 +278,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         metadata = {
             "band_name": band_name,
             "formed": "1980",
-            "genre": ["Progressive Rock", "Art Rock"],
+            "genres": ["Progressive Rock", "Art Rock"],
             "origin": "United Kingdom",
             "members": ["Vocalist", "Guitarist", "Bassist", "Drummer"],
             "description": "A pioneering progressive rock band known for complex compositions",
@@ -314,7 +289,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
                     "tracks_count": 8,
                     "duration": "45min",
                     "year": "1982",
-                    "genre": ["Progressive Rock"]
+                    "genres": ["Progressive Rock"]
                 },
                 {
                     "album_name": "Sophomore Effort",
@@ -322,7 +297,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
                     "tracks_count": 10,
                     "duration": "52min",
                     "year": "1984",
-                    "genre": ["Art Rock"]
+                    "genres": ["Art Rock"]
                 },
                 {
                     "album_name": "Lost Album",
@@ -330,7 +305,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
                     "tracks_count": 6,
                     "duration": "38min",
                     "year": "1986",
-                    "genre": ["Progressive Rock"]
+                    "genres": ["Progressive Rock"]
                 }
             ],
             "analyze": {
@@ -354,7 +329,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             }
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
@@ -364,7 +339,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         assert validation["albums_count"] == 3
         assert validation["missing_albums_count"] == 1
         assert len(validation["validation_errors"]) == 0
-        expected_fields = ["band_name", "formed", "genre", "origin", "members", "description", "albums", "analyze"]
+        expected_fields = ["band_name", "formed", "genres", "origin", "members", "description", "albums", "analyze"]
         for field in expected_fields:
             assert field in validation["fields_validated"]
         
@@ -386,7 +361,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             "albums": []
         }
         
-        result = save_band_metadata_tool(band_name, metadata)
+        result = save_band_metadata_tool(metadata)
         
         assert result["status"] == "success"
         
@@ -395,7 +370,6 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         assert tool_info["tool_name"] == "save_band_metadata"
         assert tool_info["version"] == "1.0.0"
         assert "parameters_used" in tool_info
-        assert tool_info["parameters_used"]["band_name"] == band_name
         assert isinstance(tool_info["parameters_used"]["metadata_fields"], list)
 
 

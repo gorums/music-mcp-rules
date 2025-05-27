@@ -14,14 +14,14 @@ class Album(BaseModel):
         tracks_count: Number of tracks in the album
         duration: Album duration in format "67min"
         year: Year of album release (YYYY format)
-        genre: List of genres for this album
+        genres: List of genres for this album
     """
     album_name: str = Field(..., description="Name of the album")
     missing: bool = Field(default=False, description="True if album not found in local folders")
     tracks_count: int = Field(default=0, ge=0, description="Number of tracks in album")
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
-    genre: List[str] = Field(default_factory=list, description="List of album genres")
+    genres: List[str] = Field(default_factory=list, description="List of album genres")
 
     model_config = ConfigDict(
         json_encoders={
@@ -81,7 +81,7 @@ class BandMetadata(BaseModel):
     Attributes:
         band_name: Name of the band
         formed: Year band was formed (YYYY format)
-        genre: List of band genres
+        genres: List of band genres
         origin: Country/location of origin
         members: List of band member names
         albums_count: Total number of albums
@@ -92,7 +92,7 @@ class BandMetadata(BaseModel):
     """
     band_name: str = Field(..., description="Band name")
     formed: str = Field(default="", pattern=r"^\d{4}$|^$", description="Formation year (YYYY)")
-    genre: List[str] = Field(default_factory=list, description="Band genres")
+    genres: List[str] = Field(default_factory=list, description="Band genres")
     origin: str = Field(default="", description="Country/location of origin")
     members: List[str] = Field(default_factory=list, description="Band member names")
     albums_count: int = Field(default=0, ge=0, description="Total number of albums")

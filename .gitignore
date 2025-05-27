@@ -140,5 +140,5 @@ cython_debug/
 # Backup files created by storage operations
 *.backup
 *.backup_*
-*.json.backup
+*.json.backup*
 *.json.backup_* 

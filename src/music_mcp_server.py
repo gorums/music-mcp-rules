@@ -175,54 +175,64 @@ def get_band_list_tool(
 
 @mcp.tool()
 def save_band_metadata_tool(
-    band_name: str,
     metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save band metadata to local storage with complete schema validation and collection sync.
-    
-    This tool performs comprehensive metadata storage operations:
-    - Validates metadata against the enhanced BandMetadata schema
-    - Handles complete schema with albums array and all fields
-    - Creates automatic backup of existing metadata before overwriting
-    - Updates last_updated timestamp automatically
-    - Syncs band information with the collection index
-    - Returns detailed operation status with validation results
+    Save band metadata to the local storage. Chek very careful how is the metadata passed to the tool, check the examples too.
     
     Args:
-        band_name: The name of the band (must match metadata.band_name if provided)
-        metadata: Complete metadata dictionary following BandMetadata schema:
+        metadata: Complete metadata dictionary for the band
         
-            REQUIRED FIELDS:
-            - band_name (str): Name of the band
-            - formed (str): Formation year in YYYY format (e.g., "1965")
-            - genres (List[str]): List of band genres (e.g., ["Progressive Rock", "Psychedelic Rock"])
-            - origin (str): Country/location of origin (e.g., "London, England")
-            - members (List[str]): Flat list of all band member names
-            - description (str): Band description/biography
-            - albums (List[Album]): Array of album objects with structure:
-                - album_name (str): Name of the album
-                - year (str): Release year in YYYY format
-                - tracks_count (int): Number of tracks (>= 0)
-                - missing (bool): True if album not in local folders
-                - duration (str, optional): Album duration (e.g., "43min")
-                - genres (List[str], optional): Album-specific genres
-            
-            OPTIONAL FIELDS:
-            - analyze (BandAnalysis, optional): Analysis data with:
-                - review (str): Overall band review
-                - rate (int): Rating 1-10 scale
-                - albums (List[AlbumAnalysis]): Per-album analysis
-                - similar_bands (List[str]): Names of similar bands
+    Returns:
+        Dict containing the operation status
     
-    EXAMPLE METADATA STRUCTURE:
+    METADATA SCHEMA:
+    The metadata parameter must be a dictionary with the following structure:
+    
+    REQUIRED FIELDS:
+    ================
+    - band_name (string): Name of the band
+    - formed (string): Formation year in "YYYY" format
+    - genres (array of strings): List of music genres
+    - origin (string): Country/city of origin
+    - members (array of strings): List of all band member names
+    - description (string): Band biography or description
+    - albums (array): List of album objects (see Album Schema below)
+    
+    OPTIONAL FIELDS:
+    ================
+    - analyze (object): Analysis data (see Analysis Schema below)
+    
+    ALBUM SCHEMA (for each item in albums array):
+    =============================================
+    REQUIRED:
+    - album_name (string): Name of the album
+    - year (string): Release year in "YYYY" format  
+    - tracks_count (integer): Number of tracks (must be >= 0)
+    - missing (boolean): true if album not found in local folders, false if present
+    
+    OPTIONAL:
+    - duration (string): Album length (format: "43min", "1h 23min", etc.)
+    - genres (array of strings): Album-specific genres (can differ from band genres)
+    
+    ANALYSIS SCHEMA (optional analyze field):
+    ========================================
+    - review (string): Overall band review text
+    - rate (integer): Rating from 1-10
+    - albums (array): Per-album analysis objects with:
+        - review (string): Album review text
+        - rate (integer): Album rating 1-10
+    - similar_bands (array of strings): Names of similar/related bands
+    
+    COMPLETE EXAMPLE:
+    ================
     {
         "band_name": "Pink Floyd",
-        "formed": "1965",
-        "genres": ["Progressive Rock", "Psychedelic Rock"],
-        "origin": "London, England", 
-        "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright"],
-        "description": "Legendary progressive rock band...",
+        "formed": "1965", 
+        "genres": ["Progressive Rock", "Psychedelic Rock", "Art Rock"],
+        "origin": "London, England",
+        "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright", "Syd Barrett"],
+        "description": "English rock band formed in London in 1965. Achieved international acclaim with their progressive and psychedelic music.",
         "albums": [
             {
                 "album_name": "The Dark Side of the Moon",
@@ -230,42 +240,78 @@ def save_band_metadata_tool(
                 "tracks_count": 10,
                 "missing": false,
                 "duration": "43min",
-                "genre": ["Progressive Rock"]
+                "genres": ["Progressive Rock", "Art Rock"]
             },
             {
-                "album_name": "The Wall",
+                "album_name": "The Wall", 
                 "year": "1979",
                 "tracks_count": 26,
                 "missing": false,
                 "duration": "81min",
-                "genre": ["Progressive Rock", "Rock Opera"]
+                "genres": ["Progressive Rock", "Rock Opera"]
+            },
+            {
+                "album_name": "Wish You Were Here",
+                "year": "1975", 
+                "tracks_count": 5,
+                "missing": true,
+                "duration": "44min"
             }
         ],
         "analyze": {
-            "review": "One of the greatest bands of all time",
+            "review": "One of the most influential progressive rock bands of all time, known for concept albums and innovative studio techniques.",
             "rate": 10,
-            "albums": [{"review": "Masterpiece", "rate": 10}],
-            "similar_bands": ["Yes", "Genesis"]
+            "albums": [
+                {
+                    "review": "Groundbreaking concept album exploring themes of conflict, greed, and mental illness.",
+                    "rate": 10
+                },
+                {
+                    "review": "Epic rock opera telling the story of Pink, a rock star's descent into madness.",
+                    "rate": 9
+                }
+            ],
+            "similar_bands": ["Yes", "Genesis", "King Crimson", "The Alan Parsons Project"]
         }
     }
     
-    COMMON VALIDATION ERRORS:
-    - Using formed_year (int) instead of "formed" (str)
-    - Using nested members.former/current instead of flat "members" list
-    - Using "notable_albums" instead of "albums"
-    - Missing required album fields (album_name, year, tracks_count)
-    - Invalid year format (must be "YYYY" string)
-    - Invalid tracks_count (must be >= 0)
-    - Invalid rating (must be 0-10)
+    MINIMAL EXAMPLE (only required fields):
+    ======================================
+    {
+        "band_name": "The Beatles",
+        "formed": "1960",
+        "genres": ["Rock", "Pop"],
+        "origin": "Liverpool, England", 
+        "members": ["John Lennon", "Paul McCartney", "George Harrison", "Ringo Starr"],
+        "description": "English rock band formed in Liverpool in 1960.",
+        "albums": [
+            {
+                "album_name": "Abbey Road",
+                "year": "1969",
+                "tracks_count": 17,
+                "missing": false
+            }
+        ]
+    }
     
-    Returns:
-        Dict containing comprehensive operation results including:
-        - status: 'success' or 'error'
-        - message: Descriptive result message
-        - validation_results: Details about schema validation
-        - file_operations: Information about file saves and backups
-        - collection_sync: Results of collection index synchronization
-        - band_info: Summary of saved band information
+    COMMON MISTAKES TO AVOID:
+    ========================
+    ❌ Using "formed_year" (should be "formed")
+    ❌ Using integer for formed year (should be string "1965")
+    ❌ Using nested member structure like {"current": [...], "former": [...]} (should be flat array)
+    ❌ Using "notable_albums" or "discography" (should be "albums")
+    ❌ Missing required album fields (album_name, year, tracks_count, missing)
+    ❌ Using integer for album year (should be string "1973")
+    ❌ Negative tracks_count (must be >= 0)
+    ❌ Rating outside 1-10 range
+    
+    VALIDATION NOTES:
+    ================
+    - All year fields must be 4-digit strings (e.g., "1975", not 1975)
+    - Albums array can be empty but must be present
+    - Members array should include all members (past and present) as flat list
+    - Duration format is flexible but should include time unit (min, h, etc.)
+    - Genres should be specific and accurate music genres
     """
     try:
         # Import required models and functions
@@ -284,14 +330,7 @@ def save_band_metadata_tool(
         
         try:
             # Ensure band_name is set correctly in metadata
-            if 'band_name' not in metadata:
-                metadata['band_name'] = band_name
-            elif metadata['band_name'] != band_name:
-                # Update metadata to match parameter
-                metadata['band_name'] = band_name
-                validation_results["validation_errors"].append(
-                    f"band_name updated from '{metadata['band_name']}' to '{band_name}'"
-                )
+            band_name = metadata['band_name']
             
             # Create BandMetadata object for validation
             band_metadata = BandMetadata(**metadata)
@@ -384,7 +423,7 @@ def save_band_metadata_tool(
                     ((band_metadata.albums_count - validation_results["missing_albums_count"]) / max(band_metadata.albums_count, 1)) * 100, 1
                 ) if band_metadata.albums_count > 0 else 100.0,
                 'has_analysis': band_metadata.analyze is not None,
-                'genre_count': len(band_metadata.genre),
+                'genre_count': len(band_metadata.genres),
                 'members_count': len(band_metadata.members)
             },
             'tool_info': {
@@ -509,7 +548,7 @@ def validate_band_metadata_tool(
         
         # Check for common field name errors
         common_field_errors = {
-            "genres": "genre",
+            "genre": "genres",
             "formed_year": "formed", 
             "formed_location": "origin",
             "notable_albums": "albums"
@@ -535,7 +574,7 @@ def validate_band_metadata_tool(
             }
         
         # Check required fields
-        required_fields = ["band_name", "formed", "genre", "origin", "members", "description", "albums"]
+        required_fields = ["band_name", "formed", "genres", "origin", "members", "description", "albums"]
         for field in required_fields:
             if field not in metadata:
                 validation_results["missing_required_fields"].append(field)
@@ -573,7 +612,7 @@ def validate_band_metadata_tool(
             validation_results["field_types_correct"] = {
                 "band_name": isinstance(metadata.get("band_name"), str),
                 "formed": isinstance(metadata.get("formed"), str),
-                "genre": isinstance(metadata.get("genre"), list),
+                "genres": isinstance(metadata.get("genres"), list),
                 "origin": isinstance(metadata.get("origin"), str),
                 "members": isinstance(metadata.get("members"), list),
                 "description": isinstance(metadata.get("description"), str),
@@ -593,7 +632,7 @@ def validate_band_metadata_tool(
                 suggestions.append("'rate' fields must be between 0-10")
         
         # Check for unexpected fields
-        expected_fields = ["band_name", "formed", "genre", "origin", "members", "description", "albums", "analyze", "last_updated", "albums_count"]
+        expected_fields = ["band_name", "formed", "genres", "origin", "members", "description", "albums", "analyze", "last_updated", "albums_count"]
         for field in metadata.keys():
             if field not in expected_fields:
                 validation_results["unexpected_fields"].append(field)
@@ -692,10 +731,10 @@ The `save_band_metadata_tool` requires metadata to follow the BandMetadata schem
 - **Validation**: Must be 4-digit year as string
 - **Common Error**: Using integer `1965` instead of string `"1965"`
 
-### `genre` (array of strings)
+### `genres` (array of strings)
 - **Description**: List of band genres
 - **Example**: `["Progressive Rock", "Psychedelic Rock", "Space Rock"]`
-- **Common Error**: Using `"genres"` field name instead of `"genre"`
+- **Common Error**: Using `"genre"` field name instead of `"genres"`
 
 ### `origin` (string)
 - **Description**: Country/location where band was formed
@@ -721,7 +760,7 @@ The `save_band_metadata_tool` requires metadata to follow the BandMetadata schem
 - `tracks_count` (integer, required): Number of tracks (>= 0)
 - `missing` (boolean, required): True if album not in local folders
 - `duration` (string, optional): Album duration (e.g., "43min")
-- `genre` (array of strings, optional): Album-specific genres
+- `genres` (array of strings, optional): Album-specific genres
 
 ## Optional Fields
 
@@ -744,7 +783,7 @@ Analysis data including reviews and ratings.
 {
   "band_name": "Pink Floyd",
   "formed": "1965",
-  "genre": ["Progressive Rock", "Psychedelic Rock", "Space Rock"],
+  "genres": ["Progressive Rock", "Psychedelic Rock", "Space Rock"],
   "origin": "London, England",
   "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright", "Syd Barrett"],
   "description": "One of the most influential progressive rock bands, known for concept albums and innovative soundscapes.",
@@ -755,7 +794,7 @@ Analysis data including reviews and ratings.
       "tracks_count": 10,
       "missing": false,
       "duration": "43min",
-      "genre": ["Progressive Rock"]
+      "genres": ["Progressive Rock"]
     },
     {
       "album_name": "The Wall",
@@ -763,7 +802,7 @@ Analysis data including reviews and ratings.
       "tracks_count": 26,
       "missing": false,
       "duration": "81min",
-      "genre": ["Progressive Rock", "Rock Opera"]
+      "genres": ["Progressive Rock", "Rock Opera"]
     }
   ],
   "analyze": {

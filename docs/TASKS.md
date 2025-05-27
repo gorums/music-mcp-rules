@@ -2,6 +2,14 @@
 
 ## Discovered During Work
 
+### Task: Change 'genre' field to 'genres' throughout project - IN PROGRESS (2025-01-25)
+- [ ] Update metadata schema in PLANNING.md
+- [ ] Update band and album models in src/models/band.py
+- [ ] Update all references in source code files
+- [ ] Update all test files to use 'genres' instead of 'genre' 
+- [ ] Update documentation and examples
+- [ ] Ensure backward compatibility during transition
+
 ### Task: Fix Docker Path Configuration for MCP Client Integration - DISCOVERED (2025-01-23)
 - [x] Identified issue: MCP clients sending Windows paths to Linux Docker containers
 - [x] Confirmed MCP server works correctly with proper container paths

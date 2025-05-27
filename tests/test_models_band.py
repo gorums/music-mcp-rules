@@ -23,7 +23,7 @@ class TestAlbum:
         assert album.tracks_count == 0
         assert album.duration == ""
         assert album.year == ""
-        assert album.genre == []
+        assert album.genres == []
     
     def test_album_creation_all_fields(self):
         """Test album creation with all fields provided."""
@@ -33,7 +33,7 @@ class TestAlbum:
             tracks_count=12,
             duration="45min",
             year="1990",
-            genre=["Rock", "Alternative"]
+            genres=["Rock", "Alternative"]
         )
         
         assert album.album_name == "Test Album"
@@ -41,7 +41,7 @@ class TestAlbum:
         assert album.tracks_count == 12
         assert album.duration == "45min"
         assert album.year == "1990"
-        assert album.genre == ["Rock", "Alternative"]
+        assert album.genres == ["Rock", "Alternative"]
     
     def test_album_year_validation_valid(self):
         """Test valid year formats."""
@@ -147,7 +147,7 @@ class TestBandMetadata:
         
         assert metadata.band_name == "Test Band"
         assert metadata.formed == ""
-        assert metadata.genre == []
+        assert metadata.genres == []
         assert metadata.origin == ""
         assert metadata.members == []
         assert metadata.albums_count == 0
@@ -171,7 +171,7 @@ class TestBandMetadata:
         metadata = BandMetadata(
             band_name="Test Band",
             formed="1990",
-            genre=["Rock", "Alternative"],
+            genres=["Rock", "Alternative"],
             origin="USA",
             members=["Singer", "Guitarist"],
             albums_count=2,
@@ -182,7 +182,7 @@ class TestBandMetadata:
         
         assert metadata.band_name == "Test Band"
         assert metadata.formed == "1990"
-        assert metadata.genre == ["Rock", "Alternative"]
+        assert metadata.genres == ["Rock", "Alternative"]
         assert metadata.origin == "USA"
         assert metadata.members == ["Singer", "Guitarist"]
         assert metadata.albums_count == 2
@@ -208,7 +208,7 @@ class TestBandMetadata:
         metadata = BandMetadata(
             band_name="Test Band",
             formed="1990",
-            genre=["Rock"]
+            genres=["Rock"]
         )
         
         json_str = metadata.to_json()
@@ -218,14 +218,14 @@ class TestBandMetadata:
         parsed = json.loads(json_str)
         assert parsed["band_name"] == "Test Band"
         assert parsed["formed"] == "1990"
-        assert parsed["genre"] == ["Rock"]
+        assert parsed["genres"] == ["Rock"]
     
     def test_from_json_deserialization(self):
         """Test JSON deserialization of band metadata."""
         json_data = {
             "band_name": "Test Band",
             "formed": "1990",
-            "genre": ["Rock"],
+            "genres": ["Rock"],
             "albums": [
                 {
                     "album_name": "Test Album",

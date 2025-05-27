@@ -528,13 +528,13 @@ def _filter_bands_by_genre(bands: List[BandIndexEntry], genre_filter: str) -> Li
     for band in bands:
         try:
             metadata = load_band_metadata(band.name)
-            if metadata and metadata.genre:
+            if metadata and metadata.genres:
                 # Check if any of the band's genres match the filter
-                band_genres = [g.lower() for g in metadata.genre]
+                band_genres = [g.lower() for g in metadata.genres]
                 if any(genre_filter in genre for genre in band_genres):
                     filtered_bands.append(band)
-        except:
-            # Skip if metadata can't be loaded
+        except Exception:
+            # Skip bands with corrupted metadata
             continue
     
     return filtered_bands
@@ -584,7 +584,7 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
             if metadata:
                 band_info["metadata"] = {
                     "formed": metadata.formed,
-                    "genre": metadata.genre,
+                    "genres": metadata.genres,
                     "origin": metadata.origin,
                     "members": metadata.members,
                     "description": metadata.description
@@ -598,7 +598,7 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
                         "tracks_count": album.tracks_count,
                         "duration": album.duration,
                         "year": album.year,
-                        "genre": album.genre
+                        "genres": album.genres
                     }
                     band_info["albums"].append(album_info)
                 

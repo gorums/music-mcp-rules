@@ -233,27 +233,28 @@ class TestMetadataOperations:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_save_band_metadata_success(self):
-        """Test successful band metadata save."""
+        """Test successful metadata save operation."""
         band_name = "Test Band"
         metadata = BandMetadata(
             band_name=band_name,
-            formed="2000",
-            genre=["Rock"],
+            formed="1990",
+            genres=["Rock"],
             origin="USA",
             members=["John", "Jane"],
-            description="A test band"
+            description="A test band",
+            albums=[]
         )
-        
+
         result = save_band_metadata(band_name, metadata)
-        
+
         assert result["status"] == "success"
-        assert band_name in result["message"]
-        assert "albums_count" in result
-        
+        assert result["message"] == f"Band metadata saved for {band_name}"
+        assert result["last_updated"] is not None
+        assert result["albums_count"] == 0
+
         # Verify file was created
-        band_folder = Path(self.temp_dir) / band_name
-        metadata_file = band_folder / ".band_metadata.json"
-        assert metadata_file.exists()
+        metadata_file = Path(self.temp_dir) / band_name / ".band_metadata.json"
+        assert metadata_file.exists() == True
 
     def test_save_band_metadata_updates_timestamp(self):
         """Test that saving metadata updates timestamp."""
@@ -294,7 +295,7 @@ class TestMetadataOperations:
         metadata = BandMetadata(
             band_name=band_name,
             formed="1990",
-            genre=["Metal"]
+            genres=["Metal"]
         )
         save_band_metadata(band_name, metadata)
         
@@ -312,7 +313,7 @@ class TestMetadataOperations:
         # Verify metadata was preserved
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata.formed == "1990"
-        assert loaded_metadata.genre == ["Metal"]
+        assert loaded_metadata.genres == ["Metal"]
         assert loaded_metadata.analyze.review == "Updated review"
 
     def test_save_collection_insight_new_index(self):
@@ -416,7 +417,7 @@ class TestBandListOperations:
         original_metadata = BandMetadata(
             band_name=band_name,
             formed="2000",
-            genre=["Rock"]
+            genres=["Rock"]
         )
         
         # Save metadata
@@ -428,7 +429,7 @@ class TestBandListOperations:
         assert loaded_metadata is not None
         assert loaded_metadata.band_name == band_name
         assert loaded_metadata.formed == "2000"
-        assert loaded_metadata.genre == ["Rock"]
+        assert loaded_metadata.genres == ["Rock"]
 
     def test_load_band_metadata_nonexistent(self):
         """Test loading non-existent band metadata."""
@@ -648,64 +649,67 @@ class TestEnhancedBandListOperations(unittest.TestCase):
     def _create_test_metadata(self):
         """Create test band metadata files."""
         # Alice in Chains metadata
-        alice_metadata = BandMetadata(
+        alice_in_chains = BandMetadata(
             band_name="Alice in Chains",
             formed="1987",
-            genre=["Grunge", "Alternative Metal"],
-            origin="Seattle, USA",
-            members=["Layne Staley", "Jerry Cantrell"],
+            genres=["Grunge", "Alternative Metal"],
+            origin="Seattle, Washington, USA",
+            members=["Layne Staley", "Jerry Cantrell", "Mike Starr", "Sean Kinney"],
+            description="Alternative metal/grunge band from Seattle",
             albums=[
-                Album(album_name="Facelift", missing=False, tracks_count=12, year="1990", genre=["Grunge"]),
-                Album(album_name="Dirt", missing=False, tracks_count=13, year="1992", genre=["Grunge"]),
-                Album(album_name="Alice in Chains", missing=False, tracks_count=12, year="1995", genre=["Grunge"]),
-                Album(album_name="Black Gives Way to Blue", missing=True, tracks_count=11, year="2009", genre=["Alternative Metal"])
+                Album(album_name="Facelift", missing=False, tracks_count=12, year="1990", genres=["Grunge"]),
+                Album(album_name="Dirt", missing=False, tracks_count=13, year="1992", genres=["Grunge"]),
+                Album(album_name="Alice in Chains", missing=False, tracks_count=12, year="1995", genres=["Grunge"]),
+                Album(album_name="Black Gives Way to Blue", missing=True, tracks_count=11, year="2009", genres=["Alternative Metal"])
             ]
         )
         alice_dir = self.test_dir / "Alice in Chains"
         alice_dir.mkdir(exist_ok=True)
         alice_metadata_file = alice_dir / ".band_metadata.json"
-        storage.JSONStorage.save_json(alice_metadata_file, alice_metadata.model_dump())
+        storage.JSONStorage.save_json(alice_metadata_file, alice_in_chains.model_dump())
         
         # Black Sabbath metadata  
-        sabbath_metadata = BandMetadata(
+        black_sabbath = BandMetadata(
             band_name="Black Sabbath",
             formed="1968",
-            genre=["Heavy Metal", "Hard Rock"],
-            origin="Birmingham, UK",
-            members=["Ozzy Osbourne", "Tony Iommi", "Geezer Butler"],
+            genres=["Heavy Metal", "Hard Rock"],
+            origin="Birmingham, England",
+            members=["Ozzy Osbourne", "Tony Iommi", "Geezer Butler", "Bill Ward"],
+            description="Pioneering heavy metal band",
             albums=[
-                Album(album_name="Paranoid", missing=False, tracks_count=8, year="1970", genre=["Heavy Metal"]),
-                Album(album_name="Master of Reality", missing=False, tracks_count=8, year="1971", genre=["Heavy Metal"]),
-                Album(album_name="Vol. 4", missing=False, tracks_count=9, year="1972", genre=["Heavy Metal"]),
-                Album(album_name="Sabbath Bloody Sabbath", missing=False, tracks_count=8, year="1973", genre=["Heavy Metal"]),
-                Album(album_name="Sabotage", missing=False, tracks_count=8, year="1975", genre=["Heavy Metal"]),
-                Album(album_name="Technical Ecstasy", missing=False, tracks_count=8, year="1976", genre=["Heavy Metal"]),
-                Album(album_name="Never Say Die!", missing=False, tracks_count=9, year="1978", genre=["Heavy Metal"]),
-                Album(album_name="Heaven and Hell", missing=False, tracks_count=8, year="1980", genre=["Heavy Metal"])
+                Album(album_name="Paranoid", missing=False, tracks_count=8, year="1970", genres=["Heavy Metal"]),
+                Album(album_name="Master of Reality", missing=False, tracks_count=8, year="1971", genres=["Heavy Metal"]),
+                Album(album_name="Vol. 4", missing=False, tracks_count=9, year="1972", genres=["Heavy Metal"]),
+                Album(album_name="Sabbath Bloody Sabbath", missing=False, tracks_count=8, year="1973", genres=["Heavy Metal"]),
+                Album(album_name="Sabotage", missing=False, tracks_count=8, year="1975", genres=["Heavy Metal"]),
+                Album(album_name="Technical Ecstasy", missing=False, tracks_count=8, year="1976", genres=["Heavy Metal"]),
+                Album(album_name="Never Say Die!", missing=False, tracks_count=9, year="1978", genres=["Heavy Metal"]),
+                Album(album_name="Heaven and Hell", missing=False, tracks_count=8, year="1980", genres=["Heavy Metal"])
             ]
         )
         sabbath_dir = self.test_dir / "Black Sabbath"
         sabbath_dir.mkdir(exist_ok=True)
         sabbath_metadata_file = sabbath_dir / ".band_metadata.json"
-        storage.JSONStorage.save_json(sabbath_metadata_file, sabbath_metadata.model_dump())
+        storage.JSONStorage.save_json(sabbath_metadata_file, black_sabbath.model_dump())
         
         # Iron Maiden metadata
-        maiden_metadata = BandMetadata(
+        iron_maiden = BandMetadata(
             band_name="Iron Maiden",
             formed="1975",
-            genre=["Heavy Metal", "Power Metal"],
-            origin="London, UK",
-            members=["Bruce Dickinson", "Steve Harris", "Dave Murray"],
+            genres=["Heavy Metal", "Power Metal"],
+            origin="London, England",
+            members=["Bruce Dickinson", "Steve Harris", "Dave Murray", "Adrian Smith", "Janick Gers", "Nicko McBrain"],
+            description="Legendary British heavy metal band",
             albums=[
-                Album(album_name="The Number of the Beast", missing=False, tracks_count=8, year="1982", genre=["Heavy Metal"]),
-                Album(album_name="Piece of Mind", missing=False, tracks_count=9, year="1983", genre=["Heavy Metal"]),
-                Album(album_name="Powerslave", missing=False, tracks_count=8, year="1984", genre=["Heavy Metal"])
+                Album(album_name="The Number of the Beast", missing=False, tracks_count=8, year="1982", genres=["Heavy Metal"]),
+                Album(album_name="Piece of Mind", missing=False, tracks_count=9, year="1983", genres=["Heavy Metal"]),
+                Album(album_name="Powerslave", missing=False, tracks_count=8, year="1984", genres=["Heavy Metal"])
             ]
         )
         maiden_dir = self.test_dir / "Iron Maiden"
         maiden_dir.mkdir(exist_ok=True)
         maiden_metadata_file = maiden_dir / ".band_metadata.json"
-        storage.JSONStorage.save_json(maiden_metadata_file, maiden_metadata.model_dump())
+        storage.JSONStorage.save_json(maiden_metadata_file, iron_maiden.model_dump())
     
     def test_get_band_list_default_parameters(self):
         """Test get_band_list with default parameters."""
