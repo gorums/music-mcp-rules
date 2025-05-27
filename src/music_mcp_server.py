@@ -175,12 +175,15 @@ def get_band_list_tool(
 
 @mcp.tool()
 def save_band_metadata_tool(
+    band_name: str,
     metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Save band metadata to the local storage. Chek very careful how is the metadata passed to the tool, check the examples too.
+    Ignore ANALYSIS SCHEMA for this tool
     
     Args:
+        band_name: The name of the band
         metadata: Complete metadata dictionary for the band
         
     Returns:
@@ -191,18 +194,13 @@ def save_band_metadata_tool(
     
     REQUIRED FIELDS:
     ================
-    - band_name (string): Name of the band
     - formed (string): Formation year in "YYYY" format
     - genres (array of strings): List of music genres
     - origin (string): Country/city of origin
     - members (array of strings): List of all band member names
     - description (string): Band biography or description
     - albums (array): List of album objects (see Album Schema below)
-    
-    OPTIONAL FIELDS:
-    ================
-    - analyze (object): Analysis data (see Analysis Schema below)
-    
+        
     ALBUM SCHEMA (for each item in albums array):
     =============================================
     REQUIRED:
@@ -214,20 +212,10 @@ def save_band_metadata_tool(
     OPTIONAL:
     - duration (string): Album length (format: "43min", "1h 23min", etc.)
     - genres (array of strings): Album-specific genres (can differ from band genres)
-    
-    ANALYSIS SCHEMA (optional analyze field):
-    ========================================
-    - review (string): Overall band review text
-    - rate (integer): Rating from 1-10
-    - albums (array): Per-album analysis objects with:
-        - review (string): Album review text
-        - rate (integer): Album rating 1-10
-    - similar_bands (array of strings): Names of similar/related bands
-    
-    COMPLETE EXAMPLE:
-    ================
+        
+    COMPLETE EXAMPLE of METADATA JSON:
+    =============================
     {
-        "band_name": "Pink Floyd",
         "formed": "1965", 
         "genres": ["Progressive Rock", "Psychedelic Rock", "Art Rock"],
         "origin": "London, England",
@@ -257,43 +245,9 @@ def save_band_metadata_tool(
                 "missing": true,
                 "duration": "44min"
             }
-        ],
-        "analyze": {
-            "review": "One of the most influential progressive rock bands of all time, known for concept albums and innovative studio techniques.",
-            "rate": 10,
-            "albums": [
-                {
-                    "review": "Groundbreaking concept album exploring themes of conflict, greed, and mental illness.",
-                    "rate": 10
-                },
-                {
-                    "review": "Epic rock opera telling the story of Pink, a rock star's descent into madness.",
-                    "rate": 9
-                }
-            ],
-            "similar_bands": ["Yes", "Genesis", "King Crimson", "The Alan Parsons Project"]
-        }
-    }
-    
-    MINIMAL EXAMPLE (only required fields):
-    ======================================
-    {
-        "band_name": "The Beatles",
-        "formed": "1960",
-        "genres": ["Rock", "Pop"],
-        "origin": "Liverpool, England", 
-        "members": ["John Lennon", "Paul McCartney", "George Harrison", "Ringo Starr"],
-        "description": "English rock band formed in Liverpool in 1960.",
-        "albums": [
-            {
-                "album_name": "Abbey Road",
-                "year": "1969",
-                "tracks_count": 17,
-                "missing": false
-            }
         ]
     }
-    
+
     COMMON MISTAKES TO AVOID:
     ========================
     ❌ Using "formed_year" (should be "formed")
@@ -330,7 +284,7 @@ def save_band_metadata_tool(
         
         try:
             # Ensure band_name is set correctly in metadata
-            band_name = metadata['band_name']
+            metadata['band_name'] = band_name
             
             # Create BandMetadata object for validation
             band_metadata = BandMetadata(**metadata)
@@ -469,7 +423,17 @@ def save_band_analyze_tool(
         analysis: Analysis data including reviews, ratings, and similar bands
         
     Returns:
-        Dict containing the operation status
+    
+    ANALYSIS SCHEMA (optional analyze field):
+    ========================================
+    - review (string): Overall band review text
+    - rate (integer): Rating from 1-10
+    - albums (array): Per-album analysis objects with:
+        - album_name (string): Name of the album
+        - review (string): Album review text
+        - rate (integer): Album rating 1-10
+    - similar_bands (array of strings): Names of similar/related bands
+
     """
     try:
         return save_band_analyze(band_name, analysis)
