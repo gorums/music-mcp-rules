@@ -70,7 +70,7 @@ class TestAlbumAnalysis:
     
     def test_album_analysis_default_values(self):
         """Test album analysis creation with default values."""
-        analysis = AlbumAnalysis()
+        analysis = AlbumAnalysis(album_name="Test Album")
         
         assert analysis.review == ""
         assert analysis.rate == 0
@@ -80,7 +80,7 @@ class TestAlbumAnalysis:
         valid_ratings = [0, 1, 5, 10]
         
         for rating in valid_ratings:
-            analysis = AlbumAnalysis(rate=rating)
+            analysis = AlbumAnalysis(album_name="Test Album",rate=rating)
             assert analysis.rate == rating
     
     def test_album_analysis_invalid_rating(self):
@@ -89,11 +89,12 @@ class TestAlbumAnalysis:
         
         for rating in invalid_ratings:
             with pytest.raises(ValidationError):
-                AlbumAnalysis(rate=rating)
+                AlbumAnalysis(album_name="Test Album", rate=rating)
     
     def test_album_analysis_with_review(self):
         """Test album analysis with review text."""
         analysis = AlbumAnalysis(
+            album_name="Test Album",
             review="Great album with memorable tracks",
             rate=8
         )
@@ -116,8 +117,8 @@ class TestBandAnalysis:
     
     def test_band_analysis_with_album_analyses(self):
         """Test band analysis with album analysis data."""
-        album_analysis1 = AlbumAnalysis(review="First album", rate=7)
-        album_analysis2 = AlbumAnalysis(review="Second album", rate=9)
+        album_analysis1 = AlbumAnalysis(album_name="First album", review="First album", rate=7)
+        album_analysis2 = AlbumAnalysis(album_name="Second album", review="Second album", rate=9)
         
         analysis = BandAnalysis(
             review="Excellent band",

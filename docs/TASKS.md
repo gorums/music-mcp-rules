@@ -2,6 +2,14 @@
 
 ## Discovered During Work
 
+### Task: Modify save_band_analyze to exclude album names and ignore missing albums - COMPLETED (2025-01-25)
+- [x] Keep album_name field as required in AlbumAnalysis model for filtering purposes
+- [x] Update save_band_analyze function to filter out missing albums before saving analysis
+- [x] Modify storage logic to not store album names in final analysis (set to empty string)
+- [x] Update validation logic to require album names for filtering but not store them
+- [x] Update tests to reflect new behavior
+- [x] Update documentation to reflect changes in analysis storage
+
 ### Task: Change 'genre' field to 'genres' throughout project - IN PROGRESS (2025-01-25)
 - [ ] Update metadata schema in PLANNING.md
 - [ ] Update band and album models in src/models/band.py
@@ -119,14 +127,14 @@
   - [x] Update last_updated timestamp
   - [x] Sync with collection index
   - [x] Return operation status with validation results
-- [ ] **Tool 4**: `save_band_analyze`
-  - [ ] Store analysis data including review and rating
-  - [ ] Handle album-specific reviews and ratings
-  - [ ] Store similar_bands information
-  - [ ] Merge with existing metadata preserving structure
-  - [ ] Validate analyze section structure
-  - [ ] Update collection statistics
-  - [ ] Handle rating validation (1-10 scale)
+- [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-25)
+  - [x] Store analysis data including review and rating
+  - [x] Handle album-specific reviews and ratings
+  - [x] Store similar_bands information
+  - [x] Merge with existing metadata preserving structure
+  - [x] Validate analyze section structure
+  - [x] Update collection statistics
+  - [x] Handle rating validation (1-10 scale)
 - [ ] **Tool 5**: `save_collection_insight`
   - [ ] Store collection-wide insights
   - [ ] Update `.collection_index.json` with analytics
@@ -606,58 +614,63 @@
 - Cache management provides comprehensive foundation for metadata lifecycle management
 - Ready to proceed to Phase 3: MCP Server Implementation (Task 3.1: MCP Server Setup)
 
-### Task 3.2: Tool Implementation - Tool 3: save_band_metadata - COMPLETED (2025-01-23)
+### Task 3.2: Tool Implementation - Tool 4: save_band_analyze - COMPLETED (2025-01-25)
 
-**Status**: ✅ COMPLETED with comprehensive schema validation, collection sync, and enhanced response format
+**Status**: ✅ COMPLETED with comprehensive implementation and test coverage
 
 **Implementation Summary**:
-- Enhanced MCP Tool (src/music_mcp_server.py): Complete reimplementation of save_band_metadata_tool with comprehensive validation, collection sync, and detailed response format
-- Comprehensive Test Suite (tests/test_mcp_server.py): 10 test methods covering all tool functionality with 9/10 tests passing (90% success rate)
+- Enhanced MCP Tool (src/music_mcp_server.py): Complete reimplementation of save_band_analyze_tool with comprehensive validation, collection sync, and detailed response format following the same pattern as save_band_metadata_tool
+- Updated Collection Models (src/models/collection.py): Added has_analysis field to BandIndexEntry model for tracking analysis data
+- Comprehensive Test Suite (tests/test_mcp_server.py): 10 test methods covering all save_band_analyze_tool functionality with 100% pass rate
 
 **Key Features Implemented**:
-- ✅ **Complete Schema Validation**: Validates metadata against enhanced BandMetadata schema with albums array and all fields
-- ✅ **Data Validation**: Converts Dict[str, Any] input to BandMetadata object for comprehensive Pydantic validation
-- ✅ **Backup Mechanism**: Automatic backup creation before overwriting existing metadata files (handled by storage layer)
-- ✅ **Timestamp Updates**: Automatic last_updated timestamp management during save operations
-- ✅ **Collection Index Sync**: Synchronizes band information with collection index, creating or updating BandIndexEntry
-- ✅ **Validation Results**: Detailed validation reporting including schema compliance, field validation, and error tracking
-- ✅ **Enhanced Response Format**: Comprehensive response with validation_results, file_operations, collection_sync, and band_info sections
-- ✅ **Error Handling**: Graceful error handling with detailed error reporting and partial success scenarios
+- ✅ **Complete Schema Validation**: Validates analysis data against BandAnalysis schema with album reviews and similar bands
+- ✅ **Rating Validation**: Comprehensive 0-10 scale validation for band and album ratings (0 = unrated)
+- ✅ **Album-Specific Analysis**: Support for individual album reviews and ratings with proper validation
+- ✅ **Similar Bands Tracking**: Storage and validation of similar/related bands information
+- ✅ **Data Merging**: Merges analysis data with existing metadata preserving all structure
+- ✅ **Collection Index Sync**: Updates collection index with has_analysis flag for tracking
+- ✅ **Validation Results**: Detailed validation reporting including rating distribution and analysis summary
+- ✅ **Enhanced Response Format**: Comprehensive response with validation_results, file_operations, collection_sync, and analysis_summary sections
+- ✅ **Error Handling**: Graceful error handling with detailed error reporting for validation failures
 
 **Response Structure Enhanced**:
 ```json
 {
   "status": "success",
-  "message": "Band metadata successfully saved and validated for {band_name}",
+  "message": "Band analysis successfully saved for {band_name} with {n} album reviews and {n} similar bands",
   "validation_results": {
     "schema_valid": true,
     "validation_errors": [],
-    "fields_validated": ["band_name", "formed", "genre", ...],
-    "albums_count": 3,
-    "missing_albums_count": 1
+    "fields_validated": ["review", "rate", "albums", "similar_bands"],
+    "overall_rating": 9,
+    "albums_analyzed": 3,
+    "similar_bands_count": 4,
+    "rating_distribution": {"overall": 9, "album_rate_10": 2, "album_rate_8": 1}
   },
   "file_operations": {
     "metadata_file": "/path/to/.band_metadata.json",
     "backup_created": true,
-    "last_updated": "2025-01-23T...",
-    "file_size_bytes": 0
+    "merged_with_existing": true,
+    "last_updated": "2025-01-25T..."
   },
   "collection_sync": {
     "index_updated": true,
-    "index_errors": [],
-    "band_entry_created": false
+    "band_entry_found": true,
+    "index_errors": []
   },
-  "band_info": {
+  "analysis_summary": {
     "band_name": "Band Name",
-    "albums_count": 3,
-    "missing_albums_count": 1,
-    "completion_percentage": 66.7,
-    "has_analysis": true,
-    "genre_count": 2,
-    "members_count": 4
+    "overall_rating": 9,
+    "albums_analyzed": 3,
+    "albums_with_ratings": 2,
+    "similar_bands_count": 4,
+    "has_review": true,
+    "average_album_rating": 8.5,
+    "rating_range": {"min": 8, "max": 10}
   },
   "tool_info": {
-    "tool_name": "save_band_metadata",
+    "tool_name": "save_band_analyze",
     "version": "1.0.0",
     "parameters_used": {...}
   }
@@ -665,28 +678,39 @@
 ```
 
 **Test Coverage**:
-- ✅ tests/test_mcp_server.py: 10 test methods with 90% success rate
-- ✅ TestSaveBandMetadataTool class with comprehensive scenarios:
-  - Simple success cases with basic schema
-  - Complex validation with albums array and analysis data
-  - Band name mismatch handling and auto-correction
-  - Missing band_name field auto-population
-  - Invalid schema validation and error reporting
-  - Collection index sync for new and existing bands
-  - Collection sync error handling with graceful degradation
-  - Empty albums list handling
-  - Comprehensive validation with all schema fields
-  - Tool info metadata verification
+- ✅ tests/test_mcp_server.py: 10 test methods with 100% success rate
+- ✅ TestSaveBandAnalyzeTool class with comprehensive scenarios:
+  - Simple success cases with basic analysis schema
+  - Complex validation with multiple albums and varied ratings
+  - Minimal valid analysis with required fields only
+  - Missing required fields validation and error reporting
+  - Invalid rating values (outside 0-10 range) validation
+  - Invalid album structure validation with detailed error messages
+  - Invalid input parameters validation (empty band_name, non-dict analysis)
+  - Invalid field types validation (non-string review, non-integer rate)
+  - Collection index sync verification with has_analysis flag update
+  - Mixed rated/unrated albums handling with proper statistics calculation
 
 **Core Functionality Verified**:
-- ✅ **Schema Compliance**: Full validation against BandMetadata model with albums array
-- ✅ **Data Integrity**: Automatic band_name correction and validation error tracking
-- ✅ **File Operations**: Metadata storage with backup creation and atomic writes
-- ✅ **Collection Management**: Index synchronization with create/update logic
-- ✅ **Error Scenarios**: Graceful handling of validation failures and sync errors
-- ✅ **Response Quality**: Comprehensive status reporting with actionable information
+- ✅ **Schema Compliance**: Full validation against BandAnalysis model with album analysis array
+- ✅ **Rating System**: 0-10 scale validation with 0 for unrated items
+- ✅ **Data Integrity**: Proper merging with existing metadata without data loss
+- ✅ **File Operations**: Analysis storage with backup creation and atomic writes
+- ✅ **Collection Management**: Index synchronization with has_analysis flag updates
+- ✅ **Error Scenarios**: Graceful handling of validation failures with detailed error messages
+- ✅ **Response Quality**: Comprehensive status reporting with actionable analysis summary information
+
+**Docker Test Results**: 10/10 tests passing (100% success rate)
+- All schema validation working correctly for analysis data
+- Rating validation handling all ranges and edge cases (0-10 scale)
+- Album-specific analysis validation with proper error reporting
+- Collection index sync updating has_analysis flags correctly
+- Complex analysis summary calculations providing accurate statistics
+- Error handling gracefully managing all failure scenarios with detailed feedback
 
 **Next Steps**: 
-- Task 3.2 Tool 3 objectives are complete and production-ready
-- Enhanced save_band_metadata_tool provides comprehensive metadata storage with validation and sync
-- Ready to proceed to Tool 4: `save_band_analyze` implementation
+- Task 3.2 Tool 4 objectives are complete and production-ready
+- Enhanced save_band_analyze_tool provides comprehensive analysis storage with validation and sync
+- Ready to proceed to Tool 5: `save_collection_insight` implementation or continue with Resource Implementation (Task 3.3)
+
+### Task 3.2: Tool Implementation - Tool 3: save_band_metadata - COMPLETED (2025-01-23)

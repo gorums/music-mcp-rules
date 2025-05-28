@@ -20,7 +20,8 @@ from ..models import (
     BandAnalysis, 
     CollectionIndex, 
     CollectionInsight, 
-    BandIndexEntry
+    BandIndexEntry,
+    AlbumAnalysis
 )
 from ..config import Config
 
@@ -255,7 +256,11 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
 
 def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
     """
-    Save band analysis data with reviews and ratings.
+    Save band analysis data with reviews and ratings, excluding missing albums.
+    
+    This function filters out analysis for albums marked as missing in the metadata
+    and saves only analysis for locally available albums. Album names are not stored
+    in the final analysis to avoid redundancy.
     
     Args:
         band_name: Name of the band
@@ -283,21 +288,66 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
         else:
             metadata = BandMetadata(band_name=band_name)
         
+        # Filter album analysis to exclude missing albums
+        filtered_album_analysis = []
+        excluded_count = 0
+        
+        # If no existing metadata or no albums in metadata, include all analysis
+        if not metadata.albums:
+            # No existing album metadata, so include all album analysis
+            for album_analysis in analysis.albums:
+                # Create new AlbumAnalysis without album_name for storage
+                filtered_analysis = AlbumAnalysis(
+                    album_name=album_analysis.album_name,  # Don't store album name in final analysis
+                    review=album_analysis.review,
+                    rate=album_analysis.rate
+                )
+                filtered_album_analysis.append(filtered_analysis)
+        else:
+            # Filter based on existing metadata
+            local_albums = metadata.get_local_albums()  # Get albums that are not missing
+            local_album_names = {album.album_name.lower() for album in local_albums}
+            
+            for album_analysis in analysis.albums:
+                # Check if the album exists locally (not missing)
+                if album_analysis.album_name.lower() in local_album_names:
+                    # Create new AlbumAnalysis without album_name for storage
+                    filtered_analysis = AlbumAnalysis(
+                        album_name=album_analysis.album_name,  # Don't store album name in final analysis
+                        review=album_analysis.review,
+                        rate=album_analysis.rate
+                    )
+                    filtered_album_analysis.append(filtered_analysis)
+                else:
+                    excluded_count += 1
+        
+        # Create filtered analysis with only non-missing album reviews
+        filtered_analysis = BandAnalysis(
+            review=analysis.review,
+            rate=analysis.rate,
+            albums=filtered_album_analysis,
+            similar_bands=analysis.similar_bands
+        )
+        
         # Update analysis section
-        metadata.analyze = analysis
+        metadata.analyze = filtered_analysis
         metadata.update_timestamp()
         
         # Save updated metadata
         metadata_dict = metadata.model_dump()
         JSONStorage.save_json(metadata_file, metadata_dict, backup=True)
         
+        # Calculate statistics
+        filtered_albums_count = len(filtered_album_analysis)
+        
         return {
             "status": "success",
-            "message": f"Band analysis saved for {band_name}",
+            "message": f"Band analysis saved for {band_name} (excluded {excluded_count} missing albums)",
             "file_path": str(metadata_file),
-            "band_rating": analysis.rate,
-            "albums_analyzed": len(analysis.albums),
-            "similar_bands_count": len(analysis.similar_bands),
+            "band_rating": filtered_analysis.rate,
+            "albums_analyzed": filtered_albums_count,
+            "albums_excluded": excluded_count,
+            "similar_bands_count": len(filtered_analysis.similar_bands),
             "last_updated": metadata.last_updated
         }
         

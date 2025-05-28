@@ -35,9 +35,11 @@ class AlbumAnalysis(BaseModel):
     Analysis data for individual albums including review and rating.
     
     Attributes:
+        album_name: Name of the album (required)
         review: Detailed review text for the album
         rate: Rating from 1-10 scale
     """
+    album_name: str = Field(..., description="Name of the album")
     review: str = Field(default="", description="Album review text")
     rate: int = Field(default=0, ge=0, le=10, description="Album rating (1-10 scale)")
 

@@ -14,6 +14,7 @@ class BandIndexEntry(BaseModel):
         folder_path: Relative path to band folder
         missing_albums_count: Number of albums marked as missing
         has_metadata: True if .band_metadata.json exists
+        has_analysis: True if band has analysis data (review, rating, etc.)
         last_updated: ISO datetime of last metadata update
     """
     name: str = Field(..., description="Band name")
@@ -21,6 +22,7 @@ class BandIndexEntry(BaseModel):
     folder_path: str = Field(..., description="Relative path to band folder")
     missing_albums_count: int = Field(default=0, ge=0, description="Number of missing albums")
     has_metadata: bool = Field(default=False, description="True if metadata file exists")
+    has_analysis: bool = Field(default=False, description="True if band has analysis data")
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
 
     @model_validator(mode='after')

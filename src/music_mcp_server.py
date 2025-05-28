@@ -323,11 +323,16 @@ def save_band_metadata_tool(
                 collection_index = CollectionIndex()
             
             # Create or update band entry
+            missing_albums_count = len(band_metadata.get_missing_albums())
+            
+            # Ensure missing count doesn't exceed total (validation constraint)
+            missing_albums_count = min(missing_albums_count, band_metadata.albums_count)
+            
             band_entry = BandIndexEntry(
                 name=band_name,
                 albums_count=band_metadata.albums_count,
                 folder_path=band_name,
-                missing_albums_count=len(band_metadata.get_missing_albums()),
+                missing_albums_count=missing_albums_count,
                 has_metadata=True,
                 last_updated=band_metadata.last_updated
             )
@@ -416,32 +421,345 @@ def save_band_analyze_tool(
     analysis: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save band analysis data to the local storage.
+    Save band analysis data including reviews, ratings, and similar bands.
+    
+    This tool stores comprehensive analysis data for a band:
+    - Overall band review and rating
+    - Album-specific reviews and ratings (1-10 scale)
+    - Similar bands information
+    - Automatically excludes analysis for missing albums based on album_name
+    - Merges with existing metadata preserving structure
+    - Validates analyze section structure
+    - Updates collection statistics
     
     Args:
         band_name: The name of the band
-        analysis: Analysis data including reviews, ratings, and similar bands
+        analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands
         
     Returns:
+        Dict containing comprehensive operation status with validation results, 
+        file operations, collection sync, and analysis summary
     
-    ANALYSIS SCHEMA (optional analyze field):
-    ========================================
+    ANALYSIS SCHEMA:
+    ================
+    The analysis parameter must be a dictionary with the following structure:
+    
+    REQUIRED FIELDS:
+    ================
     - review (string): Overall band review text
-    - rate (integer): Rating from 1-10
+    - rate (integer): Overall band rating from 1-10 (0 = unrated)
+    
+    OPTIONAL FIELDS FOR EACH ALBUM:
+    ================
     - albums (array): Per-album analysis objects with:
-        - album_name (string): Name of the album
+        - album_name (string, REQUIRED): Name of the album (used for filtering missing albums)
         - review (string): Album review text
-        - rate (integer): Album rating 1-10
+        - rate (integer): Album rating 1-10 (0 = unrated)
     - similar_bands (array of strings): Names of similar/related bands
-
+    
+    MISSING ALBUMS FILTERING:
+    =========================
+    - Analysis is only saved if the album exists locally (not marked as missing in metadata)
+    
+    RATING VALIDATION:
+    ==================
+    - All ratings must be integers between 0-10
+    - 0 means unrated/no rating given
+    - 1-10 represents actual ratings (1=lowest, 10=highest)
+    
+    EXAMPLE ANALYSIS:
+    =================
+    {
+        "review": "Legendary progressive rock band known for conceptual albums...",
+        "rate": 9,
+        "albums": [
+            {
+                "album_name": "The Dark Side of the Moon",  // REQUIRED
+                "review": "Masterpiece of progressive rock with innovative sound design...",
+                "rate": 10
+            },
+            {
+                "album_name": "The Wall",  // REQUIRED
+                "review": "Epic rock opera exploring themes of isolation...",
+                "rate": 9
+            }
+        ],
+        "similar_bands": ["King Crimson", "Genesis", "Yes", "Led Zeppelin"]
+    }
     """
     try:
-        return save_band_analyze(band_name, analysis)
+        # Import required models
+        from src.models.band import BandAnalysis, AlbumAnalysis
+        from src.tools.storage import update_collection_index, load_collection_index
+        
+        # Prepare comprehensive response structure
+        response = {
+            "status": "success",
+            "message": "",
+            "validation_results": {
+                "schema_valid": False,
+                "validation_errors": [],
+                "fields_validated": [],
+                "overall_rating": 0,
+                "albums_analyzed": 0,
+                "similar_bands_count": 0,
+                "rating_distribution": {}
+            },
+            "file_operations": {
+                "metadata_file": "",
+                "backup_created": False,
+                "last_updated": "",
+                "file_size_bytes": 0,
+                "merged_with_existing": False
+            },
+            "collection_sync": {
+                "index_updated": False,
+                "index_errors": [],
+                "band_entry_found": False
+            },
+            "analysis_summary": {
+                "band_name": band_name,
+                "overall_rating": 0,
+                "albums_analyzed": 0,
+                "albums_with_ratings": 0,
+                "similar_bands_count": 0,
+                "has_review": False,
+                "average_album_rating": 0.0,
+                "rating_range": {"min": 0, "max": 0}
+            },
+            "tool_info": {
+                "tool_name": "save_band_analyze",
+                "version": "1.0.0",
+                "parameters_used": {
+                    "band_name": band_name,
+                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else []
+                }
+            }
+        }
+        
+        # Validate input parameters
+        if not band_name or not isinstance(band_name, str):
+            response["status"] = "error"
+            response["message"] = "Invalid band_name parameter: must be non-empty string"
+            response["validation_results"]["validation_errors"].append("band_name is required and must be a string")
+            return response
+            
+        if not analysis or not isinstance(analysis, dict):
+            response["status"] = "error" 
+            response["message"] = "Invalid analysis parameter: must be non-empty dictionary"
+            response["validation_results"]["validation_errors"].append("analysis is required and must be a dictionary")
+            return response
+        
+        # Validate and convert analysis data to BandAnalysis object
+        validation_errors = []
+        
+        # Check required fields
+        if "review" not in analysis:
+            validation_errors.append("Missing required field: 'review'")
+        elif not isinstance(analysis["review"], str):
+            validation_errors.append("Field 'review' must be a string")
+            
+        if "rate" not in analysis:
+            validation_errors.append("Missing required field: 'rate'")
+        elif not isinstance(analysis["rate"], int):
+            validation_errors.append("Field 'rate' must be an integer")
+        elif analysis["rate"] < 0 or analysis["rate"] > 10:
+            validation_errors.append("Field 'rate' must be between 0-10")
+        
+        # Check optional albums field
+        albums_analysis = []
+        if "albums" in analysis:
+            if not isinstance(analysis["albums"], list):
+                validation_errors.append("Field 'albums' must be a list")
+            else:
+                for i, album_data in enumerate(analysis["albums"]):
+                    if not isinstance(album_data, dict):
+                        validation_errors.append(f"Album {i}: must be a dictionary")
+                        continue
+                        
+                    album_errors = []
+                    # album_name is required
+                    if "album_name" not in album_data:
+                        album_errors.append("'album_name' is required")
+                    elif not isinstance(album_data["album_name"], str):
+                        album_errors.append("'album_name' must be a string")
+                        
+                    if "review" in album_data and not isinstance(album_data["review"], str):
+                        album_errors.append("'review' must be a string")
+                        
+                    if "rate" in album_data:
+                        if not isinstance(album_data["rate"], int):
+                            album_errors.append("'rate' must be an integer")
+                        elif album_data["rate"] < 0 or album_data["rate"] > 10:
+                            album_errors.append("'rate' must be between 0-10")
+                    
+                    if album_errors:
+                        # Format error messages to match test expectations
+                        for err in album_errors:
+                            if "'album_name' is required" in err:
+                                validation_errors.append(f"Album {i}: Missing 'album_name'")
+                            else:
+                                validation_errors.append(f"Album {i} ({album_data.get('album_name', 'unnamed')}): {err}")
+                    else:
+                        try:
+                            album_analysis = AlbumAnalysis(
+                                album_name=album_data["album_name"],
+                                review=album_data.get("review", ""),
+                                rate=album_data.get("rate", 0)
+                            )
+                            albums_analysis.append(album_analysis)
+                        except Exception as e:
+                            validation_errors.append(f"Album {i}: validation failed - {str(e)}")
+        
+        # Check optional similar_bands field
+        similar_bands = []
+        if "similar_bands" in analysis:
+            if not isinstance(analysis["similar_bands"], list):
+                validation_errors.append("Field 'similar_bands' must be a list")
+            else:
+                for i, band in enumerate(analysis["similar_bands"]):
+                    if not isinstance(band, str):
+                        validation_errors.append(f"Similar band {i}: must be a string")
+                    else:
+                        similar_bands.append(band)
+        
+        # If validation errors, return early
+        if validation_errors:
+            response["status"] = "error"
+            response["message"] = f"Analysis validation failed: {len(validation_errors)} errors found"
+            response["validation_results"]["validation_errors"] = validation_errors
+            return response
+        
+        # Create BandAnalysis object
+        try:
+            band_analysis = BandAnalysis(
+                review=analysis["review"],
+                rate=analysis["rate"],
+                albums=albums_analysis,
+                similar_bands=similar_bands
+            )
+            response["validation_results"]["schema_valid"] = True
+            response["validation_results"]["fields_validated"] = list(analysis.keys())
+        except Exception as e:
+            response["status"] = "error"
+            response["message"] = f"Failed to create BandAnalysis object: {str(e)}"
+            response["validation_results"]["validation_errors"].append(f"Schema validation failed: {str(e)}")
+            return response
+        
+        # Call storage function
+        try:
+            storage_result = save_band_analyze(band_name, band_analysis)
+            
+            # Update response with storage results
+            response["message"] = storage_result.get("message", f"Analysis saved for {band_name}")
+            response["file_operations"]["metadata_file"] = storage_result.get("file_path", "")
+            response["file_operations"]["backup_created"] = True  # Storage always creates backups
+            response["file_operations"]["last_updated"] = storage_result.get("last_updated", "")
+            response["file_operations"]["merged_with_existing"] = True  # Analysis is merged with existing metadata
+            
+            # Include information about excluded albums
+            albums_excluded = storage_result.get("albums_excluded", 0)
+            albums_analyzed_final = storage_result.get("albums_analyzed", len(band_analysis.albums))
+            
+        except Exception as e:
+            response["status"] = "error"
+            response["message"] = f"Failed to save analysis: {str(e)}"
+            return response
+        
+        # Update collection index
+        try:
+            index = load_collection_index()
+            if index:
+                # Find and update band entry if it exists
+                for band_entry in index.bands:
+                    if band_entry.name == band_name:
+                        # Load current metadata to get accurate album counts
+                        from src.tools.storage import load_band_metadata
+                        current_metadata = load_band_metadata(band_name)
+                        if current_metadata:
+                            # Calculate proper album counts from metadata
+                            total_albums = len(current_metadata.albums)
+                            missing_albums = len(current_metadata.get_missing_albums())
+                            
+                            # Ensure missing count doesn't exceed total (validation constraint)
+                            missing_albums = min(missing_albums, total_albums)
+                            
+                            # Update band entry with accurate data
+                            band_entry.albums_count = total_albums
+                            band_entry.missing_albums_count = missing_albums
+                            band_entry.has_analysis = True
+                            band_entry.last_updated = current_metadata.last_updated
+                        else:
+                            # If no metadata, just mark as having analysis
+                            band_entry.has_analysis = True
+                        
+                        response["collection_sync"]["band_entry_found"] = True
+                        break
+                
+                # Save updated index
+                update_result = update_collection_index(index)
+                response["collection_sync"]["index_updated"] = update_result.get("status") == "success"
+                if update_result.get("status") != "success":
+                    response["collection_sync"]["index_errors"].append(update_result.get("error", "Unknown index update error"))
+            else:
+                response["collection_sync"]["index_errors"].append("Collection index not found")
+                
+        except Exception as e:
+            response["collection_sync"]["index_errors"].append(f"Index update failed: {str(e)}")
+        
+        # Build validation results summary (use original input for validation stats)
+        response["validation_results"]["overall_rating"] = band_analysis.rate
+        response["validation_results"]["albums_analyzed"] = len(band_analysis.albums)
+        response["validation_results"]["similar_bands_count"] = len(band_analysis.similar_bands)
+        
+        # Calculate rating distribution
+        rating_counts = {}
+        if band_analysis.rate > 0:
+            rating_counts[f"overall"] = band_analysis.rate
+        for album in band_analysis.albums:
+            if album.rate > 0:
+                rating_key = f"album_rate_{album.rate}"
+                rating_counts[rating_key] = rating_counts.get(rating_key, 0) + 1
+        response["validation_results"]["rating_distribution"] = rating_counts
+        
+        # Build analysis summary (use actual saved data)
+        albums_with_ratings = len([a for a in band_analysis.albums if a.rate > 0])
+        album_ratings = [a.rate for a in band_analysis.albums if a.rate > 0]
+        
+        response["analysis_summary"] = {
+            "band_name": band_name,
+            "overall_rating": band_analysis.rate,
+            "albums_analyzed": albums_analyzed_final,      # Actually saved count
+            "albums_analyzed_input": len(band_analysis.albums),  # Original input count
+            "albums_analyzed_saved": albums_analyzed_final,      # Actually saved count (duplicate for compatibility)
+            "albums_excluded": albums_excluded,                  # Excluded missing albums
+            "albums_with_ratings": albums_with_ratings,
+            "similar_bands_count": len(band_analysis.similar_bands),
+            "has_review": len(band_analysis.review.strip()) > 0,
+            "average_album_rating": round(sum(album_ratings) / len(album_ratings), 1) if album_ratings else 0.0,
+            "rating_range": {
+                "min": min(album_ratings) if album_ratings else 0,
+                "max": max(album_ratings) if album_ratings else 0
+            }
+        }
+        
+        # Final success message with filtering information
+        if albums_excluded > 0:
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands ({albums_excluded} missing albums excluded)"
+        else:
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands"
+        
+        return response
+        
     except Exception as e:
         logger.error(f"Error in save_band_analyze tool: {str(e)}")
         return {
             'status': 'error',
-            'error': f"Tool execution failed: {str(e)}"
+            'error': f"Tool execution failed: {str(e)}",
+            'tool_info': {
+                'tool_name': 'save_band_analyze',
+                'version': '1.0.0'
+            }
         }
 
 @mcp.tool()
@@ -821,7 +1139,7 @@ When validation fails, the tool returns detailed error information:
 - Use `band://info/{band_name}` resource to see existing band metadata
 - Use `collection://summary` resource to see collection overview
 - Use the `get_band_list_tool` to see all bands in your collection
-"""
+    """
     except Exception as e:
         return f"Error generating schema documentation: {str(e)}"
 
@@ -921,4 +1239,4 @@ def main():
             logger.info("Development server stopped by user")
 
 if __name__ == "__main__":
-    main() 
+    main()

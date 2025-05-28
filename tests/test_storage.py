@@ -276,7 +276,7 @@ class TestMetadataOperations:
         analysis = BandAnalysis(
             review="Great band!",
             rate=8,
-            albums=[AlbumAnalysis(review="Excellent album", rate=9)],
+            albums=[AlbumAnalysis(album_name="Test Album", review="Excellent album", rate=9)],
             similar_bands=["Similar Band 1", "Similar Band 2"]
         )
         

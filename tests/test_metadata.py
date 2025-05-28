@@ -88,8 +88,8 @@ class TestMetadataFunctions:
             review="Great band!",
             rate=8,
             albums=[
-                AlbumAnalysis(review="Good album", rate=7),
-                AlbumAnalysis(review="Better album", rate=9)
+                AlbumAnalysis(album_name="Good album", review="Good album", rate=7),
+                AlbumAnalysis(album_name="Better album", review="Better album", rate=9)
             ]
         )
         
@@ -194,9 +194,9 @@ class TestIntegrationScenarios:
             review="Excellent progressive rock band",
             rate=9,
             albums=[
-                AlbumAnalysis(review="Debut masterpiece", rate=10),
-                AlbumAnalysis(review="Solid follow-up", rate=8),
-                AlbumAnalysis(review="Experimental phase", rate=7)
+                AlbumAnalysis(album_name="Debut masterpiece", review="Debut masterpiece", rate=10),
+                AlbumAnalysis(album_name="Solid follow-up", review="Solid follow-up", rate=8),
+                AlbumAnalysis(album_name="Experimental phase", review="Experimental phase", rate=7)
             ],
             similar_bands=["Pink Floyd", "Yes"]
         )
