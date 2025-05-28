@@ -2,6 +2,14 @@
 
 ## Discovered During Work
 
+### Task: Fix Collection Stats Calculation Bug - COMPLETED (2025-01-28)
+- [x] Identified issue: Collection stats (total_albums, total_missing_albums) were not being recalculated when collection index was updated
+- [x] Root cause: update_collection_index() function was not calling _update_stats() before saving
+- [x] Fixed by adding _update_stats() call in update_collection_index() function
+- [x] Verified fix works correctly - stats now show proper values (total_albums: 25, total_missing_albums: 23)
+- [x] Created comprehensive test suite in tests/test_collection_stats.py to prevent regression
+- [x] Tests cover: stats calculation on update, empty collections, no missing albums, all missing albums, add/remove band operations
+
 ### Task: Modify save_band_analyze to exclude album names and ignore missing albums - COMPLETED (2025-01-25)
 - [x] Keep album_name field as required in AlbumAnalysis model for filtering purposes
 - [x] Update save_band_analyze function to filter out missing albums before saving analysis

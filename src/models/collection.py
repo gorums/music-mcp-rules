@@ -237,6 +237,13 @@ class CollectionIndex(BaseModel):
             self.stats.avg_albums_per_band = round(self.stats.total_albums / self.stats.total_bands, 2)
         else:
             self.stats.avg_albums_per_band = 0.0
+        
+        # Calculate completion percentage manually since Pydantic validator doesn't run on direct field updates
+        if self.stats.total_albums == 0:
+            self.stats.completion_percentage = 100.0
+        else:
+            present_albums = self.stats.total_albums - self.stats.total_missing_albums
+            self.stats.completion_percentage = round((present_albums / self.stats.total_albums) * 100, 2)
 
     def update_insights(self, insights: CollectionInsight) -> None:
         """

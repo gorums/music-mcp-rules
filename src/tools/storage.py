@@ -759,6 +759,9 @@ def update_collection_index(index: CollectionIndex) -> Dict[str, Any]:
         # Update timestamp
         index.last_scan = datetime.now().isoformat()
         
+        # Recalculate stats before saving to ensure they're accurate
+        index._update_stats()
+        
         # Save with atomic write and backup
         index_dict = index.model_dump()
         JSONStorage.save_json(collection_file, index_dict, backup=True)
