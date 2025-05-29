@@ -37,40 +37,45 @@ mcp = FastMCP("music-collection-mcp")
 
 @mcp.tool()
 def scan_music_folders(
-    force_rescan: bool = False,
-    include_missing_albums: bool = True
+    force_rescan: bool = False
 ) -> Dict[str, Any]:
     """
-    Scan the music directory structure to discover bands and albums.
+    Scan the music directory structure to discover bands and albums with optimized incremental scanning. 
     
-    This tool performs a comprehensive scan of the music collection:
-    - Discovers all band folders in the music directory
-    - Finds album subfolders within each band folder
-    - Counts music tracks in each album folder
-    - Detects missing albums (in metadata but not in folders)
-    - Updates the collection index with current state
+
+    By deafult DO NOT RESCAN, KEEP THAT FALSE, only the ones that have changed.
+    
+    This tool performs an intelligent scan of the music collection:
+    - DEFAULT: Incremental scan that only processes changes (new/removed/modified bands)
+    - FORCE RESCAN: Complete rescan that processes all bands regardless of cache
+    - Preserves existing metadata and analysis data during scanning
+    - Updates collection index only when changes are detected
+    - Optimized for performance with large collections
     
     Args:
-        force_rescan: If True, forces a complete rescan ignoring cache.
-        include_missing_albums: If True, includes detection of missing albums.
+        force_rescan: If True, forces a complete rescan of all bands. If False (default), 
+                     performs incremental scan that only processes changes.
     
     Returns:
-        Dict containing scan results with bands, albums, and statistics including:
+        Dict containing scan results including:
         - status: 'success' or 'error'
-        - results: Dict with scan statistics and band data
+        - results: Dict with scan statistics and change details
         - collection_path: Path to the scanned music collection
+        - incremental_scan: True for incremental, False for full scan
+        - changes_made: True if any changes were detected and saved
     """
     try:
-        # Call the actual scanner function using config MUSIC_ROOT_PATH
-        result = scanner_scan_music_folders()
+        # Call the scanner with the appropriate scan mode
+        # Reason: Map force_rescan to force_full_scan parameter for backward compatibility
+        result = scanner_scan_music_folders(force_full_scan=force_rescan)
             
         # Add tool-specific metadata
         if result.get('status') == 'success':
             result['tool_info'] = {
                 'tool_name': 'scan_music_folders',
-                'version': '1.0.0',
+                'version': '2.0.0',  # Updated version for incremental scanning
                 'force_rescan': force_rescan,
-                'include_missing_albums': include_missing_albums
+                'scan_mode': 'full' if force_rescan else 'incremental'
             }
             
         return result
@@ -82,7 +87,7 @@ def scan_music_folders(
             'error': f"Tool execution failed: {str(e)}",
             'tool_info': {
                 'tool_name': 'scan_music_folders',
-                'version': '1.0.0'
+                'version': '2.0.0'
             }
         }
 
@@ -417,8 +422,9 @@ def save_band_metadata_tool(
 
 @mcp.tool()
 def save_band_analyze_tool(
-    band_name: str, 
-    analysis: Dict[str, Any]
+    band_name: str,    
+    analysis: Dict[str, Any],
+    analyze_missing_albums: bool = False,
 ) -> Dict[str, Any]:
     """
     Save band analysis data including reviews, ratings, and similar bands.
@@ -427,14 +433,15 @@ def save_band_analyze_tool(
     - Overall band review and rating
     - Album-specific reviews and ratings (1-10 scale)
     - Similar bands information
-    - Automatically excludes analysis for missing albums based on album_name
+    - Optionally includes or excludes analysis for missing albums
     - Merges with existing metadata preserving structure
     - Validates analyze section structure
     - Updates collection statistics
     
     Args:
-        band_name: The name of the band
-        analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands
+        band_name: The name of the band        
+        analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands 
+        analyze_missing_albums: If True, includes analysis for missing albums too. Default False.
         
     Returns:
         Dict containing comprehensive operation status with validation results, 
@@ -459,7 +466,8 @@ def save_band_analyze_tool(
     
     MISSING ALBUMS FILTERING:
     =========================
-    - Analysis is only saved if the album exists locally (not marked as missing in metadata)
+    - By default (analyze_missing_albums=False): Analysis is only saved for albums that exist locally
+    - When analyze_missing_albums=True: Analysis is saved for all albums, including missing ones
     
     RATING VALIDATION:
     ==================
@@ -532,7 +540,8 @@ def save_band_analyze_tool(
                 "version": "1.0.0",
                 "parameters_used": {
                     "band_name": band_name,
-                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else []
+                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else [],
+                    "analyze_missing_albums": analyze_missing_albums
                 }
             }
         }
@@ -648,7 +657,7 @@ def save_band_analyze_tool(
         
         # Call storage function
         try:
-            storage_result = save_band_analyze(band_name, band_analysis)
+            storage_result = save_band_analyze(band_name, band_analysis, analyze_missing_albums)
             
             # Update response with storage results
             response["message"] = storage_result.get("message", f"Analysis saved for {band_name}")
@@ -744,10 +753,16 @@ def save_band_analyze_tool(
         }
         
         # Final success message with filtering information
-        if albums_excluded > 0:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands ({albums_excluded} missing albums excluded)"
+        if analyze_missing_albums:
+            if albums_excluded > 0:
+                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (including missing albums)"
+            else:
+                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (all albums included)"
         else:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands"
+            if albums_excluded > 0:
+                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands ({albums_excluded} missing albums excluded)"
+            else:
+                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands"
         
         return response
         

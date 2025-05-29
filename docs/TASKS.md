@@ -10,6 +10,17 @@
 - [x] Created comprehensive test suite in tests/test_collection_stats.py to prevent regression
 - [x] Tests cover: stats calculation on update, empty collections, no missing albums, all missing albums, add/remove band operations
 
+### Task: Fix scan_music_folders force_rescan Album Counting - VERIFIED WORKING (2025-05-29)
+- [x] User reported: force_rescan=True not updating albums_count to include missing_albums_count
+- [x] User reported: stats total_missing_albums and total_albums not reflecting correct values
+- [x] VERIFICATION: Tested with Docker and confirmed issue is already resolved
+- [x] Current behavior: Pink Floyd shows 15 total albums (1 physical + 14 missing) ✅
+- [x] Current behavior: The Beatles shows 13 total albums (1 physical + 12 missing) ✅  
+- [x] Current behavior: Collection stats show total_albums: 28, total_missing_albums: 26 ✅
+- [x] Root cause was fixed in previous tasks: Collection Index Override Issue (2025-01-29)
+- [x] _create_band_index_entry() now properly merges physical + metadata album counts
+- [x] _update_stats() correctly calculates collection totals including missing albums
+
 ### Task: Modify save_band_analyze to exclude album names and ignore missing albums - COMPLETED (2025-01-25)
 - [x] Keep album_name field as required in AlbumAnalysis model for filtering purposes
 - [x] Update save_band_analyze function to filter out missing albums before saving analysis
@@ -17,6 +28,16 @@
 - [x] Update validation logic to require album names for filtering but not store them
 - [x] Update tests to reflect new behavior
 - [x] Update documentation to reflect changes in analysis storage
+
+### Task: Add analyze_missing_albums parameter to save_band_analyze tool - COMPLETED (2025-01-28)
+- [x] Added analyze_missing_albums parameter to storage function with default False
+- [x] Updated metadata wrapper function to pass through the new parameter
+- [x] Modified MCP server tool to accept and validate the new parameter
+- [x] Enhanced filtering logic to include missing albums when parameter is True
+- [x] Updated response messages to reflect the parameter behavior
+- [x] Added comprehensive test coverage for both parameter values
+- [x] Verified backward compatibility - default behavior unchanged
+- [x] Fixed test failures and ensured 100% test pass rate (194/194 tests passing)
 
 ### Task: Change 'genre' field to 'genres' throughout project - IN PROGRESS (2025-01-25)
 - [ ] Update metadata schema in PLANNING.md
@@ -39,6 +60,25 @@
 - [x] Changed `collection/summary` to `collection://summary` to use proper scheme format
 - [x] Changed `band_info/{band_name}` to `band://info/{band_name}` to use proper scheme format
 - [x] Tested Docker container startup - server now starts successfully
+
+### Task: Fix scan_music_folders Collection Index Override Issue - COMPLETED (2025-01-29)
+- [x] Identified issue: scan_music_folders completely overwrites collection index, losing metadata and analysis data
+- [x] Root cause: scan_music_folders only counts physical albums and creates new band entries, ignoring existing metadata
+- [x] Fix scanner to preserve existing metadata information when updating collection index
+- [x] Update _create_band_index_entry to merge physical scan results with existing metadata
+- [x] Preserve has_analysis flag and proper album counts from metadata files
+- [x] Update missing album detection to work with preserved metadata
+- [x] Create comprehensive tests to prevent regression
+- [x] Ensure physical folder changes are still properly detected and updated
+
+### Task: Optimize scan_music_folders for Incremental Updates - COMPLETED (2025-01-29)
+- [x] Modify scan_music_folders to only add new bands or remove deleted bands
+- [x] Preserve existing band metadata and analysis data during scanning
+- [x] Only update stats based on actual changes (not full recalculation)
+- [x] Compare current filesystem state with existing collection index
+- [x] Only rescan bands where folder timestamps indicate changes
+- [x] Maintain backward compatibility with existing functionality
+- [x] Create comprehensive tests for incremental update scenarios
 
 ## Phase 1: Project Setup and Foundation
 
@@ -135,7 +175,7 @@
   - [x] Update last_updated timestamp
   - [x] Sync with collection index
   - [x] Return operation status with validation results
-- [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-25)
+- [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-28)
   - [x] Store analysis data including review and rating
   - [x] Handle album-specific reviews and ratings
   - [x] Store similar_bands information
@@ -143,6 +183,7 @@
   - [x] Validate analyze section structure
   - [x] Update collection statistics
   - [x] Handle rating validation (1-10 scale)
+  - [x] Add analyze_missing_albums parameter for optional missing album inclusion
 - [ ] **Tool 5**: `save_collection_insight`
   - [ ] Store collection-wide insights
   - [ ] Update `.collection_index.json` with analytics
@@ -622,7 +663,7 @@
 - Cache management provides comprehensive foundation for metadata lifecycle management
 - Ready to proceed to Phase 3: MCP Server Implementation (Task 3.1: MCP Server Setup)
 
-### Task 3.2: Tool Implementation - Tool 4: save_band_analyze - COMPLETED (2025-01-25)
+### Task 3.2: Tool Implementation - Tool 4: save_band_analyze - COMPLETED (2025-01-28)
 
 **Status**: ✅ COMPLETED with comprehensive implementation and test coverage
 

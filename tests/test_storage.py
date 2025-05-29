@@ -291,11 +291,11 @@ class TestMetadataOperations:
         """Test saving analysis for band with existing metadata."""
         band_name = "Existing Band"
         
-        # First save metadata
+        # Create existing metadata first
         metadata = BandMetadata(
             band_name=band_name,
-            formed="1990",
-            genres=["Metal"]
+            formed="1995",
+            genres=["Alternative"]
         )
         save_band_metadata(band_name, metadata)
         
@@ -312,9 +312,68 @@ class TestMetadataOperations:
         
         # Verify metadata was preserved
         loaded_metadata = load_band_metadata(band_name)
-        assert loaded_metadata.formed == "1990"
-        assert loaded_metadata.genres == ["Metal"]
+        assert loaded_metadata.formed == "1995"
+        assert loaded_metadata.genres == ["Alternative"]
         assert loaded_metadata.analyze.review == "Updated review"
+
+    def test_save_band_analyze_with_missing_albums_parameter(self):
+        """Test save_band_analyze with analyze_missing_albums parameter."""
+        band_name = "Missing Albums Test Band"
+        
+        # Create metadata with some albums marked as missing
+        albums = [
+            Album(album_name="Local Album", year="2000", tracks_count=10, missing=False),
+            Album(album_name="Missing Album", year="2001", tracks_count=8, missing=True)
+        ]
+        metadata = BandMetadata(
+            band_name=band_name,
+            formed="1999",
+            genres=["Test"],
+            albums=albums
+        )
+        save_band_metadata(band_name, metadata)
+        
+        # Create analysis for both albums
+        album_analyses = [
+            AlbumAnalysis(album_name="Local Album", review="Great local album", rate=9),
+            AlbumAnalysis(album_name="Missing Album", review="Would be great if we had it", rate=7)
+        ]
+        analysis = BandAnalysis(
+            review="Test band with missing albums",
+            rate=8,
+            albums=album_analyses,
+            similar_bands=["Similar Band"]
+        )
+        
+        # Test with analyze_missing_albums=False (default - should exclude missing albums)
+        result_exclude = save_band_analyze(band_name, analysis, analyze_missing_albums=False)
+        
+        assert result_exclude["status"] == "success"
+        assert result_exclude["albums_analyzed"] == 1  # Only local album
+        assert result_exclude["albums_excluded"] == 1  # Missing album excluded
+        assert result_exclude["analyze_missing_albums"] is False
+        assert "excluded 1 missing albums" in result_exclude["message"]
+        
+        # Verify only local album analysis was saved
+        loaded_metadata_exclude = load_band_metadata(band_name)
+        assert len(loaded_metadata_exclude.analyze.albums) == 1
+        assert loaded_metadata_exclude.analyze.albums[0].album_name == "Local Album"
+        
+        # Test with analyze_missing_albums=True (should include missing albums)
+        result_include = save_band_analyze(band_name, analysis, analyze_missing_albums=True)
+        
+        assert result_include["status"] == "success"
+        assert result_include["albums_analyzed"] == 2  # Both albums
+        assert result_include["albums_excluded"] == 0  # No albums excluded
+        assert result_include["analyze_missing_albums"] is True
+        assert "including missing albums" in result_include["message"]
+        
+        # Verify both album analyses were saved
+        loaded_metadata_include = load_band_metadata(band_name)
+        assert len(loaded_metadata_include.analyze.albums) == 2
+        album_names = {album.album_name for album in loaded_metadata_include.analyze.albums}
+        assert "Local Album" in album_names
+        assert "Missing Album" in album_names
 
     def test_save_collection_insight_new_index(self):
         """Test saving insights for new collection."""
