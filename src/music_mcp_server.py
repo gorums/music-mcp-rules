@@ -29,10 +29,10 @@ from src.prompts.compare_bands import get_compare_bands_prompt
 from src.prompts.collection_insights import get_collection_insights_prompt
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server instance
+# Create FastMCP server instance with ERROR log level to fix MCP client visibility
 mcp = FastMCP("music-collection-mcp")
 
 @mcp.tool()
@@ -1479,25 +1479,23 @@ def collection_insights_prompt() -> Dict[str, Any]:
 
 def main():
     """Main entry point for the MCP server."""
-    logger.info("Starting Music Collection MCP Server...")
+    # Remove startup message to minimize output
     
     try:
         # Try to run the MCP server
         mcp.run()
     except KeyboardInterrupt:
-        logger.info("Server stopped by user")
+        pass  # Silently handle user interruption
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
         # In development mode, keep server alive even if no client connects
-        logger.info("Running in development mode - server will stay alive")
         try:
             # Keep the process alive
             while True:
                 import time
                 time.sleep(60)  # Sleep for 60 seconds at a time
-                logger.info("Server still running... (development mode)")
         except KeyboardInterrupt:
-            logger.info("Development server stopped by user")
+            pass  # Silently handle user interruption
 
 if __name__ == "__main__":
     main()

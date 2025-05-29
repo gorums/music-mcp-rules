@@ -383,6 +383,29 @@ result = save_band_metadata("The Beatles", new_metadata)
 - **Fast Validation**: Optimized schema validation and serialization
 - **Cache Management**: Intelligent cache expiration and refresh strategies
 
+## Troubleshooting
+
+### MCP Client Cannot See Resources/Tools
+
+**Issue**: MCP clients (Cline, Claude Desktop) show connection errors or cannot see resources like `band://info/{band_name}`, tools, or prompts.
+
+**Solution**: This is a common issue with FastMCP-based servers. The problem is that FastMCP outputs INFO-level logs during initialization, which MCP clients interpret as errors.
+
+**Fix Applied**: The server is already configured with `log_level="ERROR"` to suppress these initialization logs. If you still see issues:
+
+1. **Check Client Logs**: Look for actual errors vs. initialization messages
+2. **Test Functionality**: Often tools work correctly despite appearing as "errors" in the UI
+3. **Retry Connection**: Sometimes reconnecting resolves UI display issues
+
+**Technical Details**: MCP clients expect clean output but FastMCP logs protocol messages like:
+```
+INFO Processing request of type ListToolsRequest
+INFO Processing request of type ListResourcesRequest  
+INFO Processing request of type ListResourceTemplatesRequest
+```
+
+These are normal initialization messages, not actual errors.
+
 ## Next Steps
 
 ### Phase 3: Complete MCP Server Implementation

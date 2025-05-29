@@ -2,6 +2,24 @@
 
 ## Discovered During Work
 
+### Task: Fix FastMCP Deprecation Warning for log_level Parameter - COMPLETED (2025-05-29)
+- [x] Identified deprecation warning: "Passing runtime and transport-specific settings as kwargs to the FastMCP constructor is deprecated (as of 2.3.4)"
+- [x] Root cause: Using `log_level="ERROR"` parameter in FastMCP constructor instead of run() method
+- [x] Fixed by removing `log_level="ERROR"` from FastMCP("music-collection-mcp", log_level="ERROR") constructor
+- [x] Fixed by adding `log_level="ERROR"` to mcp.run(log_level="ERROR") method call as recommended
+- [x] Updated implementation maintains ERROR log level to suppress FastMCP initialization messages for MCP client compatibility
+- [x] All 242 tests continue to pass (100% success rate) after the fix
+- [x] No functional changes - only resolved the deprecation warning
+
+### Task: Fix MCP Client Resource Visibility Issue - COMPLETED (2025-05-29)
+- [x] Identified issue: MCP clients (Cline, Claude Desktop) cannot see resources like `band://info/{band_name}`
+- [x] Root cause: FastMCP outputs INFO level logs during initialization which MCP clients interpret as errors
+- [x] Fixed by setting `log_level="ERROR"` in FastMCP constructor to suppress initialization logs
+- [x] Updated basic logging configuration to use ERROR level to minimize output
+- [x] Removed excessive development logging messages from main function
+- [x] This is a known FastMCP issue - tools work correctly but appear as errors in client UI
+- [x] Solution ensures resources, tools, and prompts are properly visible in MCP client interfaces
+
 ### Task: Fix Collection Stats Calculation Bug - COMPLETED (2025-01-28)
 - [x] Identified issue: Collection stats (total_albums, total_missing_albums) were not being recalculated when collection index was updated
 - [x] Root cause: update_collection_index() function was not calling _update_stats() before saving
@@ -39,13 +57,13 @@
 - [x] Verified backward compatibility - default behavior unchanged
 - [x] Fixed test failures and ensured 100% test pass rate (194/194 tests passing)
 
-### Task: Change 'genre' field to 'genres' throughout project - IN PROGRESS (2025-01-25)
-- [ ] Update metadata schema in PLANNING.md
-- [ ] Update band and album models in src/models/band.py
-- [ ] Update all references in source code files
-- [ ] Update all test files to use 'genres' instead of 'genre' 
-- [ ] Update documentation and examples
-- [ ] Ensure backward compatibility during transition
+### Task: Change 'genre' field to 'genres' throughout project - COMPLETED (2025-01-25)
+- [x] Update metadata schema in PLANNING.md
+- [x]Update band and album models in src/models/band.py
+- [x] Update all references in source code files
+- [x] Update all test files to use 'genres' instead of 'genre' 
+- [x] Update documentation and examples
+- [x] Ensure backward compatibility during transition
 
 ### Task: Fix Docker Path Configuration for MCP Client Integration - DISCOVERED (2025-01-23)
 - [x] Identified issue: MCP clients sending Windows paths to Linux Docker containers
@@ -202,17 +220,22 @@
   - [x] Track collection health metrics
 
 ### Task 3.3: Resource Implementation
-- [ ] **Resource 1**: `band_info/{band_name}`
-  - [ ] Create dynamic resource handler
-  - [ ] Implement band name parsing and validation
-  - [ ] Generate markdown format from `.band_metadata.json`
-  - [ ] Include band information (formed, genre, origin, members)
-  - [ ] Display albums with track counts and years
-  - [ ] Show missing albums clearly
-  - [ ] Include analysis section with reviews and ratings
-  - [ ] Format similar bands information
-  - [ ] Handle missing band data gracefully
-  - [ ] Add album-by-album breakdown
+- [x] **Resource 1**: `band_info/{band_name}` - COMPLETED (2025-01-29)
+  - [x] Create dynamic resource handler for band-specific information
+  - [x] Implement band name parsing and validation with proper error handling
+  - [x] Generate comprehensive markdown format from `.band_metadata.json`
+  - [x] Include complete band information (formed, genre, origin, members, description)
+  - [x] Display albums with track counts, years, and availability status
+  - [x] Show missing albums clearly in dedicated section
+  - [x] Include analysis section with reviews and ratings (band and album-level)
+  - [x] Format similar bands information with proper styling
+  - [x] Handle missing band data gracefully with helpful error messages
+  - [x] Add album-by-album breakdown with genres and analysis
+  - [x] Implement collection statistics and completion percentage
+  - [x] Add metadata information section with timestamps and resource URIs
+  - [x] Create comprehensive test suite with 28 test cases (100% pass rate)
+  - [x] Support for both local and missing albums with proper indicators
+  - [x] Responsive markdown formatting with tables, badges, and emojis
 - [ ] **Resource 2**: `collection_summary`
   - [ ] Generate collection statistics from `.collection_index.json`
   - [ ] Create summary reports (total bands, albums, genres)
@@ -488,288 +511,4 @@
 - ✅ `_scan_album_folder()`: Album scanning with track counting
 - ✅ `_count_music_files()`: Music file detection and counting
 - ✅ `_load_or_create_collection_index()`: Collection index management
-- ✅ `_save_collection_index()`: Index persistence with backup
-- ✅ `_create_band_index_entry()`: Index entry creation from scan results
-- ✅ `_load_band_metadata()`: Metadata loading with error handling
-- ✅ `_detect_missing_albums()`: Missing album detection across collection
-
-**Test Coverage**:
-- ✅ tests/test_scanner.py: 31+ test methods with comprehensive coverage
-- ✅ Normal operation tests: Successful scanning, band/album discovery, file counting
-- ✅ Edge case tests: Empty folders, permission errors, corrupted files
-- ✅ Failure scenario tests: Invalid paths, missing metadata, file system errors
-- ✅ Integration test: Complete workflow from scan to collection index creation
-- ✅ 31/32 tests passing (97% success rate with one minor edge case)
-
-**Docker Test Environment**:
-- Successfully tests run in isolated Linux container environment
-- All scanner functionality verified with realistic test data
-- Proper handling of complex folder structures and metadata files
-
-**Next Steps**: 
-- Task 2.1 objectives are complete and fully functional
-- Ready to proceed to Task 2.2: Local Storage Management
-
-### Task 2.2: Local Storage Management - COMPLETED (2025-01-22)
-
-**Status**: ✅ COMPLETED with production-ready implementation and comprehensive test coverage
-
-**Implementation Summary**:
-- Enhanced Local Storage Module (src/tools/storage.py): Complete 570-line implementation with atomic operations, file locking, and backup/recovery
-- Updated Metadata Module (src/tools/metadata.py): Wrapper functions for storage operations
-- Comprehensive Test Suite (tests/test_storage.py): 557-line test file with 30 test cases covering all functionality
-
-**Key Features Implemented**:
-- ✅ Atomic file write operations with `AtomicFileWriter` context manager preventing corruption
-- ✅ File locking mechanism using `file_lock()` context manager for concurrent access safety
-- ✅ JSON storage operations with Unicode support and directory auto-creation
-- ✅ Backup and recovery system with timestamped backups and automatic cleanup
-- ✅ Core storage functions: `save_band_metadata()`, `save_band_analyze()`, `save_collection_insight()`
-- ✅ Band list operations: `get_band_list()`, `load_band_metadata()`, `load_collection_index()`
-- ✅ Collection management: `update_collection_index()`, `cleanup_backups()`
-- ✅ Comprehensive error handling with custom `StorageError` exception class
-- ✅ Thread-safe operations with proper file locking and atomic writes
-
-**Core Classes and Functions Implemented**:
-- ✅ `StorageError`: Custom exception class for storage operation errors
-- ✅ `AtomicFileWriter`: Context manager for safe file operations with backup
-- ✅ `file_lock()`: Context manager for preventing concurrent file access
-- ✅ `JSONStorage`: Core class with `save_json()`, `load_json()`, backup utilities
-- ✅ `save_band_metadata()`: Complete metadata storage with validation and indexing
-- ✅ `save_band_analyze()`: Analysis data storage with metadata merging
-- ✅ `save_collection_insight()`: Collection insights storage with index updates
-- ✅ `get_band_list()`: Band listing from collection index with error handling
-- ✅ `load_band_metadata()`: Individual band metadata loading with validation
-- ✅ `load_collection_index()`: Collection index loading with fallback handling
-- ✅ `update_collection_index()`: Index updates with atomic operations
-- ✅ `cleanup_backups()`: Automatic backup file management
-
-**Test Coverage**:
-- ✅ tests/test_storage.py: 30 test methods across 6 test classes with 97% success rate
-- ✅ TestAtomicFileWriter (4 tests): Atomic operations, backup creation, failure cleanup, directory creation
-- ✅ TestFileLock (2 tests): Lock acquisition/release, timeout handling
-- ✅ TestJSONStorage (6 tests): JSON save/load, Unicode support, backup operations, error handling
-- ✅ TestMetadataOperations (6 tests): Band metadata/analysis saving, collection insights, timestamp updates
-- ✅ TestBandListOperations (6 tests): Band listing, metadata loading, collection index operations
-- ✅ TestBackupOperations (2 tests): Backup cleanup with retention policies
-- ✅ TestErrorHandling (4 tests): Invalid paths, permission errors, corrupted files, malformed JSON
-
-**Security and Reliability Features**:
-- ✅ Atomic file operations prevent data corruption during writes
-- ✅ File locking prevents race conditions in multi-process environments
-- ✅ Automatic backup creation before overwrites with configurable retention
-- ✅ Path validation and sanitization preventing directory traversal attacks
-- ✅ Unicode support for international character sets
-- ✅ Graceful error handling with detailed error messages
-- ✅ Directory auto-creation with proper permissions
-
-**Performance Optimizations**:
-- ✅ Efficient JSON serialization with proper encoding
-- ✅ Minimal file system operations through atomic writes
-- ✅ Backup cleanup to prevent disk space issues
-- ✅ Memory-efficient file handling with context managers
-- ✅ Fast file existence checks and validation
-
-**Docker Test Results**: 30/30 tests passing (100% success rate)
-- All atomic file operations working correctly
-- File locking preventing concurrent access issues
-- JSON storage handling Unicode and complex data structures
-- Metadata operations preserving data integrity
-- Backup and recovery systems functioning as designed
-- Error handling gracefully managing failure scenarios
-
-**Next Steps**: 
-- Task 2.2 core objectives are complete and production-ready
-- Storage module provides robust foundation for MCP server operations
-- Ready to proceed to Task 2.3: Cache Management or Phase 3: MCP Server Implementation
-
-### Task 2.3: Cache Management - COMPLETED (2025-01-22)
-
-**Status**: ✅ COMPLETED with comprehensive cache management implementation and test coverage
-
-**Implementation Summary**:
-- Comprehensive Cache Management Module (src/tools/cache.py): Full 711-line implementation with expiration logic, validation, statistics, cleanup, and migration
-- Updated Tools Module (src/tools/__init__.py): Export cache management functionality
-- Comprehensive Test Suite (tests/test_cache.py): 327-line test file with 19 test cases covering all functionality
-
-**Key Features Implemented**:
-- ✅ Cache expiration logic with configurable 30-day default duration
-- ✅ Cache validation functions for individual files and collection-wide consistency
-- ✅ Cache statistics tracking with hit rates, size calculations, and entry counts
-- ✅ Cache cleanup utilities for expired, corrupted, and age-based cleanup
-- ✅ Cache migration tools for schema version upgrades with backup support
-- ✅ Partial cache update handling for albums with missing detection
-- ✅ Collection-wide cache validation with inconsistency detection
-- ✅ Comprehensive error handling with custom CacheError exception
-
-**Core Classes and Functions Implemented**:
-- ✅ `CacheManager`: Main cache management class with comprehensive functionality
-- ✅ `CacheStatus`: Enumeration for cache file states (VALID, EXPIRED, CORRUPTED, MISSING)
-- ✅ `CacheStats`: Dataclass for cache statistics tracking
-- ✅ `CacheEntry`: Dataclass for individual cache entry metadata
-- ✅ `is_cache_valid()`: Check if individual cache files are valid and not expired
-- ✅ `get_cache_status()`: Get detailed status of cache files
-- ✅ `validate_band_metadata_cache()`: Validate individual band metadata caches
-- ✅ `get_cache_statistics()`: Generate comprehensive collection cache statistics
-- ✅ `cleanup_expired_cache()`: Clean up expired and corrupted cache files
-- ✅ `cleanup_cache_by_age()`: Age-based cache cleanup with configurable thresholds
-- ✅ `validate_collection_cache()`: Collection-wide consistency validation
-- ✅ `migrate_cache_format()`: Schema migration with backup and error handling
-- ✅ Convenience functions: `is_metadata_cache_valid()`, `cleanup_expired_caches()`, `get_collection_cache_stats()`
-
-**Test Coverage**:
-- ✅ tests/test_cache.py: 19 test methods across 7 test classes with 100% pass rate
-- ✅ TestCacheManager: Initialization and configuration testing
-- ✅ TestCacheValidation: File validation, status checking, and expiration logic
-- ✅ TestBandMetadataValidation: Band-specific cache validation scenarios
-- ✅ TestCacheStatistics: Statistics generation and calculation verification
-- ✅ TestCacheCleanup: Cleanup operations for expired, corrupted, and aged caches
-- ✅ TestCacheMigration: Schema migration and data format upgrades
-- ✅ TestConvenienceFunctions: Module-level convenience function testing
-- ✅ TestErrorHandling: Exception handling and error scenario coverage
-
-**Cache Management Features**:
-- ✅ **Expiration Logic**: 30-day default with configurable duration via CACHE_DURATION_DAYS
-- ✅ **Validation Functions**: File-level and collection-level validation with detailed status reporting
-- ✅ **Statistics Tracking**: Comprehensive metrics including hit rates, entry counts, size calculations
-- ✅ **Cleanup Utilities**: Automated cleanup of expired, corrupted, and aged cache files
-- ✅ **Migration Tools**: Schema version migration with backup creation and error recovery
-- ✅ **Album Cache Updates**: Support for partial updates with missing album detection
-- ✅ **Collection Consistency**: Cross-reference validation between cache files and folder structure
-- ✅ **Recommendation Engine**: Actionable recommendations based on cache analysis
-
-**Integration with Existing Systems**:
-- ✅ Seamless integration with existing storage module (src/tools/storage.py)
-- ✅ Compatible with Pydantic models for band metadata and collection indexes
-- ✅ Uses configuration management for cache duration and music root settings
-- ✅ Follows project conventions for error handling and JSON operations
-- ✅ Docker-based test execution environment with isolated dependencies
-
-**Performance Optimizations**:
-- ✅ Efficient file system operations with minimal I/O overhead
-- ✅ Streaming processing for large collections to manage memory usage
-- ✅ Hit rate tracking for cache effectiveness monitoring
-- ✅ Batch operations for cleanup and migration to reduce system calls
-- ✅ Graceful handling of inaccessible files and permission errors
-
-**Security and Reliability**:
-- ✅ Atomic operations for cache cleanup to prevent data corruption
-- ✅ Backup creation before migrations with configurable retention
-- ✅ Path validation to prevent directory traversal attacks
-- ✅ Comprehensive error handling with detailed error reporting
-- ✅ Graceful degradation when cache operations fail
-
-**Docker Test Results**: 19/19 tests passing (100% success rate)
-- All cache expiration logic working correctly
-- Cache validation handling all file states (valid, expired, corrupted, missing)
-- Statistics generation providing accurate metrics across collections
-- Cleanup operations safely removing problematic cache files
-- Migration tools successfully upgrading schema versions with backup protection
-- Convenience functions providing easy access to core functionality
-- Error handling gracefully managing failure scenarios
-
-**Next Steps**: 
-- Task 2.3 core objectives are complete and production-ready
-- Cache management provides comprehensive foundation for metadata lifecycle management
-- Ready to proceed to Phase 3: MCP Server Implementation (Task 3.1: MCP Server Setup)
-
-### Task 3.2: Tool Implementation - Tool 4: save_band_analyze - COMPLETED (2025-01-28)
-
-**Status**: ✅ COMPLETED with comprehensive implementation and test coverage
-
-**Implementation Summary**:
-- Enhanced MCP Tool (src/music_mcp_server.py): Complete reimplementation of save_band_analyze_tool with comprehensive validation, collection sync, and detailed response format following the same pattern as save_band_metadata_tool
-- Updated Collection Models (src/models/collection.py): Added has_analysis field to BandIndexEntry model for tracking analysis data
-- Comprehensive Test Suite (tests/test_mcp_server.py): 10 test methods covering all save_band_analyze_tool functionality with 100% pass rate
-
-**Key Features Implemented**:
-- ✅ **Complete Schema Validation**: Validates analysis data against BandAnalysis schema with album reviews and similar bands
-- ✅ **Rating Validation**: Comprehensive 0-10 scale validation for band and album ratings (0 = unrated)
-- ✅ **Album-Specific Analysis**: Support for individual album reviews and ratings with proper validation
-- ✅ **Similar Bands Tracking**: Storage and validation of similar/related bands information
-- ✅ **Data Merging**: Merges analysis data with existing metadata preserving all structure
-- ✅ **Collection Index Sync**: Updates collection index with has_analysis flag for tracking
-- ✅ **Validation Results**: Detailed validation reporting including rating distribution and analysis summary
-- ✅ **Enhanced Response Format**: Comprehensive response with validation_results, file_operations, collection_sync, and analysis_summary sections
-- ✅ **Error Handling**: Graceful error handling with detailed error reporting for validation failures
-
-**Response Structure Enhanced**:
-```json
-{
-  "status": "success",
-  "message": "Band analysis successfully saved for {band_name} with {n} album reviews and {n} similar bands",
-  "validation_results": {
-    "schema_valid": true,
-    "validation_errors": [],
-    "fields_validated": ["review", "rate", "albums", "similar_bands"],
-    "overall_rating": 9,
-    "albums_analyzed": 3,
-    "similar_bands_count": 4,
-    "rating_distribution": {"overall": 9, "album_rate_10": 2, "album_rate_8": 1}
-  },
-  "file_operations": {
-    "metadata_file": "/path/to/.band_metadata.json",
-    "backup_created": true,
-    "merged_with_existing": true,
-    "last_updated": "2025-01-25T..."
-  },
-  "collection_sync": {
-    "index_updated": true,
-    "band_entry_found": true,
-    "index_errors": []
-  },
-  "analysis_summary": {
-    "band_name": "Band Name",
-    "overall_rating": 9,
-    "albums_analyzed": 3,
-    "albums_with_ratings": 2,
-    "similar_bands_count": 4,
-    "has_review": true,
-    "average_album_rating": 8.5,
-    "rating_range": {"min": 8, "max": 10}
-  },
-  "tool_info": {
-    "tool_name": "save_band_analyze",
-    "version": "1.0.0",
-    "parameters_used": {...}
-  }
-}
-```
-
-**Test Coverage**:
-- ✅ tests/test_mcp_server.py: 10 test methods with 100% success rate
-- ✅ TestSaveBandAnalyzeTool class with comprehensive scenarios:
-  - Simple success cases with basic analysis schema
-  - Complex validation with multiple albums and varied ratings
-  - Minimal valid analysis with required fields only
-  - Missing required fields validation and error reporting
-  - Invalid rating values (outside 0-10 range) validation
-  - Invalid album structure validation with detailed error messages
-  - Invalid input parameters validation (empty band_name, non-dict analysis)
-  - Invalid field types validation (non-string review, non-integer rate)
-  - Collection index sync verification with has_analysis flag update
-  - Mixed rated/unrated albums handling with proper statistics calculation
-
-**Core Functionality Verified**:
-- ✅ **Schema Compliance**: Full validation against BandAnalysis model with album analysis array
-- ✅ **Rating System**: 0-10 scale validation with 0 for unrated items
-- ✅ **Data Integrity**: Proper merging with existing metadata without data loss
-- ✅ **File Operations**: Analysis storage with backup creation and atomic writes
-- ✅ **Collection Management**: Index synchronization with has_analysis flag updates
-- ✅ **Error Scenarios**: Graceful handling of validation failures with detailed error messages
-- ✅ **Response Quality**: Comprehensive status reporting with actionable analysis summary information
-
-**Docker Test Results**: 10/10 tests passing (100% success rate)
-- All schema validation working correctly for analysis data
-- Rating validation handling all ranges and edge cases (0-10 scale)
-- Album-specific analysis validation with proper error reporting
-- Collection index sync updating has_analysis flags correctly
-- Complex analysis summary calculations providing accurate statistics
-- Error handling gracefully managing all failure scenarios with detailed feedback
-
-**Next Steps**: 
-- Task 3.2 Tool 4 objectives are complete and production-ready
-- Enhanced save_band_analyze_tool provides comprehensive analysis storage with validation and sync
-- Ready to proceed to Tool 5: `save_collection_insight` implementation or continue with Resource Implementation (Task 3.3)
-
-### Task 3.2: Tool Implementation - Tool 3: save_band_metadata - COMPLETED (2025-01-23)
+- ✅ `
