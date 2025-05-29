@@ -782,21 +782,267 @@ def save_collection_insight_tool(
     insights: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save collection-wide insights to the local storage.
+    Save collection-wide insights and analytics.
+    
+    This tool stores comprehensive collection insights including:
+    - Collection insights and analysis text
+    - Actionable recommendations for the collection
+    - Top-rated bands listing
+    - Suggested album purchases
+    - Overall collection health assessment
+    - Generated at timestamp for tracking
     
     Args:
-        insights: Collection insights data including statistics and analytics
+        insights: Insights data dictionary containing collection analytics
         
     Returns:
-        Dict containing the operation status
+        Dict containing comprehensive operation status with validation results,
+        file operations, collection sync, and insights summary
+    
+    INSIGHTS SCHEMA:
+    ===============
+    The insights parameter must be a dictionary with the following structure:
+    
+    OPTIONAL FIELDS:
+    ================
+    - insights (array of strings): Collection insight text descriptions
+    - recommendations (array of strings): Actionable recommendations for improving collection
+    - top_rated_bands (array of strings): Names of highest rated bands in collection
+    - suggested_purchases (array of strings): Albums suggested for acquisition
+    - collection_health (string): Overall collection health ('Excellent', 'Good', 'Fair', 'Poor')
+    
+    COLLECTION HEALTH VALUES:
+    =========================
+    - 'Excellent': Collection is in optimal state
+    - 'Good': Collection is in good condition with minor improvements needed
+    - 'Fair': Collection has some issues that should be addressed
+    - 'Poor': Collection has significant issues requiring attention
+    
+    EXAMPLE INSIGHTS:
+    =================
+    {
+        "insights": [
+            "Your collection shows strong representation in rock and metal genres",
+            "Missing albums are concentrated in 1990s releases",
+            "Average collection rating is 7.8/10 indicating high quality selection"
+        ],
+        "recommendations": [
+            "Consider adding more jazz albums to diversify genres",
+            "Focus on completing Pink Floyd discography - 3 albums missing",
+            "Review low-rated albums for potential removal"
+        ],
+        "top_rated_bands": ["Pink Floyd", "Led Zeppelin", "The Beatles"],
+        "suggested_purchases": [
+            "Pink Floyd - Wish You Were Here",
+            "Led Zeppelin - Physical Graffiti",
+            "The Beatles - Revolver"
+        ],
+        "collection_health": "Good"
+    }
     """
     try:
-        return save_collection_insight(insights)
+        # Import required models
+        from src.models.collection import CollectionInsight
+        from src.tools.storage import save_collection_insight as storage_save_collection_insight
+        
+        # Prepare comprehensive response structure
+        response = {
+            "status": "success",
+            "message": "",
+            "validation_results": {
+                "schema_valid": False,
+                "validation_errors": [],
+                "fields_validated": [],
+                "insights_count": 0,
+                "recommendations_count": 0,
+                "top_rated_bands_count": 0,
+                "suggested_purchases_count": 0,
+                "collection_health_valid": False
+            },
+            "file_operations": {
+                "collection_index_file": "",
+                "backup_created": False,
+                "merged_with_existing": False,
+                "last_updated": "",
+                "file_size_bytes": 0
+            },
+            "collection_sync": {
+                "index_updated": False,
+                "index_errors": [],
+                "insights_added": False
+            },
+            "insights_summary": {
+                "insights_count": 0,
+                "recommendations_count": 0,
+                "top_rated_bands_count": 0,
+                "suggested_purchases_count": 0,
+                "collection_health": "Good",
+                "has_insights": False,
+                "has_recommendations": False,
+                "generated_at": ""
+            },
+            "tool_info": {
+                "tool_name": "save_collection_insight",
+                "version": "1.0.0",
+                "parameters_used": {
+                    "insights_fields": list(insights.keys()) if isinstance(insights, dict) else []
+                }
+            }
+        }
+        
+        # Validate input parameters
+        if insights is None or not isinstance(insights, dict):
+            response["status"] = "error"
+            response["message"] = "Invalid insights parameter: must be a dictionary"
+            response["validation_results"]["validation_errors"].append("insights is required and must be a dictionary")
+            return response
+        
+        # Validate and convert insights data to CollectionInsight object
+        validation_errors = []
+        fields_validated = []
+        
+        # Check optional fields and their types
+        insights_list = insights.get("insights", [])
+        if "insights" in insights:
+            fields_validated.append("insights")
+            if not isinstance(insights_list, list):
+                validation_errors.append("Field 'insights' must be a list of strings")
+            elif not all(isinstance(item, str) for item in insights_list):
+                validation_errors.append("All items in 'insights' must be strings")
+        
+        recommendations_list = insights.get("recommendations", [])
+        if "recommendations" in insights:
+            fields_validated.append("recommendations")
+            if not isinstance(recommendations_list, list):
+                validation_errors.append("Field 'recommendations' must be a list of strings")
+            elif not all(isinstance(item, str) for item in recommendations_list):
+                validation_errors.append("All items in 'recommendations' must be strings")
+        
+        top_rated_bands_list = insights.get("top_rated_bands", [])
+        if "top_rated_bands" in insights:
+            fields_validated.append("top_rated_bands")
+            if not isinstance(top_rated_bands_list, list):
+                validation_errors.append("Field 'top_rated_bands' must be a list of strings")
+            elif not all(isinstance(item, str) for item in top_rated_bands_list):
+                validation_errors.append("All items in 'top_rated_bands' must be strings")
+        
+        suggested_purchases_list = insights.get("suggested_purchases", [])
+        if "suggested_purchases" in insights:
+            fields_validated.append("suggested_purchases")
+            if not isinstance(suggested_purchases_list, list):
+                validation_errors.append("Field 'suggested_purchases' must be a list of strings")
+            elif not all(isinstance(item, str) for item in suggested_purchases_list):
+                validation_errors.append("All items in 'suggested_purchases' must be strings")
+        
+        collection_health = insights.get("collection_health", "Good")
+        collection_health_valid = True  # Default value is always valid
+        if "collection_health" in insights:
+            fields_validated.append("collection_health")
+            if not isinstance(collection_health, str):
+                validation_errors.append("Field 'collection_health' must be a string")
+                collection_health_valid = False
+            else:
+                allowed_health_values = ['Excellent', 'Good', 'Fair', 'Poor']
+                if collection_health not in allowed_health_values:
+                    validation_errors.append(f"Field 'collection_health' must be one of: {allowed_health_values}")
+                    collection_health_valid = False
+        
+        # If there are validation errors, return error response
+        if validation_errors:
+            response["status"] = "error"
+            response["message"] = "Insights validation failed"
+            response["validation_results"]["validation_errors"] = validation_errors
+            response["validation_results"]["fields_validated"] = fields_validated
+            return response
+        
+        # Try to create CollectionInsight object for full validation
+        try:
+            collection_insight = CollectionInsight(
+                insights=insights_list,
+                recommendations=recommendations_list,
+                top_rated_bands=top_rated_bands_list,
+                suggested_purchases=suggested_purchases_list,
+                collection_health=collection_health
+            )
+            
+            # Validation successful
+            response["validation_results"]["schema_valid"] = True
+            response["validation_results"]["fields_validated"] = fields_validated
+            response["validation_results"]["insights_count"] = len(insights_list)
+            response["validation_results"]["recommendations_count"] = len(recommendations_list)
+            response["validation_results"]["top_rated_bands_count"] = len(top_rated_bands_list)
+            response["validation_results"]["suggested_purchases_count"] = len(suggested_purchases_list)
+            response["validation_results"]["collection_health_valid"] = collection_health_valid
+            
+        except Exception as e:
+            validation_error = str(e)
+            response["status"] = "error"
+            response["message"] = "Insights schema validation failed"
+            response["validation_results"]["validation_errors"].append(f"Schema validation failed: {validation_error}")
+            response["validation_results"]["fields_validated"] = fields_validated
+            return response
+        
+        # Save the insights using storage function
+        try:
+            storage_result = storage_save_collection_insight(collection_insight)
+            
+            # Update response with storage results
+            response["status"] = storage_result["status"]
+            response["message"] = f"Collection insights saved successfully with {len(insights_list)} insights and {len(recommendations_list)} recommendations"
+            
+            # File operations
+            response["file_operations"]["collection_index_file"] = storage_result.get("file_path", "")
+            response["file_operations"]["backup_created"] = True  # Storage always creates backup
+            response["file_operations"]["merged_with_existing"] = storage_result.get("file_existed_before", False)
+            response["file_operations"]["last_updated"] = collection_insight.generated_at
+            
+            # Get file size if path is available
+            collection_file_path = Path(storage_result.get("file_path", ""))
+            if collection_file_path.exists():
+                response["file_operations"]["file_size_bytes"] = collection_file_path.stat().st_size
+            
+            # Collection sync
+            response["collection_sync"]["index_updated"] = True
+            response["collection_sync"]["insights_added"] = True
+            response["collection_sync"]["index_errors"] = []
+            
+            # Insights summary
+            response["insights_summary"]["insights_count"] = len(insights_list)
+            response["insights_summary"]["recommendations_count"] = len(recommendations_list)
+            response["insights_summary"]["top_rated_bands_count"] = len(top_rated_bands_list)
+            response["insights_summary"]["suggested_purchases_count"] = len(suggested_purchases_list)
+            response["insights_summary"]["collection_health"] = collection_health
+            response["insights_summary"]["has_insights"] = len(insights_list) > 0
+            response["insights_summary"]["has_recommendations"] = len(recommendations_list) > 0
+            response["insights_summary"]["generated_at"] = collection_insight.generated_at
+            
+        except Exception as e:
+            response["status"] = "error"
+            response["message"] = f"Failed to save collection insights: {str(e)}"
+            response["validation_results"]["validation_errors"].append(f"Storage operation failed: {str(e)}")
+            response["collection_sync"]["index_errors"].append(str(e))
+        
+        return response
+        
     except Exception as e:
         logger.error(f"Error in save_collection_insight tool: {str(e)}")
         return {
             'status': 'error',
-            'error': f"Tool execution failed: {str(e)}"
+            'error': f"Tool execution failed: {str(e)}",
+            'validation_results': {
+                "schema_valid": False,
+                "validation_errors": [str(e)],
+                "fields_validated": [],
+                "insights_count": 0,
+                "recommendations_count": 0,
+                "top_rated_bands_count": 0,
+                "suggested_purchases_count": 0,
+                "collection_health_valid": False
+            },
+            'tool_info': {
+                'tool_name': 'save_collection_insight',
+                'version': '1.0.0'
+            }
         }
 
 @mcp.tool()

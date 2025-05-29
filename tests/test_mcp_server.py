@@ -790,6 +790,322 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
         assert result_exclude["validation_results"]["similar_bands_count"] == result_include["validation_results"]["similar_bands_count"]
 
 
+class TestSaveCollectionInsightTool(unittest.TestCase):
+    """Test the enhanced save_collection_insight_tool with comprehensive validation and sync."""
+
+    def setUp(self):
+        """Set up test environment."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.config_patch = patch('src.tools.storage.Config')
+        self.mock_config = self.config_patch.start()
+        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
+
+    def tearDown(self):
+        """Clean up test environment."""
+        self.config_patch.stop()
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_save_collection_insight_simple_success(self):
+        """Test successful collection insights save with basic schema."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": [
+                "Great collection with diverse genres",
+                "Strong representation in rock and metal"
+            ],
+            "recommendations": [
+                "Consider adding more jazz albums",
+                "Focus on completing Pink Floyd discography"
+            ],
+            "top_rated_bands": ["Pink Floyd", "Led Zeppelin"],
+            "suggested_purchases": [
+                "Pink Floyd - Wish You Were Here",
+                "Led Zeppelin - Physical Graffiti"
+            ],
+            "collection_health": "Good"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        # Check overall success
+        assert result["status"] == "success"
+        assert "Collection insights saved successfully" in result["message"]
+        assert "2 insights and 2 recommendations" in result["message"]
+        
+        # Check validation results
+        validation = result["validation_results"]
+        assert validation["schema_valid"] is True
+        assert validation["insights_count"] == 2
+        assert validation["recommendations_count"] == 2
+        assert validation["top_rated_bands_count"] == 2
+        assert validation["suggested_purchases_count"] == 2
+        assert validation["collection_health_valid"] is True
+        assert len(validation["validation_errors"]) == 0
+        assert "insights" in validation["fields_validated"]
+        assert "recommendations" in validation["fields_validated"]
+        
+        # Check file operations
+        file_ops = result["file_operations"]
+        assert file_ops["backup_created"] is True
+        assert file_ops["last_updated"] != ""
+        assert str(Path(self.temp_dir) / ".collection_index.json") in file_ops["collection_index_file"]
+        
+        # Check collection sync
+        sync = result["collection_sync"]
+        assert sync["index_updated"] is True
+        assert sync["insights_added"] is True
+        assert len(sync["index_errors"]) == 0
+        
+        # Check insights summary
+        insights_summary = result["insights_summary"]
+        assert insights_summary["insights_count"] == 2
+        assert insights_summary["recommendations_count"] == 2
+        assert insights_summary["top_rated_bands_count"] == 2
+        assert insights_summary["suggested_purchases_count"] == 2
+        assert insights_summary["collection_health"] == "Good"
+        assert insights_summary["has_insights"] is True
+        assert insights_summary["has_recommendations"] is True
+        assert insights_summary["generated_at"] != ""
+
+    def test_save_collection_insight_minimal_valid(self):
+        """Test minimal valid insights with only required fields."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "collection_health": "Excellent"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "success"
+        
+        # Check validation results with minimal data
+        validation = result["validation_results"]
+        assert validation["schema_valid"] is True
+        assert validation["insights_count"] == 0
+        assert validation["recommendations_count"] == 0
+        assert validation["top_rated_bands_count"] == 0
+        assert validation["suggested_purchases_count"] == 0
+        assert validation["collection_health_valid"] is True
+        
+        # Check insights summary reflects minimal data
+        insights_summary = result["insights_summary"]
+        assert insights_summary["collection_health"] == "Excellent"
+        assert insights_summary["has_insights"] is False
+        assert insights_summary["has_recommendations"] is False
+
+    def test_save_collection_insight_comprehensive_data(self):
+        """Test comprehensive insights with all fields populated."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": [
+                "Collection spans 5 decades with 120 albums",
+                "Genre distribution: 40% Rock, 25% Metal, 20% Progressive, 15% Other",
+                "Average album rating is 8.2/10 indicating high quality curation",
+                "15% of albums are missing from local collection"
+            ],
+            "recommendations": [
+                "Complete The Beatles discography - missing 3 albums",
+                "Add more female-fronted metal bands for diversity",
+                "Consider removing albums rated below 6/10",
+                "Focus on acquiring albums from 1980s progressive era"
+            ],
+            "top_rated_bands": [
+                "Pink Floyd", "Led Zeppelin", "The Beatles", "Queen", "Deep Purple"
+            ],
+            "suggested_purchases": [
+                "Pink Floyd - Animals",
+                "Led Zeppelin - Houses of the Holy",
+                "The Beatles - Abbey Road",
+                "Queen - A Night at the Opera",
+                "Deep Purple - Machine Head"
+            ],
+            "collection_health": "Good"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "success"
+        assert "4 insights and 4 recommendations" in result["message"]
+        
+        # Check comprehensive validation results
+        validation = result["validation_results"]
+        assert validation["schema_valid"] is True
+        assert validation["insights_count"] == 4
+        assert validation["recommendations_count"] == 4
+        assert validation["top_rated_bands_count"] == 5
+        assert validation["suggested_purchases_count"] == 5
+        assert validation["collection_health_valid"] is True
+        
+        # Check all fields were validated
+        expected_fields = ["insights", "recommendations", "top_rated_bands", "suggested_purchases", "collection_health"]
+        for field in expected_fields:
+            assert field in validation["fields_validated"]
+
+    def test_save_collection_insight_invalid_parameters(self):
+        """Test handling of invalid input parameters."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        # Test with None insights
+        result = save_collection_insight_tool(None)
+        assert result["status"] == "error"
+        assert "Invalid insights parameter" in result["message"]
+        assert "insights is required and must be a dictionary" in result["validation_results"]["validation_errors"]
+        
+        # Test with empty insights
+        result = save_collection_insight_tool({})
+        assert result["status"] == "success"  # Empty dict is valid with defaults
+        
+        # Test with non-dict insights
+        result = save_collection_insight_tool("invalid")
+        assert result["status"] == "error"
+        assert "Invalid insights parameter" in result["message"]
+
+    def test_save_collection_insight_invalid_field_types(self):
+        """Test handling of invalid field types."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": "should be list not string",
+            "recommendations": ["Valid recommendation"],
+            "top_rated_bands": 123,  # Should be list
+            "suggested_purchases": ["Valid purchase"],
+            "collection_health": ["should be string not list"]
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "error"
+        assert "Insights validation failed" in result["message"]
+        
+        validation_errors = result["validation_results"]["validation_errors"]
+        assert "Field 'insights' must be a list of strings" in validation_errors
+        assert "Field 'top_rated_bands' must be a list of strings" in validation_errors
+        assert "Field 'collection_health' must be a string" in validation_errors
+
+    def test_save_collection_insight_invalid_list_contents(self):
+        """Test handling of lists with invalid content types."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": ["Valid insight", 123, "Another valid insight"],  # Mixed types
+            "recommendations": [{"invalid": "dict"}, "Valid recommendation"],  # Mixed types
+            "top_rated_bands": ["Pink Floyd", None, "Led Zeppelin"],  # Mixed types
+            "collection_health": "Good"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "error"
+        
+        validation_errors = result["validation_results"]["validation_errors"]
+        assert "All items in 'insights' must be strings" in validation_errors
+        assert "All items in 'recommendations' must be strings" in validation_errors
+        assert "All items in 'top_rated_bands' must be strings" in validation_errors
+
+    def test_save_collection_insight_invalid_health_status(self):
+        """Test handling of invalid collection health status."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": ["Valid insight"],
+            "collection_health": "Invalid Status"  # Not in allowed values
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "error"
+        
+        validation_errors = result["validation_results"]["validation_errors"]
+        error_found = False
+        for error in validation_errors:
+            if "must be one of: ['Excellent', 'Good', 'Fair', 'Poor']" in error:
+                error_found = True
+                break
+        assert error_found
+
+    def test_save_collection_insight_partial_fields(self):
+        """Test insights with only some fields populated."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": ["Collection analysis complete"],
+            "collection_health": "Fair"
+            # Missing recommendations, top_rated_bands, suggested_purchases
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "success"
+        
+        # Check validation results reflect partial data
+        validation = result["validation_results"]
+        assert validation["schema_valid"] is True
+        assert validation["insights_count"] == 1
+        assert validation["recommendations_count"] == 0
+        assert validation["top_rated_bands_count"] == 0
+        assert validation["suggested_purchases_count"] == 0
+        
+        # Check only provided fields were validated
+        assert "insights" in validation["fields_validated"]
+        assert "collection_health" in validation["fields_validated"]
+        assert "recommendations" not in validation["fields_validated"]
+
+    def test_save_collection_insight_existing_collection_merge(self):
+        """Test merging insights with existing collection index."""
+        from src.music_mcp_server import save_collection_insight_tool
+        from src.models.collection import CollectionIndex, BandIndexEntry
+        from src.tools.storage import update_collection_index
+        
+        # Create existing collection index
+        existing_entry = BandIndexEntry(
+            name="Existing Band",
+            albums_count=2,
+            folder_path="Existing Band",
+            missing_albums_count=0,
+            has_metadata=True
+        )
+        existing_index = CollectionIndex(bands=[existing_entry])
+        update_collection_index(existing_index)
+        
+        # Add insights to existing collection
+        insights = {
+            "insights": ["Insights for existing collection"],
+            "recommendations": ["Recommendation for existing collection"],
+            "collection_health": "Excellent"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "success"
+        
+        # Check file operations indicate merge
+        file_ops = result["file_operations"]
+        assert file_ops["merged_with_existing"] is True
+
+    def test_save_collection_insight_tool_info(self):
+        """Test tool info is correctly populated."""
+        from src.music_mcp_server import save_collection_insight_tool
+        
+        insights = {
+            "insights": ["Test insight"],
+            "collection_health": "Good"
+        }
+        
+        result = save_collection_insight_tool(insights)
+        
+        assert result["status"] == "success"
+        
+        # Check tool info
+        tool_info = result["tool_info"]
+        assert tool_info["tool_name"] == "save_collection_insight"
+        assert tool_info["version"] == "1.0.0"
+        assert "parameters_used" in tool_info
+        assert tool_info["parameters_used"]["insights_fields"] == ["insights", "collection_health"]
+
+
 if __name__ == '__main__':
     # Run tests
     suite = unittest.TestSuite()
@@ -799,6 +1115,9 @@ if __name__ == '__main__':
     
     # Add TestSaveBandAnalyzeTool tests
     suite.addTest(unittest.makeSuite(TestSaveBandAnalyzeTool))
+    
+    # Add TestSaveCollectionInsightTool tests
+    suite.addTest(unittest.makeSuite(TestSaveCollectionInsightTool))
     
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)

@@ -394,8 +394,11 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
         config = Config()
         collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
+        # Check if file existed before we modify it
+        file_existed_before = collection_file.exists()
+        
         # Load existing collection index or create new
-        if collection_file.exists():
+        if file_existed_before:
             try:
                 index_dict = JSONStorage.load_json(collection_file)
                 index = CollectionIndex(**index_dict)
@@ -416,6 +419,7 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
             "status": "success",
             "message": "Collection insights saved",
             "file_path": str(collection_file),
+            "file_existed_before": file_existed_before,
             "insights_count": len(insights.insights),
             "recommendations_count": len(insights.recommendations),
             "collection_health": insights.collection_health,

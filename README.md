@@ -123,7 +123,7 @@ music_root/
 docker build -t music-mcp-server .
 
 # Run the MCP server
-docker run -it music-mcp-server
+docker run -d --name music-mcp-container -v "D:\Projects\music-catalog-mcp\test_music_collection:/music" -e "MUSIC_ROOT_PATH=/music" -it music-mcp-server  
 ```
 
 ## Schema Discovery and Validation
