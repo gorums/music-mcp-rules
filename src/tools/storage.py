@@ -214,13 +214,15 @@ class JSONStorage:
             raise StorageError(f"Failed to create backup: {e}")
 
 
-def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]:
+def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze: bool = True) -> Dict[str, Any]:
     """
     Save complete band metadata to .band_metadata.json file.
     
     Args:
         band_name: Name of the band
         metadata: BandMetadata instance to save
+        preserve_analyze: If True (default), preserves existing analyze data.
+                         If False, allows overwriting analyze data with the provided metadata.
         
     Returns:
         Dict with operation status and details
@@ -232,7 +234,22 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         config = Config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
-                
+        
+        # If preserve_analyze is True and file exists, load existing analyze data
+        existing_analyze = None
+        if preserve_analyze and metadata_file.exists():
+            try:
+                existing_metadata_dict = JSONStorage.load_json(metadata_file)
+                existing_metadata = BandMetadata(**existing_metadata_dict)
+                existing_analyze = existing_metadata.analyze
+            except Exception:
+                # If loading fails, continue without preserving (file might be corrupted)
+                existing_analyze = None
+        
+        # If we should preserve analyze data and it exists, use it
+        if preserve_analyze and existing_analyze is not None:
+            metadata.analyze = existing_analyze
+        
         # Update timestamp
         metadata.update_timestamp()
         
@@ -247,7 +264,8 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
             "message": f"Band metadata saved for {band_name}",
             "file_path": str(metadata_file),
             "last_updated": metadata.last_updated,
-            "albums_count": metadata.albums_count
+            "albums_count": metadata.albums_count,
+            "analyze_preserved": preserve_analyze and existing_analyze is not None
         }
         
     except Exception as e:

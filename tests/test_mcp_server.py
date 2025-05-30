@@ -367,7 +367,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         # Check tool info
         tool_info = result["tool_info"]
         assert tool_info["tool_name"] == "save_band_metadata"
-        assert tool_info["version"] == "1.0.0"
+        assert tool_info["version"] == "1.1.0"
         assert "parameters_used" in tool_info
         assert isinstance(tool_info["parameters_used"]["metadata_fields"], list)
 

@@ -2,6 +2,18 @@
 
 ## Discovered During Work
 
+### Task: Fix save_band_metadata Analyze Property Preservation - COMPLETED (2025-01-29)
+- [x] Identified issue: save_band_metadata_tool was overriding analyze property to null even when existing analyze data was present
+- [x] Root cause: BandMetadata creation from input metadata without analyze field defaulted analyze to None, overwriting existing data
+- [x] Fixed by modifying save_band_metadata function to add preserve_analyze parameter (default True)
+- [x] Updated save_band_metadata_tool to include clear_analyze parameter (default False) for explicit control
+- [x] Implemented logic to load existing analyze data and preserve it when preserve_analyze=True
+- [x] Added comprehensive response information including analyze_preserved status and analyze_action details
+- [x] Updated tool version to 1.1.0 to reflect the new analyze preservation feature
+- [x] Created comprehensive test suite in tests/test_analyze_preservation.py with 5 test cases
+- [x] Verified backward compatibility - existing behavior preserved by default
+- [x] All existing tests continue to pass (30/30 MCP server tests, 46/46 storage tests)
+
 ### Task: Fix Collection Summary Test Failure - COMPLETED (2025-01-29)
 - [x] Fixed test_large_diverse_collection failing test in TestIntegrationScenarios
 - [x] Issue: Collection size threshold logic had `> 100` instead of `>= 100` for large collections
