@@ -7,7 +7,6 @@ The server exposes tools, resources, and prompts to discover, analyze, and retri
 about bands and artists based on your folder structure.
 """
 
-import asyncio
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -29,7 +28,6 @@ from src.prompts.compare_bands import get_compare_bands_prompt
 from src.prompts.collection_insights import get_collection_insights_prompt
 
 # Configure logging
-logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 # Create FastMCP server instance with ERROR log level to fix MCP client visibility
@@ -1246,163 +1244,6 @@ def collection_summary_resource() -> str:
     except Exception as e:
         logger.error(f"Error in collection_summary resource: {str(e)}")
         return f"Error retrieving collection summary: {str(e)}"
-
-@mcp.resource("schema://band_metadata")
-def band_metadata_schema_resource() -> str:
-    """
-    Get the complete BandMetadata schema documentation in markdown format.
-    
-    Returns:
-        Markdown-formatted schema documentation with examples
-    """
-    try:
-        return """# BandMetadata Schema Documentation
-
-## Overview
-The `save_band_metadata_tool` requires metadata to follow the BandMetadata schema. This resource provides the complete schema specification, examples, and common validation errors.
-
-## Required Fields
-
-### `band_name` (string)
-- **Description**: Name of the band
-- **Example**: `"Pink Floyd"`
-- **Validation**: Must match the band_name parameter
-
-### `formed` (string)
-- **Description**: Formation year in YYYY format
-- **Example**: `"1965"`
-- **Validation**: Must be 4-digit year as string
-- **Common Error**: Using integer `1965` instead of string `"1965"`
-
-### `genres` (array of strings)
-- **Description**: List of band genres
-- **Example**: `["Progressive Rock", "Psychedelic Rock", "Space Rock"]`
-- **Common Error**: Using `"genre"` field name instead of `"genres"`
-
-### `origin` (string)
-- **Description**: Country/location where band was formed
-- **Example**: `"London, England"`
-- **Common Error**: Using `"formed_location"` field name
-
-### `members` (array of strings)
-- **Description**: Flat list of all band member names
-- **Example**: `["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright"]`
-- **Common Error**: Using nested structure with `members.former` and `members.current`
-
-### `description` (string)
-- **Description**: Band biography or description
-- **Example**: `"Legendary progressive rock band known for..."`
-
-### `albums` (array of Album objects)
-- **Description**: Array of album metadata objects
-- **Common Error**: Using `"notable_albums"` field name instead of `"albums"`
-
-#### Album Object Schema:
-- `album_name` (string, required): Name of the album
-- `year` (string, required): Release year in YYYY format
-- `tracks_count` (integer, required): Number of tracks (>= 0)
-- `missing` (boolean, required): True if album not in local folders
-- `duration` (string, optional): Album duration (e.g., "43min")
-- `genres` (array of strings, optional): Album-specific genres
-
-## Optional Fields
-
-### `analyze` (BandAnalysis object, optional)
-Analysis data including reviews and ratings.
-
-#### BandAnalysis Schema:
-- `review` (string): Overall band review
-- `rate` (integer): Rating on 1-10 scale (0 = unrated)
-- `albums` (array of AlbumAnalysis): Per-album analysis
-- `similar_bands` (array of strings): Names of similar bands
-
-#### AlbumAnalysis Schema:
-- `review` (string): Album review
-- `rate` (integer): Album rating on 1-10 scale
-
-## Complete Example
-
-```json
-{
-  "band_name": "Pink Floyd",
-  "formed": "1965",
-  "genres": ["Progressive Rock", "Psychedelic Rock", "Space Rock"],
-  "origin": "London, England",
-  "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright", "Syd Barrett"],
-  "description": "One of the most influential progressive rock bands, known for concept albums and innovative soundscapes.",
-  "albums": [
-    {
-      "album_name": "The Dark Side of the Moon",
-      "year": "1973",
-      "tracks_count": 10,
-      "missing": false,
-      "duration": "43min",
-      "genres": ["Progressive Rock"]
-    },
-    {
-      "album_name": "The Wall",
-      "year": "1979", 
-      "tracks_count": 26,
-      "missing": false,
-      "duration": "81min",
-      "genres": ["Progressive Rock", "Rock Opera"]
-    }
-  ],
-  "analyze": {
-    "review": "Pioneers of progressive and psychedelic rock with unmatched artistic vision",
-    "rate": 10,
-    "albums": [
-      {
-        "review": "Timeless masterpiece exploring themes of life and death",
-        "rate": 10
-      },
-      {
-        "review": "Ambitious rock opera about isolation and alienation", 
-        "rate": 9
-      }
-    ],
-    "similar_bands": ["Yes", "Genesis", "King Crimson", "Led Zeppelin"]
-  }
-}
-```
-
-## Common Validation Errors
-
-| ❌ Incorrect | ✅ Correct | Issue |
-|-------------|-----------|--------|
-| `formed_year: 1965` | `"formed": "1965"` | Integer vs string, wrong name |
-| `members: {former: [...], current: [...]}` | `members: [...]` | Nested vs flat structure |
-| `"notable_albums"` | `"albums"` | Wrong field name |
-| `year: 1973` | `"year": "1973"` | Integer vs string |
-| `tracks_count: -1` | `tracks_count: 8` | Negative numbers not allowed |
-| `rate: 11` | `rate: 10` | Rating must be 0-10 |
-
-## Schema Validation Response
-
-When validation fails, the tool returns detailed error information:
-
-```json
-{
-  "status": "error",
-  "error": "Metadata validation failed: ...",
-  "validation_results": {
-    "schema_valid": false,
-    "validation_errors": ["List of specific errors"],
-    "fields_validated": [],
-    "albums_count": 0,
-    "missing_albums_count": 0
-  }
-}
-```
-
-## Additional Resources
-
-- Use `band://info/{band_name}` resource to see existing band metadata
-- Use `collection://summary` resource to see collection overview
-- Use the `get_band_list_tool` to see all bands in your collection
-    """
-    except Exception as e:
-        return f"Error generating schema documentation: {str(e)}"
 
 # Register prompts
 @mcp.prompt()
