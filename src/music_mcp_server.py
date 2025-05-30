@@ -1247,7 +1247,7 @@ def collection_summary_resource() -> str:
 
 # Register prompts
 @mcp.prompt()
-def fetch_band_info_prompt() -> Dict[str, Any]:
+def fetch_band_info_prompt(band_name: str, existing_albums: List[str] = None, information_scope: str = "full") -> Dict[str, Any]:
     """
     Prompt template for fetching band information using external sources.
     
@@ -1255,7 +1255,7 @@ def fetch_band_info_prompt() -> Dict[str, Any]:
         Prompt template for band information retrieval
     """
     try:
-        return get_fetch_band_info_prompt()
+        return get_fetch_band_info_prompt(band_name, existing_albums, information_scope)
     except Exception as e:
         logger.error(f"Error in fetch_band_info prompt: {str(e)}")
         return {
