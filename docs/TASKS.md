@@ -333,7 +333,27 @@
   - [x] Includes similar bands identification and musical connections analysis
   - [x] Provides detailed guidance for quality analysis with historical context
   - [x] Tool provides comprehensive band analysis prompt generation for reviews, ratings, and similar bands
-- [ ] **Prompt 3**: `compare_bands`
+- [x] **Prompt 3**: `compare_bands` - COMPLETED (2025-01-29)
+  - [x] Created comprehensive compare_bands prompt in src/prompts/compare_bands.py
+  - [x] Implemented get_compare_bands_prompt() function with dynamic parameter support
+  - [x] Added support for three comparison scopes: "basic", "full", and "summary" with scope validation
+  - [x] Integrated band_names parameter for specific band comparison with minimum 2 bands requirement
+  - [x] Added comparison_aspects parameter for focused analysis: style, discography, influence, legacy, innovation, commercial, critical
+  - [x] Implemented comparison_scope parameter for different analysis depths with template variations
+  - [x] Created three comprehensive template variations for different comparison needs
+  - [x] Added detailed comparison guidelines covering musical style, discography, influence, legacy, innovation, and commercial aspects
+  - [x] Implemented comprehensive JSON schema examples for comparison output format
+  - [x] Included comparison strategy guidelines covering research methodology and objective analysis
+  - [x] Added validation rules for rankings, analysis quality, and historical accuracy requirements
+  - [x] Created specific band comparison prompt generation with aspect filtering and scope adjustment
+  - [x] Updated MCP server compare_bands_prompt function to support all new parameters
+  - [x] Compatible with FastMCP prompt format requirements and MCP specification
+  - [x] Added comprehensive test coverage with 25 test methods covering all functionality (100% pass rate)
+  - [x] Verified full integration with MCP server prompt registration system
+  - [x] Supports both general template and specific multi-band comparison workflows
+  - [x] Includes comprehensive comparison dimensions: style, discography, influence, commercial, innovation
+  - [x] Provides detailed guidance for objective analysis with rankings and assessments
+  - [x] Tool provides comprehensive band comparison prompt generation for multi-dimensional analysis
 - [ ] **Prompt 4**: `collection_insights`
 
 ## Phase 4: Testing and Quality Assurance

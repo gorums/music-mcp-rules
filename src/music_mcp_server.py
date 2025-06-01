@@ -1310,15 +1310,24 @@ def analyze_band_prompt(
         }
 
 @mcp.prompt()
-def compare_bands_prompt() -> Dict[str, Any]:
+def compare_bands_prompt(
+    band_names: List[str] = None,
+    comparison_aspects: List[str] = None,
+    comparison_scope: str = "full"
+) -> Dict[str, Any]:
     """
     Prompt template for comparing multiple bands.
+    
+    Args:
+        band_names: List of band names to compare (minimum 2 required)
+        comparison_aspects: Specific aspects to focus on: style, discography, influence, legacy, innovation, commercial, critical
+        comparison_scope: Scope of comparison - "basic", "full", or "summary" (default: "full")
     
     Returns:
         Prompt template for band comparison
     """
     try:
-        return get_compare_bands_prompt()
+        return get_compare_bands_prompt(band_names, comparison_aspects, comparison_scope)
     except Exception as e:
         logger.error(f"Error in compare_bands prompt: {str(e)}")
         return {
