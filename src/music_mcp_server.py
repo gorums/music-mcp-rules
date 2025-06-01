@@ -1281,15 +1281,26 @@ def fetch_band_info_prompt(band_name: str, existing_albums: List[str] = None, in
         }
 
 @mcp.prompt()
-def analyze_band_prompt() -> Dict[str, Any]:
+def analyze_band_prompt(
+    band_name: str = "",
+    albums: List[str] = None,
+    analyze_missing_albums: bool = False,
+    analysis_scope: str = "full"
+) -> Dict[str, Any]:
     """
     Prompt template for comprehensive band analysis.
+    
+    Args:
+        band_name: Name of the band to analyze (optional parameter for dynamic prompts)
+        albums: List of albums to include in analysis (optional)
+        analyze_missing_albums: If True, include analysis for missing albums too
+        analysis_scope: Scope of analysis - "basic", "full", or "albums_only" (default: "full")
     
     Returns:
         Prompt template for band analysis
     """
     try:
-        return get_analyze_band_prompt()
+        return get_analyze_band_prompt(band_name, albums, analyze_missing_albums, analysis_scope)
     except Exception as e:
         logger.error(f"Error in analyze_band prompt: {str(e)}")
         return {
