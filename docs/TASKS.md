@@ -354,7 +354,29 @@
   - [x] Includes comprehensive comparison dimensions: style, discography, influence, commercial, innovation
   - [x] Provides detailed guidance for objective analysis with rankings and assessments
   - [x] Tool provides comprehensive band comparison prompt generation for multi-dimensional analysis
-- [ ] **Prompt 4**: `collection_insights`
+- [x] **Prompt 4**: `collection_insights` - COMPLETED (2025-01-29)
+  - [x] Created comprehensive collection_insights prompt in src/prompts/collection_insights.py
+  - [x] Implemented get_collection_insights_prompt() function with dynamic parameter support
+  - [x] Added support for three analysis scopes: "basic", "comprehensive", and "health_only" with scope validation
+  - [x] Integrated collection_data parameter for specific collection analysis with actual statistics
+  - [x] Added focus_areas parameter for targeted analysis: statistics, recommendations, purchases, health, trends
+  - [x] Implemented insights_scope parameter for different analysis depths with template variations
+  - [x] Created three comprehensive template variations for different analysis needs
+  - [x] Added detailed insights guidelines covering collection composition, health assessment, and recommendations
+  - [x] Implemented comprehensive JSON schema examples for insights output format
+  - [x] Included insights strategy guidelines covering data analysis methodology and actionable recommendations
+  - [x] Added validation rules for insights quality, recommendation actionability, and health assessment criteria
+  - [x] Created specific collection analysis prompt generation with data integration and metric incorporation
+  - [x] Updated MCP server collection_insights_prompt function to support all new parameters
+  - [x] Compatible with save_collection_insight_tool schema requirements and CollectionInsight model
+  - [x] Added comprehensive test coverage with 39 test methods covering all functionality (100% pass rate)
+  - [x] Verified full integration with MCP server prompt registration system
+  - [x] Supports both general template and specific collection analysis workflows
+  - [x] Includes comprehensive analysis dimensions: statistics, health, recommendations, purchases, trends
+  - [x] Provides detailed guidance for data-driven insights with collection metrics and patterns
+  - [x] Tool provides comprehensive collection insights prompt generation for holistic collection analysis
+  - [x] **TESTING**: All 39 tests passing with comprehensive coverage of all functionality
+  - [x] **INTEGRATION**: Successfully registered with MCP server and ready for client use
 
 ## Phase 4: Testing and Quality Assurance
 
