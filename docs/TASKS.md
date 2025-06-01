@@ -312,7 +312,27 @@
   - [x] Created comprehensive test suite with 17 test methods (100% pass rate)
   - [x] Verified integration with MCP server prompt registration
   - [x] Compatible with FastMCP prompt format requirements
-- [ ] **Prompt 2**: `analyze_band`
+- [x] **Prompt 2**: `analyze_band` - COMPLETED (2025-01-29)
+  - [x] Created comprehensive analyze_band prompt in src/prompts/analyze_band.py
+  - [x] Implemented get_analyze_band_prompt() function with dynamic parameter support
+  - [x] Added support for four analysis scopes: "basic", "full", "albums_only", and invalid handling
+  - [x] Integrated band_name parameter for specific band analysis with name substitution
+  - [x] Added albums parameter for targeted album analysis with missing album handling
+  - [x] Implemented analyze_missing_albums parameter for optional missing album inclusion
+  - [x] Created three comprehensive template variations for different analysis needs
+  - [x] Added detailed rating guidelines (1-10 scale) for both bands and albums
+  - [x] Implemented comprehensive JSON schema examples for analysis output format
+  - [x] Included analysis strategy guidelines covering musical style, innovation, influence, and legacy
+  - [x] Added validation rules for ratings, review quality, and similar bands requirements
+  - [x] Created specific band analysis prompt generation with album list integration
+  - [x] Updated MCP server analyze_band_prompt function to support all new parameters
+  - [x] Compatible with save_band_analyze_tool analysis schema requirements
+  - [x] Added comprehensive test coverage with 25+ test methods covering all functionality
+  - [x] Verified full integration with MCP server prompt registration system
+  - [x] Supports both general template and specific band analysis workflows
+  - [x] Includes similar bands identification and musical connections analysis
+  - [x] Provides detailed guidance for quality analysis with historical context
+  - [x] Tool provides comprehensive band analysis prompt generation for reviews, ratings, and similar bands
 - [ ] **Prompt 3**: `compare_bands`
 - [ ] **Prompt 4**: `collection_insights`
 
