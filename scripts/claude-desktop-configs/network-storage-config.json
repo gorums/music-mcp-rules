@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "music-collection-nas": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "//server/music:/music:ro",
+        "-e", "MUSIC_ROOT_PATH=/music",
+        "-e", "CACHE_DURATION_DAYS=60",
+        "-e", "LOG_LEVEL=ERROR",
+        "music-collection-mcp"
+      ],
+      "env": {}
+    }
+  }
+} 

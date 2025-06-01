@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  music-mcp:
+    build: .
+    image: music-collection-mcp:latest
+    container_name: music-collection-mcp
+    stdin_open: true
+    tty: true
+    environment:
+      - MUSIC_ROOT_PATH=/music
+      - CACHE_DURATION_DAYS=30
+      - LOG_LEVEL=ERROR
+    volumes:
+      # Mount your music collection (update the left side to your actual path)
+      - ./test_music_collection:/music:ro
+      # Optional: Mount logs directory for persistence
+      - ./logs:/app/logs
+      # Optional: Mount backups directory
+      - ./backups:/app/backups
+    restart: unless-stopped
+    
+    # Optional: Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json; import pathlib; print('OK' if pathlib.Path('/music/.collection_index.json').exists() else 'NO_INDEX')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Development service with different configuration
+  music-mcp-dev:
+    build: .
+    image: music-collection-mcp:latest
+    container_name: music-collection-mcp-dev
+    stdin_open: true
+    tty: true
+    environment:
+      - MUSIC_ROOT_PATH=/music
+      - CACHE_DURATION_DAYS=1
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./test_music_collection:/music:ro
+      - ./logs:/app/logs
+      - ./scripts:/app/scripts:ro
+    profiles:
+      - dev
+    restart: "no"
+
+# Optional: Named volumes for data persistence
+volumes:
+  music_logs:
+    driver: local
+  music_backups:
+    driver: local
+
+# Optional: Networks
+networks:
+  music_mcp:
+    driver: bridge 

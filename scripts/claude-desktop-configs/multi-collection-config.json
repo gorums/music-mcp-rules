@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "music-collection-main": {
+      "command": "python",
+      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "/path/to/main/music/collection",
+        "CACHE_DURATION_DAYS": "30",
+        "LOG_LEVEL": "ERROR"
+      }
+    },
+    "music-collection-vinyl": {
+      "command": "python", 
+      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "/path/to/vinyl/collection",
+        "CACHE_DURATION_DAYS": "30",
+        "LOG_LEVEL": "ERROR"
+      }
+    },
+    "music-collection-demos": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "/path/to/demos/collection:/music:ro",
+        "-e", "MUSIC_ROOT_PATH=/music",
+        "-e", "CACHE_DURATION_DAYS=7",
+        "-e", "LOG_LEVEL=ERROR",
+        "music-collection-mcp"
+      ],
+      "env": {}
+    }
+  }
+} 

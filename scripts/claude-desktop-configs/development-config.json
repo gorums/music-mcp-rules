@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "music-collection-dev": {
+      "command": "python",
+      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "/path/to/your/music/collection",
+        "CACHE_DURATION_DAYS": "1",
+        "LOG_LEVEL": "DEBUG"
+      }
+    }
+  }
+} 
