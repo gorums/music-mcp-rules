@@ -71,6 +71,9 @@ def _generate_collection_markdown(index: CollectionIndex) -> str:
     # Detailed statistics
     markdown_parts.append(_generate_statistics_section(index))
     
+    # Enhanced features sections
+    markdown_parts.append(_generate_enhanced_statistics_section(index))
+    
     # Band distribution analysis
     markdown_parts.append(_generate_band_distribution_section(index))
     
@@ -194,6 +197,143 @@ def _generate_statistics_section(index: CollectionIndex) -> str:
             genre_table.append(f"| {genre} | {count} |")
         
         section.extend(genre_table)
+    
+    return "\n".join(section)
+
+
+def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
+    """Generate enhanced statistics including album types and compliance."""
+    from ..tools.storage import load_band_metadata
+    
+    section = ["## 🎯 Enhanced Collection Analysis"]
+    
+    # Collect enhanced metadata
+    album_types = {}
+    compliance_scores = []
+    structure_types = {}
+    editions_count = 0
+    total_analyzed_albums = 0
+    
+    for band_entry in index.bands:
+        if band_entry.has_metadata:
+            try:
+                metadata = load_band_metadata(band_entry.name)
+                if metadata and metadata.albums:
+                    for album in metadata.albums:
+                        total_analyzed_albums += 1
+                        
+                        # Count album types
+                        album_type = album.type.value if hasattr(album.type, 'value') else str(album.type)
+                        album_types[album_type] = album_types.get(album_type, 0) + 1
+                        
+                        # Collect compliance scores
+                        if album.folder_compliance:
+                            compliance_scores.append(album.folder_compliance.compliance_score)
+                        
+                        # Count editions
+                        if album.edition:
+                            editions_count += 1
+                    
+                    # Count structure types
+                    if metadata.folder_structure:
+                        structure_type = metadata.folder_structure.structure_type.value
+                        structure_types[structure_type] = structure_types.get(structure_type, 0) + 1
+                        
+            except Exception:
+                # Skip bands with corrupted metadata
+                continue
+    
+    # Album types distribution
+    if album_types:
+        section.append("### 🎼 Album Types Distribution")
+        section.append("")
+        
+        types_table = [
+            "| Type | Count | Percentage |",
+            "|------|-------|------------|"
+        ]
+        
+        # Sort by count (descending)
+        sorted_types = sorted(album_types.items(), key=lambda x: x[1], reverse=True)
+        for album_type, count in sorted_types:
+            percentage = (count / total_analyzed_albums * 100) if total_analyzed_albums > 0 else 0
+            types_table.append(f"| {album_type} | {count:,} | {percentage:.1f}% |")
+        
+        section.extend(types_table)
+        section.append("")
+    
+    # Compliance statistics
+    if compliance_scores:
+        section.append("### 📁 Collection Compliance Analysis")
+        section.append("")
+        
+        avg_compliance = sum(compliance_scores) / len(compliance_scores)
+        excellent_count = sum(1 for score in compliance_scores if score >= 90)
+        good_count = sum(1 for score in compliance_scores if score >= 75 and score < 90)
+        fair_count = sum(1 for score in compliance_scores if score >= 50 and score < 75)
+        poor_count = sum(1 for score in compliance_scores if score >= 25 and score < 50)
+        critical_count = sum(1 for score in compliance_scores if score < 25)
+        
+        # Overall compliance level
+        if avg_compliance >= 90:
+            overall_level = "Excellent ✅"
+        elif avg_compliance >= 75:
+            overall_level = "Good 🟢"
+        elif avg_compliance >= 50:
+            overall_level = "Fair 🟡"
+        elif avg_compliance >= 25:
+            overall_level = "Poor 🟠"
+        else:
+            overall_level = "Critical 🔴"
+        
+        compliance_table = [
+            "| Metric | Value | Status |",
+            "|--------|-------|--------|",
+            f"| Average Score | {avg_compliance:.1f}/100 | {overall_level} |",
+            f"| Excellent (90-100) | {excellent_count:,} | {(excellent_count/len(compliance_scores)*100):.1f}% |",
+            f"| Good (75-89) | {good_count:,} | {(good_count/len(compliance_scores)*100):.1f}% |",
+            f"| Fair (50-74) | {fair_count:,} | {(fair_count/len(compliance_scores)*100):.1f}% |",
+            f"| Poor (25-49) | {poor_count:,} | {(poor_count/len(compliance_scores)*100):.1f}% |",
+            f"| Critical (<25) | {critical_count:,} | {(critical_count/len(compliance_scores)*100):.1f}% |"
+        ]
+        
+        section.extend(compliance_table)
+        section.append("")
+    
+    # Structure types distribution
+    if structure_types:
+        section.append("### 🗂️ Folder Structure Analysis")
+        section.append("")
+        
+        structure_table = [
+            "| Structure Type | Bands | Percentage |",
+            "|----------------|-------|------------|"
+        ]
+        
+        total_structured_bands = sum(structure_types.values())
+        for structure_type, count in sorted(structure_types.items()):
+            percentage = (count / total_structured_bands * 100) if total_structured_bands > 0 else 0
+            structure_table.append(f"| {structure_type.title()} | {count:,} | {percentage:.1f}% |")
+        
+        section.extend(structure_table)
+        section.append("")
+    
+    # Special editions summary
+    if total_analyzed_albums > 0:
+        section.append("### 🎖️ Special Editions")
+        section.append("")
+        
+        editions_percentage = (editions_count / total_analyzed_albums * 100) if total_analyzed_albums > 0 else 0
+        
+        editions_table = [
+            "| Metric | Value |",
+            "|--------|-------|",
+            f"| Albums with Special Editions | {editions_count:,} |",
+            f"| Percentage of Collection | {editions_percentage:.1f}% |",
+            f"| Standard Albums | {total_analyzed_albums - editions_count:,} |"
+        ]
+        
+        section.extend(editions_table)
     
     return "\n".join(section)
 

@@ -453,6 +453,9 @@ def get_band_list(
     filter_genre: Optional[str] = None,
     filter_has_metadata: Optional[bool] = None,
     filter_missing_albums: Optional[bool] = None,
+    filter_album_type: Optional[str] = None,
+    filter_compliance_level: Optional[str] = None,
+    filter_structure_type: Optional[str] = None,
     sort_by: str = "name",
     sort_order: str = "asc",
     page: int = 1,
@@ -467,14 +470,17 @@ def get_band_list(
         filter_genre: Filter bands by genre (if metadata available)
         filter_has_metadata: Filter bands that have/don't have metadata files
         filter_missing_albums: Filter bands with/without missing albums
-        sort_by: Field to sort by ('name', 'albums_count', 'last_updated', 'completion')
+        filter_album_type: Filter bands that have albums of specific type (Album, EP, Live, etc.)
+        filter_compliance_level: Filter by compliance level (excellent, good, fair, poor, critical)
+        filter_structure_type: Filter by folder structure type (default, enhanced, mixed, legacy)
+        sort_by: Field to sort by ('name', 'albums_count', 'last_updated', 'completion', 'compliance')
         sort_order: Sort order ('asc' or 'desc')
         page: Page number for pagination (1-based)
         page_size: Number of results per page (1-100)
         include_albums: Include album details for each band
         
     Returns:
-        Dict containing filtered and paginated band list with metadata
+        Dict containing filtered and paginated band list with enhanced metadata
         
     Raises:
         StorageError: If operation fails
@@ -501,7 +507,7 @@ def get_band_list(
                     "page_size": page_size,
                     "total_pages": 0
                 },
-                "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums),
+                "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums, filter_album_type, filter_compliance_level, filter_structure_type),
                 "sort": {"by": sort_by, "order": sort_order}
             }
         
@@ -531,8 +537,18 @@ def get_band_list(
             else:
                 bands_to_process = [b for b in bands_to_process if b.missing_albums_count == 0]
         
+        # Apply enhanced filters
+        if filter_album_type:
+            bands_to_process = _filter_bands_by_album_type(bands_to_process, filter_album_type)
+        
+        if filter_compliance_level:
+            bands_to_process = _filter_bands_by_compliance(bands_to_process, filter_compliance_level)
+        
+        if filter_structure_type:
+            bands_to_process = _filter_bands_by_structure_type(bands_to_process, filter_structure_type)
+        
         # Apply sorting
-        bands_to_process = _sort_bands(bands_to_process, sort_by, sort_order)
+        bands_to_process = _sort_bands_enhanced(bands_to_process, sort_by, sort_order)
         
         # Calculate pagination
         total_bands = len(bands_to_process)
@@ -577,7 +593,7 @@ def get_band_list(
                 "collection_completion": index.stats.completion_percentage,
                 "last_scan": index.last_scan
             },
-            "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums),
+            "filters_applied": _build_filters_summary(search_query, filter_genre, filter_has_metadata, filter_missing_albums, filter_album_type, filter_compliance_level, filter_structure_type),
             "sort": {"by": sort_by, "order": sort_order}
         }
         
@@ -651,70 +667,250 @@ def _sort_bands(bands: List[BandIndexEntry], sort_by: str, sort_order: str) -> L
         return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
 
 
+def _filter_bands_by_album_type(bands: List[BandIndexEntry], album_type: str) -> List[BandIndexEntry]:
+    """Filter bands that contain albums of specified type."""
+    filtered_bands = []
+    
+    for band in bands:
+        try:
+            metadata = load_band_metadata(band.name)
+            if metadata and metadata.albums:
+                # Check if any album matches the type
+                for album in metadata.albums:
+                    album_type_str = album.type.value if hasattr(album.type, 'value') else str(album.type)
+                    if album_type.lower() == album_type_str.lower():
+                        filtered_bands.append(band)
+                        break
+        except Exception:
+            # Skip bands with corrupted metadata
+            continue
+    
+    return filtered_bands
+
+
+def _filter_bands_by_compliance(bands: List[BandIndexEntry], compliance_level: str) -> List[BandIndexEntry]:
+    """Filter bands by folder compliance level."""
+    filtered_bands = []
+    
+    for band in bands:
+        try:
+            metadata = load_band_metadata(band.name)
+            if metadata and metadata.albums:
+                # Calculate average compliance level
+                compliance_scores = []
+                for album in metadata.albums:
+                    if album.folder_compliance:
+                        compliance_scores.append(album.folder_compliance.compliance_score)
+                
+                if compliance_scores:
+                    avg_score = sum(compliance_scores) / len(compliance_scores)
+                    
+                    # Determine level based on average score
+                    if avg_score >= 90:
+                        level = "excellent"
+                    elif avg_score >= 75:
+                        level = "good"
+                    elif avg_score >= 50:
+                        level = "fair"
+                    elif avg_score >= 25:
+                        level = "poor"
+                    else:
+                        level = "critical"
+                    
+                    if level == compliance_level.lower():
+                        filtered_bands.append(band)
+        except Exception:
+            # Skip bands with corrupted metadata
+            continue
+    
+    return filtered_bands
+
+
+def _filter_bands_by_structure_type(bands: List[BandIndexEntry], structure_type: str) -> List[BandIndexEntry]:
+    """Filter bands by folder structure type."""
+    filtered_bands = []
+    
+    for band in bands:
+        try:
+            metadata = load_band_metadata(band.name)
+            if metadata and metadata.folder_structure:
+                if structure_type.lower() == metadata.folder_structure.structure_type.value.lower():
+                    filtered_bands.append(band)
+        except Exception:
+            # Skip bands with corrupted metadata
+            continue
+    
+    return filtered_bands
+
+
+def _sort_bands_enhanced(bands: List[BandIndexEntry], sort_by: str, sort_order: str) -> List[BandIndexEntry]:
+    """Sort bands by specified field and order with enhanced sorting options."""
+    reverse = sort_order.lower() == "desc"
+    
+    if sort_by == "name":
+        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
+    elif sort_by == "albums_count":
+        return sorted(bands, key=lambda b: b.albums_count, reverse=reverse)
+    elif sort_by == "last_updated":
+        return sorted(bands, key=lambda b: b.last_updated, reverse=reverse)
+    elif sort_by == "completion":
+        def completion_percentage(band):
+            if band.albums_count == 0:
+                return 100.0
+            return ((band.albums_count - band.missing_albums_count) / band.albums_count) * 100
+        return sorted(bands, key=completion_percentage, reverse=reverse)
+    elif sort_by == "compliance":
+        def compliance_score(band):
+            try:
+                metadata = load_band_metadata(band.name)
+                if metadata and metadata.albums:
+                    compliance_scores = []
+                    for album in metadata.albums:
+                        if album.folder_compliance:
+                            compliance_scores.append(album.folder_compliance.compliance_score)
+                    if compliance_scores:
+                        return sum(compliance_scores) / len(compliance_scores)
+                return 0
+            except:
+                return 0
+        return sorted(bands, key=compliance_score, reverse=reverse)
+    else:
+        # Default to name sorting
+        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
+
+
 def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -> Dict[str, Any]:
-    """Build detailed band information dictionary."""
+    """
+    Build detailed band information dictionary with enhanced metadata.
+    
+    Args:
+        band_entry: BandIndexEntry to build info from
+        include_albums: Whether to include detailed album information
+        
+    Returns:
+        Dictionary with enhanced band information
+    """
+    config = Config()
+    band_folder = Path(config.MUSIC_ROOT_PATH) / band_entry.folder_path
+    
+    # Basic band information
     band_info = {
         "name": band_entry.name,
         "albums_count": band_entry.albums_count,
+        "folder_path": band_entry.folder_path,
         "missing_albums_count": band_entry.missing_albums_count,
         "has_metadata": band_entry.has_metadata,
-        "folder_path": band_entry.folder_path,
+        "has_analysis": band_entry.has_analysis,
         "last_updated": band_entry.last_updated,
-        "completion_percentage": round(
-            ((band_entry.albums_count - band_entry.missing_albums_count) / 
-             max(band_entry.albums_count, 1)) * 100, 1
-        ),
+        "completion_percentage": round(((band_entry.albums_count - band_entry.missing_albums_count) / band_entry.albums_count * 100), 1) if band_entry.albums_count > 0 else 100.0,
         "cache_status": "cached" if band_entry.has_metadata else "no_cache"
     }
     
-    # Include detailed album information if requested
-    if include_albums and band_entry.has_metadata:
-        try:
-            metadata = load_band_metadata(band_entry.name)
-            if metadata:
-                band_info["metadata"] = {
-                    "formed": metadata.formed,
-                    "genres": metadata.genres,
-                    "origin": metadata.origin,
-                    "members": metadata.members,
-                    "description": metadata.description
-                }
+    # Load enhanced metadata if available
+    try:
+        metadata = load_band_metadata(band_entry.name)
+        if metadata:
+            # Add basic metadata fields
+            if metadata.formed:
+                band_info["formed"] = metadata.formed
+            if metadata.genres:
+                band_info["genres"] = metadata.genres
+            if metadata.origin:
+                band_info["origin"] = metadata.origin
                 
-                band_info["albums"] = []
+            # Add enhanced features
+            if metadata.folder_structure:
+                band_info["folder_structure"] = {
+                    "structure_type": metadata.folder_structure.structure_type.value,
+                    "consistency": metadata.folder_structure.consistency.value,
+                    "structure_score": metadata.folder_structure.structure_score,
+                    "organization_health": metadata.folder_structure.get_organization_health(),
+                    "needs_migration": metadata.folder_structure.is_migration_recommended(),
+                    "recommendations_count": len(metadata.folder_structure.recommendations)
+                }
+            
+            # Add album type distribution
+            if metadata.albums:
+                album_types = {}
+                compliance_scores = []
                 for album in metadata.albums:
-                    album_info = {
+                    album_type = album.type.value if hasattr(album.type, 'value') else str(album.type)
+                    album_types[album_type] = album_types.get(album_type, 0) + 1
+                    
+                    # Collect compliance scores
+                    if album.folder_compliance:
+                        compliance_scores.append(album.folder_compliance.compliance_score)
+                
+                band_info["album_types_distribution"] = album_types
+                
+                # Add compliance summary
+                if compliance_scores:
+                    band_info["compliance_summary"] = {
+                        "average_score": sum(compliance_scores) / len(compliance_scores),
+                        "compliant_albums": sum(1 for score in compliance_scores if score >= 75),
+                        "total_albums": len(compliance_scores),
+                        "compliance_percentage": (sum(1 for score in compliance_scores if score >= 75) / len(compliance_scores) * 100)
+                    }
+            
+            # Add analysis information
+            if metadata.analyze:
+                band_info["analysis"] = {
+                    "band_rating": metadata.analyze.rate,
+                    "has_review": bool(metadata.analyze.review),
+                    "albums_analyzed": len(metadata.analyze.albums),
+                    "similar_bands_count": len(metadata.analyze.similar_bands)
+                }
+            
+            # Include detailed album information if requested
+            if include_albums and metadata.albums:
+                # Add metadata flag for backward compatibility
+                band_info["metadata"] = True
+                
+                album_details = []
+                for album in metadata.albums:
+                    album_detail = {
                         "album_name": album.album_name,
                         "year": album.year,
+                        "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
+                        "edition": album.edition,
                         "track_count": album.track_count,
                         "missing": album.missing,
-                        "genres": album.genres
-                    }
-                    band_info["albums"].append(album_info)
-                
-                # Include analysis if available
-                if metadata.analyze:
-                    band_info["analysis"] = {
-                        "review": metadata.analyze.review,
-                        "rate": metadata.analyze.rate,
-                        "similar_bands": metadata.analyze.similar_bands
+                        "folder_path": album.folder_path
                     }
                     
-                    if metadata.analyze.albums:
-                        band_info["album_analysis"] = []
-                        for album_analysis in metadata.analyze.albums:
-                            band_info["album_analysis"].append({
-                                "review": album_analysis.review,
-                                "rate": album_analysis.rate
-                            })
-        except:
-            # If metadata can't be loaded, just mark as unavailable
-            band_info["metadata_error"] = "Could not load band metadata"
+                    # Add compliance information
+                    if album.folder_compliance:
+                        album_detail["compliance"] = {
+                            "score": album.folder_compliance.compliance_score,
+                            "level": album.folder_compliance.get_compliance_level(),
+                            "is_compliant": album.folder_compliance.is_compliant(),
+                            "issues_count": len(album.folder_compliance.issues)
+                        }
+                    
+                    # Add analysis information
+                    if metadata.analyze:
+                        album_analysis = next((a for a in metadata.analyze.albums if a.album_name == album.album_name), None)
+                        if album_analysis:
+                            album_detail["analysis"] = {
+                                "rating": album_analysis.rate,
+                                "has_review": bool(album_analysis.review)
+                            }
+                    
+                    album_details.append(album_detail)
+                
+                band_info["albums"] = album_details
+                
+    except Exception as e:
+        # If metadata loading fails, continue with basic info
+        band_info["metadata_error"] = str(e)
     
     return band_info
 
 
 def _build_filters_summary(search_query: Optional[str], filter_genre: Optional[str], 
-                          filter_has_metadata: Optional[bool], filter_missing_albums: Optional[bool]) -> Dict[str, Any]:
+                          filter_has_metadata: Optional[bool], filter_missing_albums: Optional[bool],
+                          filter_album_type: Optional[str], filter_compliance_level: Optional[str],
+                          filter_structure_type: Optional[str]) -> Dict[str, Any]:
     """Build a summary of applied filters."""
     filters = {}
     
@@ -726,6 +922,12 @@ def _build_filters_summary(search_query: Optional[str], filter_genre: Optional[s
         filters["has_metadata"] = filter_has_metadata
     if filter_missing_albums is not None:
         filters["missing_albums"] = filter_missing_albums
+    if filter_album_type:
+        filters["album_type"] = filter_album_type
+    if filter_compliance_level:
+        filters["compliance_level"] = filter_compliance_level
+    if filter_structure_type:
+        filters["structure_type"] = filter_structure_type
     
     return filters
 

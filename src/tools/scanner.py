@@ -2,11 +2,15 @@ import os
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Optional, Set, Any
 from datetime import datetime, timedelta
 
 from ..config import config
-from ..models import Album, BandMetadata, BandIndexEntry, CollectionIndex
+from ..models import (
+    Album, BandMetadata, BandIndexEntry, CollectionIndex,
+    AlbumType, FolderCompliance, AlbumFolderParser, 
+    BandStructureDetector, ComplianceValidator
+)
 
 
 # Common music file extensions
@@ -372,31 +376,39 @@ def _discover_band_folders(music_root: Path) -> List[Path]:
 
 def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     """
-    Scan a single band folder for album information.
+    Scan a single band folder for album information with enhanced metadata detection.
     
     Args:
         band_folder: Path to the band folder
         music_root: Path to music collection root
         
     Returns:
-        Dictionary with band scan results or None if invalid
+        Dictionary with band scan results including structure analysis or None if invalid
     """
     band_name = band_folder.name
     logging.debug(f"Scanning band folder: {band_name}")
     
     try:
-        # Discover album folders
-        album_folders = _discover_album_folders(band_folder)
+        # Initialize enhanced detection components
+        album_parser = AlbumFolderParser()
+        structure_detector = BandStructureDetector()
+        compliance_validator = ComplianceValidator()
         
-        # Scan each album
+        # Discover album folders (including type folders)
+        album_folders = _discover_album_folders_enhanced(band_folder, album_parser)
+        
+        # Scan each album with enhanced metadata
         albums = []
         total_tracks = 0
         
-        for album_folder in album_folders:
-            album_info = _scan_album_folder(album_folder)
+        for album_folder_info in album_folders:
+            album_info = _scan_album_folder_enhanced(album_folder_info, album_parser, compliance_validator)
             if album_info:
                 albums.append(album_info)
                 total_tracks += album_info['track_count']
+        
+        # Detect band folder structure
+        folder_structure = structure_detector.detect_band_structure(str(band_folder))
         
         # Load existing metadata if available
         metadata_file = band_folder / '.band_metadata.json'
@@ -407,7 +419,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             except Exception as e:
                 logging.warning(f"Failed to load metadata for {band_name}: {e}")
         
-        # Create result
+        # Create result with enhanced information
         result = {
             'band_name': band_name,
             'folder_path': str(band_folder.relative_to(music_root)),
@@ -415,7 +427,10 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             'albums': albums,
             'total_tracks': total_tracks,
             'has_metadata': metadata_file.exists(),
-            'last_scanned': datetime.now().isoformat()
+            'last_scanned': datetime.now().isoformat(),
+            'folder_structure': folder_structure.model_dump() if folder_structure else None,
+            'album_types_distribution': _calculate_album_types_distribution(albums),
+            'compliance_summary': _calculate_compliance_summary(albums)
         }
         
         return result
@@ -450,16 +465,76 @@ def _discover_album_folders(band_folder: Path) -> List[Path]:
     return sorted(album_folders, key=lambda x: x.name.lower())
 
 
-def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
+def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolderParser) -> List[Dict]:
     """
-    Scan a single album folder for track information.
+    Discover album folders with enhanced metadata including type detection.
     
     Args:
-        album_folder: Path to the album folder
+        band_folder: Path to the band folder
+        album_parser: AlbumFolderParser instance for parsing folder names
         
     Returns:
-        Dictionary with album information or None if invalid
+        List of dictionaries containing album folder info with metadata
     """
+    album_folders = []
+    
+    try:
+        # Get structure analysis for the band
+        structure_analysis = album_parser.detect_folder_structure_type(str(band_folder))
+        is_enhanced_structure = structure_analysis.get('structure_type') == 'enhanced'
+        
+        for item in band_folder.iterdir():
+            if (item.is_dir() and 
+                not item.name.startswith('.') and 
+                item.name.lower() not in EXCLUDED_FOLDERS and
+                item.name != '.band_metadata.json'):
+                
+                # Check if this is a type folder (Album/, Live/, Demo/, etc.)
+                type_folder_info = album_parser._detect_type_folder(item.name)
+                
+                if type_folder_info['is_type_folder'] and is_enhanced_structure:
+                    # This is a type folder, scan its contents
+                    try:
+                        for album_item in item.iterdir():
+                            if (album_item.is_dir() and 
+                                not album_item.name.startswith('.') and
+                                album_item.name.lower() not in EXCLUDED_FOLDERS):
+                                album_folders.append({
+                                    'path': album_item,
+                                    'type_folder': item.name,
+                                    'album_type': type_folder_info['album_type'],
+                                    'in_type_folder': True
+                                })
+                    except (PermissionError, OSError) as e:
+                        logging.warning(f"Error accessing type folder {item}: {e}")
+                else:
+                    # Regular album folder (default or mixed structure)
+                    album_folders.append({
+                        'path': item,
+                        'type_folder': '',
+                        'album_type': None,  # Will be detected from folder name
+                        'in_type_folder': False
+                    })
+                    
+    except (PermissionError, OSError) as e:
+        logging.warning(f"Error accessing band folder {band_folder}: {e}")
+    
+    return sorted(album_folders, key=lambda x: x['path'].name.lower())
+
+
+def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFolderParser, compliance_validator: ComplianceValidator) -> Optional[Dict]:
+    """
+    Scan a single album folder with enhanced metadata detection.
+    
+    Args:
+        album_folder_info: Dictionary with album folder path and metadata
+        album_parser: AlbumFolderParser instance for parsing folder names
+        compliance_validator: ComplianceValidator for compliance analysis
+        
+    Returns:
+        Dictionary with enhanced album information or None if invalid
+    """
+    album_folder = album_folder_info['path']
     album_name = album_folder.name
     
     try:
@@ -469,19 +544,99 @@ def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
         # Only include folders that actually contain music
         if tracks_count == 0:
             return None
-            
+        
+        # Parse album folder name for enhanced metadata
+        parsed_info = album_parser.parse_album_folder(album_name)
+        
+        # Determine album type
+        album_type = album_folder_info.get('album_type')
+        if album_type is None:
+            # Detect type from folder name if not determined by type folder
+            album_type = album_parser.detect_album_type_from_folder(album_name, album_folder_info['type_folder'])
+        
+        # Create Album object for compliance validation
+        album_obj = Album(
+            album_name=parsed_info.get('album_name', album_name),
+            year=parsed_info.get('year', ''),
+            type=album_type,
+            edition=parsed_info.get('edition', ''),
+            track_count=tracks_count,
+            missing=False,
+            folder_path=album_name
+        )
+        
+        # Calculate folder compliance
+        folder_compliance = compliance_validator.validate_album_compliance(
+            album=album_obj,
+            band_structure_type="enhanced" if album_folder_info['in_type_folder'] else "default"
+        )
+        
         return {
-            'album_name': album_name,
+            'album_name': parsed_info.get('album_name', album_name),
+            'year': parsed_info.get('year', ''),
+            'type': album_type.value if album_type else AlbumType.ALBUM.value,
+            'edition': parsed_info.get('edition', ''),
             'track_count': tracks_count,
             'missing': False,  # Found in folder, so not missing
             'duration': '',    # Will be filled by metadata tools
-            'year': '',        # Will be filled by metadata tools
-            'genre': []        # Will be filled by metadata tools
+            'genres': [],      # Will be filled by metadata tools
+            'folder_path': album_name,
+            'folder_compliance': folder_compliance.model_dump() if folder_compliance else None
         }
         
     except Exception as e:
         logging.warning(f"Error scanning album folder {album_name}: {e}")
         return None
+
+
+def _calculate_album_types_distribution(albums: List[Dict]) -> Dict[str, int]:
+    """
+    Calculate distribution of album types in the scanned albums.
+    
+    Args:
+        albums: List of album dictionaries with type information
+        
+    Returns:
+        Dictionary with album type counts
+    """
+    distribution = {}
+    for album in albums:
+        album_type = album.get('type', AlbumType.ALBUM.value)
+        distribution[album_type] = distribution.get(album_type, 0) + 1
+    
+    return distribution
+
+
+def _calculate_compliance_summary(albums: List[Dict]) -> Dict[str, Any]:
+    """
+    Calculate compliance summary for scanned albums.
+    
+    Args:
+        albums: List of album dictionaries with compliance information
+        
+    Returns:
+        Dictionary with compliance summary statistics
+    """
+    if not albums:
+        return {'average_score': 0, 'compliant_albums': 0, 'total_albums': 0}
+    
+    total_score = 0
+    compliant_count = 0
+    
+    for album in albums:
+        compliance = album.get('folder_compliance')
+        if compliance:
+            score = compliance.get('compliance_score', 0)
+            total_score += score
+            if score >= 75:  # Compliance threshold
+                compliant_count += 1
+    
+    return {
+        'average_score': total_score / len(albums) if albums else 0,
+        'compliant_albums': compliant_count,
+        'total_albums': len(albums),
+        'compliance_percentage': (compliant_count / len(albums) * 100) if albums else 0
+    }
 
 
 def _count_music_files(folder: Path) -> int:
@@ -680,4 +835,38 @@ def _detect_missing_albums(collection_index: CollectionIndex) -> int:
         except Exception as e:
             logging.warning(f"Error detecting missing albums for {band_entry.name}: {e}")
     
-    return total_missing 
+    return total_missing
+
+
+def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
+    """
+    Scan a single album folder for track information (backward compatibility).
+    
+    Args:
+        album_folder: Path to the album folder
+        
+    Returns:
+        Dictionary with album information or None if invalid
+    """
+    album_name = album_folder.name
+    
+    try:
+        # Count music files
+        tracks_count = _count_music_files(album_folder)
+        
+        # Only include folders that actually contain music
+        if tracks_count == 0:
+            return None
+            
+        return {
+            'album_name': album_name,
+            'track_count': tracks_count,
+            'missing': False,  # Found in folder, so not missing
+            'duration': '',    # Will be filled by metadata tools
+            'year': '',        # Will be filled by metadata tools
+            'genres': []       # Will be filled by metadata tools
+        }
+        
+    except Exception as e:
+        logging.warning(f"Error scanning album folder {album_name}: {e}")
+        return None 

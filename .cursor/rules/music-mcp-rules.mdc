@@ -5,7 +5,7 @@ alwaysApply: true
 ---
 ### 🔄 Project Awareness & Context
 - **Always read `docs/PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
-- **Check `docs/TASK.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
+- **Check `docs/TASKS.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
 - **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
 - **Avoid corrupt the files** doing the edit
 
@@ -25,8 +25,8 @@ alwaysApply: true
     - 1 failure case
 
 ### ✅ Task Completion
-- **Mark completed tasks in `TASK.md`** immediately after finishing them.
-- Add new sub-tasks or TODOs discovered during development to `TASK.md` under a “Discovered During Work” section.
+- **Mark completed tasks in `TASKS.md`** immediately after finishing them.
+- Add new sub-tasks or TODOs discovered during development to `TASKS.md` under a “Discovered During Work” section.
 
 ### 📎 Style & Conventions
 - **Use Python** as the primary language.

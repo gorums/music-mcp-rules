@@ -388,6 +388,72 @@ class AlbumFolderParser:
         return AlbumType.ALBUM
     
     @classmethod
+    def _detect_type_folder(cls, folder_name: str) -> Dict[str, any]:
+        """
+        Detect if a folder name represents an album type folder.
+        
+        Args:
+            folder_name: The folder name to check
+            
+        Returns:
+            Dictionary with is_type_folder boolean and album_type if detected
+        """
+        folder_lower = folder_name.lower()
+        
+        # Check for exact type name matches first
+        for album_type in AlbumType:
+            if folder_lower == album_type.value.lower():
+                return {
+                    'is_type_folder': True,
+                    'album_type': album_type
+                }
+        
+        # Check for plural versions of type names
+        plural_mappings = {
+            'albums': AlbumType.ALBUM,
+            'eps': AlbumType.EP,
+            'singles': AlbumType.SINGLE,
+            'lives': AlbumType.LIVE,
+            'demos': AlbumType.DEMO,
+            'compilations': AlbumType.COMPILATION,
+            'instrumentals': AlbumType.INSTRUMENTAL,
+            'splits': AlbumType.SPLIT
+        }
+        
+        if folder_lower in plural_mappings:
+            return {
+                'is_type_folder': True,
+                'album_type': plural_mappings[folder_lower]
+            }
+        
+        # Not a recognized type folder
+        return {
+            'is_type_folder': False,
+            'album_type': None
+        }
+    
+    @classmethod
+    def detect_album_type_from_folder(cls, album_name: str, type_folder: str = '') -> AlbumType:
+        """
+        Public method to detect album type from folder name and optional type folder.
+        
+        Args:
+            album_name: The album folder name
+            type_folder: Optional type folder name (for enhanced structures)
+            
+        Returns:
+            Detected AlbumType
+        """
+        # If we have a type folder, use that first
+        if type_folder:
+            type_info = cls._detect_type_folder(type_folder)
+            if type_info['is_type_folder']:
+                return type_info['album_type']
+        
+        # Otherwise, detect from album name
+        return cls._detect_album_type_from_folder(album_name)
+    
+    @classmethod
     def _generate_structure_recommendations(cls, structure_type: str, consistency: str, 
                                           patterns: List[str], type_folders: List[str]) -> List[str]:
         """Generate recommendations for improving folder structure."""
@@ -412,6 +478,19 @@ class AlbumFolderParser:
             recommendations.append(f"Consider adding folders for common types: {', '.join(missing_types)}")
         
         return recommendations
+
+    @classmethod
+    def parse_album_folder(cls, folder_name: str) -> Dict[str, str]:
+        """
+        Parse album folder name - alias for parse_folder_name.
+        
+        Args:
+            folder_name: The album folder name to parse
+            
+        Returns:
+            Dictionary with parsed album information
+        """
+        return cls.parse_folder_name(folder_name)
 
 
 class FolderStructureValidator:
