@@ -20,7 +20,7 @@ class TestAlbum:
         
         assert album.album_name == "Test Album"
         assert album.missing is False
-        assert album.tracks_count == 0
+        assert album.track_count == 0
         assert album.duration == ""
         assert album.year == ""
         assert album.genres == []
@@ -30,7 +30,7 @@ class TestAlbum:
         album = Album(
             album_name="Test Album",
             missing=True,
-            tracks_count=12,
+            track_count=12,
             duration="45min",
             year="1990",
             genres=["Rock", "Alternative"]
@@ -38,7 +38,7 @@ class TestAlbum:
         
         assert album.album_name == "Test Album"
         assert album.missing is True
-        assert album.tracks_count == 12
+        assert album.track_count == 12
         assert album.duration == "45min"
         assert album.year == "1990"
         assert album.genres == ["Rock", "Alternative"]
@@ -59,10 +59,10 @@ class TestAlbum:
             with pytest.raises(ValidationError):
                 Album(album_name="Test", year=year)
     
-    def test_album_tracks_count_negative(self):
-        """Test tracks_count cannot be negative."""
+    def test_album_track_count_negative(self):
+        """Test track_count cannot be negative."""
         with pytest.raises(ValidationError):
-            Album(album_name="Test", tracks_count=-1)
+            Album(album_name="Test", track_count=-1)
 
 
 class TestAlbumAnalysis:
@@ -160,8 +160,8 @@ class TestBandMetadata:
     
     def test_band_metadata_complete(self):
         """Test band metadata creation with complete data."""
-        album1 = Album(album_name="Album 1", tracks_count=10)
-        album2 = Album(album_name="Album 2", tracks_count=12)
+        album1 = Album(album_name="Album 1", track_count=10)
+        album2 = Album(album_name="Album 2", track_count=12)
         
         analysis = BandAnalysis(
             review="Great band",
@@ -230,7 +230,7 @@ class TestBandMetadata:
             "albums": [
                 {
                     "album_name": "Test Album",
-                    "tracks_count": 10
+                    "track_count": 10
                 }
             ]
         }

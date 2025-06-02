@@ -1,15 +1,15 @@
 """
 Music Collection MCP Server - Data Models
 
-This module contains all data models for the music collection metadata system,
-including Pydantic models for validation, JSON serialization/deserialization,
-and data migration utilities.
+This module provides Pydantic models for music metadata, collection management,
+and data validation.
 """
 
 from .band import (
-    Album,
-    AlbumAnalysis,
-    BandAnalysis,
+    Album, 
+    AlbumType,
+    AlbumAnalysis, 
+    BandAnalysis, 
     BandMetadata
 )
 
@@ -20,26 +20,36 @@ from .collection import (
     CollectionIndex
 )
 
-# Migration utilities will be added when needed
-# from .migration import (
-#     DataMigration,
-#     DataValidator
-# )
+from .validation import (
+    AlbumTypeDetector,
+    AlbumDataMigrator,
+    AlbumValidator,
+    get_album_type_distribution,
+    get_edition_distribution,
+    filter_albums_by_type,
+    search_albums_by_criteria
+)
 
 __all__ = [
     # Band models
     'Album',
-    'AlbumAnalysis', 
+    'AlbumType', 
+    'AlbumAnalysis',
     'BandAnalysis',
     'BandMetadata',
     
     # Collection models
     'BandIndexEntry',
     'CollectionStats',
-    'CollectionInsight',
+    'CollectionInsight', 
     'CollectionIndex',
     
-    # Migration utilities (commented out until implemented)
-    # 'DataMigration',
-    # 'DataValidator'
+    # Validation utilities
+    'AlbumTypeDetector',
+    'AlbumDataMigrator',
+    'AlbumValidator',
+    'get_album_type_distribution',
+    'get_edition_distribution',
+    'filter_albums_by_type',
+    'search_albums_by_criteria'
 ] 

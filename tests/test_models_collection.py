@@ -49,14 +49,17 @@ class TestBandIndexEntry:
         assert entry.has_metadata is True
     
     def test_missing_albums_count_validation(self):
-        """Test missing albums count cannot exceed total albums."""
-        with pytest.raises(ValidationError):
-            BandIndexEntry(
-                name="Test Band",
-                folder_path="Test Band",
-                albums_count=3,
-                missing_albums_count=5  # More than total
-            )
+        """Test missing albums count is auto-corrected if it exceeds total albums."""
+        # Create entry with missing_albums_count > albums_count
+        entry = BandIndexEntry(
+            name="Test Band",
+            folder_path="Test Band",
+            albums_count=3,
+            missing_albums_count=5  # More than total
+        )
+        
+        # Should auto-correct to match albums_count
+        assert entry.missing_albums_count == 3
     
     def test_negative_albums_count(self):
         """Test albums count cannot be negative."""

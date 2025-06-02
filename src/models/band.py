@@ -1,33 +1,158 @@
-from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, field_serializer
 from typing import List, Optional
 from datetime import datetime
 import json
+from enum import Enum
+import re
+
+
+class AlbumType(str, Enum):
+    """
+    Enumeration of supported album types.
+    
+    Values:
+        ALBUM: Standard studio album
+        COMPILATION: Compilation or greatest hits album
+        EP: Extended Play (typically 4-7 tracks)
+        LIVE: Live recording album
+        SINGLE: Single release
+        DEMO: Demo recording
+        INSTRUMENTAL: Instrumental version of an album
+        SPLIT: Split release with multiple artists
+    """
+    ALBUM = "Album"
+    COMPILATION = "Compilation"
+    EP = "EP"
+    LIVE = "Live"
+    SINGLE = "Single"
+    DEMO = "Demo"
+    INSTRUMENTAL = "Instrumental"
+    SPLIT = "Split"
 
 
 class Album(BaseModel):
     """
-    Album metadata model with track information and missing status.
+    Enhanced album metadata model with type, edition, and track information.
     
     Attributes:
         album_name: Name of the album
-        missing: True if album is in metadata but not in local folders
-        tracks_count: Number of tracks in the album
-        duration: Album duration in format "67min"
         year: Year of album release (YYYY format)
+        type: Type of album (Album, EP, Demo, Live, etc.)
+        edition: Edition information (Deluxe, Limited, etc.)
+        track_count: Number of tracks in the album
+        missing: True if album is in metadata but not in local folders
+        duration: Album duration in format "67min"
         genres: List of genres for this album
+        folder_path: Original folder name/path for this album
     """
     album_name: str = Field(..., description="Name of the album")
-    missing: bool = Field(default=False, description="True if album not found in local folders")
-    tracks_count: int = Field(default=0, ge=0, description="Number of tracks in album")
-    duration: str = Field(default="", description="Album duration (e.g., '67min')")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
+    type: AlbumType = Field(default=AlbumType.ALBUM, description="Type of album")
+    edition: str = Field(default="", description="Edition information (Deluxe, Limited, etc.)")
+    track_count: int = Field(default=0, ge=0, description="Number of tracks in album")
+    missing: bool = Field(default=False, description="True if album not found in local folders")
+    duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
+    folder_path: str = Field(default="", description="Original folder name/path")
 
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat()
+    @field_serializer('type')
+    def serialize_album_type(self, value: AlbumType) -> str:
+        """Serialize AlbumType enum to string value."""
+        return value.value
+
+    @field_validator('type')
+    @classmethod
+    def validate_album_type(cls, v):
+        """Validate album type is a valid AlbumType enum value."""
+        if isinstance(v, str):
+            try:
+                return AlbumType(v)
+            except ValueError:
+                raise ValueError(f'Invalid album type: {v}. Must be one of: {[t.value for t in AlbumType]}')
+        return v
+
+    @field_validator('edition')
+    @classmethod
+    def validate_edition(cls, v):
+        """Validate and normalize edition field."""
+        if v:
+            # Remove common parentheses patterns if they exist
+            v = v.strip()
+            if v.startswith('(') and v.endswith(')'):
+                v = v[1:-1]
+        return v
+
+    def detect_type_from_name(self) -> AlbumType:
+        """
+        Detect album type from album name and folder path using keywords.
+        
+        Returns:
+            Detected AlbumType based on name patterns
+        """
+        name_lower = self.album_name.lower()
+        folder_lower = self.folder_path.lower()
+        
+        # Check for type indicators in name or folder
+        type_keywords = {
+            AlbumType.LIVE: ['live', 'concert', 'unplugged', 'acoustic'],
+            AlbumType.COMPILATION: ['greatest hits', 'best of', 'collection', 'anthology', 'compilation'],
+            AlbumType.EP: ['ep'],
+            AlbumType.SINGLE: ['single'],
+            AlbumType.DEMO: ['demo', 'demos', 'early recordings', 'unreleased'],
+            AlbumType.INSTRUMENTAL: ['instrumental', 'instrumentals'],
+            AlbumType.SPLIT: ['split', 'vs.', 'vs', 'versus']
         }
-    )
+        
+        for album_type, keywords in type_keywords.items():
+            if any(keyword in name_lower or keyword in folder_lower for keyword in keywords):
+                return album_type
+        
+        # Default to Album if no indicators found
+        return AlbumType.ALBUM
+
+    def detect_edition_from_folder(self) -> str:
+        """
+        Detect edition information from folder path.
+        
+        Returns:
+            Detected edition string or empty string
+        """
+        folder_lower = self.folder_path.lower()
+        
+        # Look for content in parentheses that might be edition info
+        parentheses_match = re.search(r'\(([^)]+)\)', self.folder_path)
+        if parentheses_match:
+            content = parentheses_match.group(1).strip()
+            content_lower = content.lower()
+            
+            # Check if the parentheses content indicates an edition
+            edition_indicators = [
+                'deluxe edition', 'deluxe', 'limited edition', 'limited',
+                'anniversary edition', 'remastered', 'remaster',
+                'special edition', 'expanded edition', 'director\'s cut',
+                'collector\'s edition', 'premium edition', 'ultimate edition',
+                # Also include type indicators that can be editions when in parentheses
+                'live', 'demo', 'instrumental', 'split'
+            ]
+            
+            for indicator in edition_indicators:
+                if indicator in content_lower:
+                    # Return the original case content
+                    return content
+        
+        return ""
+
+    def auto_detect_metadata(self) -> None:
+        """Auto-detect type and edition from name and folder path."""
+        # Only auto-detect type if it's the default value and we have folder path
+        if self.type == AlbumType.ALBUM and self.folder_path:
+            detected_type = self.detect_type_from_name()
+            if detected_type != AlbumType.ALBUM:
+                self.type = detected_type
+        
+        # Only auto-detect edition if not already set and we have folder path
+        if not self.edition and self.folder_path:
+            self.edition = self.detect_edition_from_folder()
 
 
 class AlbumAnalysis(BaseModel):
@@ -102,12 +227,6 @@ class BandMetadata(BaseModel):
     albums: List[Album] = Field(default_factory=list, description="Album metadata list")
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
     analyze: Optional[BandAnalysis] = Field(default=None, description="Band analysis data")
-
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat()
-        }
-    )
 
     @model_validator(mode='before')
     @classmethod

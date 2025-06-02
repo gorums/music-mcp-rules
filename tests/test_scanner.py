@@ -75,21 +75,21 @@ class TestMusicDirectoryScanner:
                 {
                     "album_name": "Abbey Road",
                     "missing": False,
-                    "tracks_count": 2,
+                    "track_count": 2,
                     "year": "1969",
                     "genre": ["Rock"]
                 },
                 {
                     "album_name": "Sgt. Pepper's Lonely Hearts Club Band",
                     "missing": False,
-                    "tracks_count": 1,
+                    "track_count": 1,
                     "year": "1967",
                     "genre": ["Psychedelic Rock"]
                 },
                 {
                     "album_name": "Revolver",  # This album is not in folders (missing)
                     "missing": True,
-                    "tracks_count": 0,
+                    "track_count": 0,
                     "year": "1966",
                     "genre": ["Rock"]
                 }
@@ -331,8 +331,8 @@ class TestMusicDirectoryScanner:
         
         assert result is not None
         assert result['album_name'] == "Abbey Road"
-        assert result['tracks_count'] == 2
-        assert result['missing'] is False
+        assert result['track_count'] == 2
+        assert result['missing'] == False
 
     def test_scan_album_folder_no_music(self, temp_music_dir):
         """Test scanning album folder with no music files."""

@@ -684,10 +684,9 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
                 for album in metadata.albums:
                     album_info = {
                         "album_name": album.album_name,
-                        "missing": album.missing,
-                        "tracks_count": album.tracks_count,
-                        "duration": album.duration,
                         "year": album.year,
+                        "track_count": album.track_count,
+                        "missing": album.missing,
                         "genres": album.genres
                     }
                     band_info["albums"].append(album_info)

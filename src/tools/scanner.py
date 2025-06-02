@@ -396,7 +396,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             album_info = _scan_album_folder(album_folder)
             if album_info:
                 albums.append(album_info)
-                total_tracks += album_info['tracks_count']
+                total_tracks += album_info['track_count']
         
         # Load existing metadata if available
         metadata_file = band_folder / '.band_metadata.json'
@@ -472,7 +472,7 @@ def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
             
         return {
             'album_name': album_name,
-            'tracks_count': tracks_count,
+            'track_count': tracks_count,
             'missing': False,  # Found in folder, so not missing
             'duration': '',    # Will be filled by metadata tools
             'year': '',        # Will be filled by metadata tools

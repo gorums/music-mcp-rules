@@ -99,12 +99,12 @@ class TestBraveSearchMCPIntegration(unittest.TestCase):
                 {
                     "album_name": "Led Zeppelin IV",
                     "year": "1971",
-                    "tracks_count": 8
+                    "track_count": 8
                 },
                 {
                     "album_name": "Physical Graffiti",
                     "year": "1975",
-                    "tracks_count": 15
+                    "track_count": 15
                 }
             ]
         }
@@ -151,7 +151,6 @@ class TestBraveSearchMCPIntegration(unittest.TestCase):
                 {
                     "album_name": "A Night at the Opera",
                     "year": "1975"
-                    # Missing tracks_count
                 }
             ]
         }
@@ -177,14 +176,14 @@ class TestBraveSearchMCPIntegration(unittest.TestCase):
                 Album(
                     album_name=album["album_name"],
                     year=album["year"],
-                    tracks_count=album.get("tracks_count", 0)
+                    track_count=album.get("track_count", 0)
                 ) for album in response_data["albums"]
             ]
         )
         
         self.assertEqual(metadata.band_name, "Queen")
         self.assertEqual(metadata.members, [])  # Default for missing field
-        self.assertEqual(metadata.albums[0].tracks_count, 0)  # Default for missing field
+        self.assertEqual(metadata.albums[0].track_count, 0)  # Default for missing field
 
     def test_mock_brave_search_integration_error_handling(self):
         """Test error handling in Brave Search integration."""
@@ -269,10 +268,10 @@ class TestBraveSearchMCPIntegration(unittest.TestCase):
             "members": ["Mick Jagger", "Keith Richards", "Ronnie Wood", "Charlie Watts"],
             "description": "English rock band formed in London in 1962.",
             "albums": [
-                {"album_name": "Sticky Fingers", "year": "1971", "tracks_count": 10},
-                {"album_name": "Exile on Main St.", "year": "1972", "tracks_count": 18},
-                {"album_name": "Let It Bleed", "year": "1969", "tracks_count": 9},
-                {"album_name": "Beggars Banquet", "year": "1968", "tracks_count": 10}
+                {"album_name": "Sticky Fingers", "year": "1971", "track_count": 10},
+                {"album_name": "Exile on Main St.", "year": "1972", "track_count": 18},
+                {"album_name": "Let It Bleed", "year": "1969", "track_count": 9},
+                {"album_name": "Beggars Banquet", "year": "1968", "track_count": 10}
             ]
         }
         

@@ -45,7 +45,7 @@ class TestGetBandInfoMarkdown:
                 Album(
                     album_name="The Wall",
                     missing=False,
-                    tracks_count=26,
+                    track_count=26,
                     year="1979",
                     duration="81min"
                 )
@@ -193,14 +193,14 @@ class TestAlbumsSection:
                 Album(
                     album_name="Local Album",
                     missing=False,
-                    tracks_count=10,
+                    track_count=10,
                     year="1979",
                     duration="45min"
                 ),
                 Album(
                     album_name="Missing Album",
                     missing=True,
-                    tracks_count=8,
+                    track_count=8,
                     year="1981"
                 )
             ]
@@ -232,13 +232,13 @@ class TestMissingAlbumsSection:
             Album(
                 album_name="Missing Album 1",
                 missing=True,
-                tracks_count=10,
+                track_count=10,
                 year="1979"
             ),
             Album(
                 album_name="Missing Album 2",
                 missing=True,
-                tracks_count=8,
+                track_count=8,
                 year="1981"
             )
         ]
@@ -310,9 +310,9 @@ class TestStatisticsSection:
         metadata = BandMetadata(
             band_name="Pink Floyd",
             albums=[
-                Album(album_name="Album1", missing=False, tracks_count=10),
-                Album(album_name="Album2", missing=True, tracks_count=8),
-                Album(album_name="Album3", missing=False, tracks_count=12)
+                Album(album_name="Album1", missing=False, track_count=10),
+                Album(album_name="Album2", missing=True, track_count=8),
+                Album(album_name="Album3", missing=False, track_count=12)
             ],
             genres=["Progressive Rock", "Psychedelic Rock"],
             members=["Member1", "Member2", "Member3"],
@@ -381,7 +381,7 @@ class TestFormatAlbumInfo:
         album = Album(
             album_name="The Wall",
             missing=False,
-            tracks_count=26,
+            track_count=26,
             year="1979",
             duration="81min",
             genres=["Progressive Rock", "Rock Opera"]
@@ -409,7 +409,7 @@ class TestFormatAlbumInfo:
         album = Album(
             album_name="Missing Album",
             missing=True,
-            tracks_count=10,
+            track_count=10,
             year="1975"
         )
         
@@ -507,13 +507,13 @@ class TestCompleteIntegration:
                 Album(
                     album_name="The Wall",
                     missing=False,
-                    tracks_count=26,
+                    track_count=26,
                     year="1979"
                 ),
                 Album(
                     album_name="Dark Side",
                     missing=True,
-                    tracks_count=10,
+                    track_count=10,
                     year="1973"
                 )
             ],
@@ -560,7 +560,7 @@ class TestCompleteIntegration:
                 Album(
                     album_name="Only Album",
                     missing=False,
-                    tracks_count=10
+                    track_count=10
                 )
             ]
         )

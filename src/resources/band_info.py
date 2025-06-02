@@ -251,7 +251,7 @@ def _generate_statistics_section(metadata: BandMetadata) -> str:
         stats_table.append(f"| Members | {len(metadata.members)} |")
     
     # Add total tracks count
-    total_tracks = sum(album.tracks_count for album in metadata.albums)
+    total_tracks = sum(album.track_count for album in metadata.albums)
     if total_tracks > 0:
         stats_table.append(f"| Total Tracks | {total_tracks} |")
     
@@ -306,9 +306,9 @@ def _format_album_info(album: Album, analysis=None, is_missing: bool = False) ->
     if album.year:
         header_parts.append(album.year)
     
-    if album.tracks_count > 0:
-        track_word = "track" if album.tracks_count == 1 else "tracks"
-        header_parts.append(f"{album.tracks_count} {track_word}")
+    if album.track_count > 0:
+        track_word = "track" if album.track_count == 1 else "tracks"
+        header_parts.append(f"{album.track_count} {track_word}")
     
     if album.duration:
         header_parts.append(album.duration)

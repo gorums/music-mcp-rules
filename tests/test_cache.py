@@ -265,7 +265,7 @@ class TestCacheMigration:
         assert updated_metadata["albums_count"] == 2
         for album in updated_metadata["albums"]:
             assert "missing" in album
-            assert "tracks_count" in album
+            assert "track_count" in album
 
 
 class TestConvenienceFunctions:

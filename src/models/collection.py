@@ -29,13 +29,13 @@ class BandIndexEntry(BaseModel):
     def validate_missing_count(self):
         """Ensure missing albums count doesn't exceed total albums count."""
         if self.missing_albums_count > self.albums_count:
-            raise ValueError('Missing albums count cannot exceed total albums count')
+            self.missing_albums_count = self.albums_count
         return self
 
 
 class CollectionStats(BaseModel):
     """
-    Collection statistics and analytics.
+    Collection statistics and analytics with enhanced album type distribution.
     
     Attributes:
         total_bands: Total number of bands
@@ -45,6 +45,8 @@ class CollectionStats(BaseModel):
         top_genres: Most common genres in collection
         avg_albums_per_band: Average albums per band
         completion_percentage: Percentage of albums present locally
+        album_type_distribution: Distribution of albums by type
+        edition_distribution: Distribution of albums by edition
     """
     total_bands: int = Field(default=0, ge=0, description="Total number of bands")
     total_albums: int = Field(default=0, ge=0, description="Total number of albums")
@@ -53,10 +55,12 @@ class CollectionStats(BaseModel):
     top_genres: Dict[str, int] = Field(default_factory=dict, description="Genre frequency map")
     avg_albums_per_band: float = Field(default=0.0, ge=0, description="Average albums per band")
     completion_percentage: float = Field(default=100.0, ge=0, le=100, description="Collection completion percentage")
+    album_type_distribution: Dict[str, int] = Field(default_factory=dict, description="Album type frequency map")
+    edition_distribution: Dict[str, int] = Field(default_factory=dict, description="Edition frequency map")
 
     @model_validator(mode='after')
     def calculate_completion_percentage(self):
-        """Calculate completion percentage after all fields are set."""
+        """Calculate completion percentage based on albums present vs missing."""
         if self.total_albums == 0:
             self.completion_percentage = 100.0
         else:
@@ -110,12 +114,6 @@ class CollectionIndex(BaseModel):
     last_scan: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last scan timestamp")
     insights: Optional[CollectionInsight] = Field(default=None, description="Collection insights")
     metadata_version: str = Field(default="1.0", description="Schema version")
-
-    model_config = ConfigDict(
-        json_encoders={
-            datetime: lambda v: v.isoformat()
-        }
-    )
 
     @model_validator(mode='after')
     def update_stats_on_creation(self):

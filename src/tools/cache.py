@@ -619,9 +619,10 @@ class CacheManager:
                                 if 'missing' not in album:
                                     album['missing'] = False
                                     needs_migration = True
-                                if 'tracks_count' not in album:
-                                    album['tracks_count'] = 0
-                                    needs_migration = True
+                                if 'track_count' not in album:
+                                    album['track_count'] = album.get('tracks_count', 0)
+                                if 'tracks_count' in album:
+                                    del album['tracks_count']
                             
                             if needs_migration:
                                 # Create backup
