@@ -425,7 +425,7 @@
 
 ### Task 6.1: Album Type Classification and Schema Enhancement
 - [ ] **Album Type Classification System**
-  - [ ] Define album types: Album (standard), Compilation, EP, Live, Single
+  - [ ] Define album types: Album (standard), Compilation, EP, Live, Single, Demo, Instrumental, Split
   - [ ] Update album metadata schema to include `type` field
   - [ ] Create album type validation and detection logic
   - [ ] Add album type filtering and search capabilities
@@ -434,7 +434,7 @@
 - [ ] **Album Edition Management**
   - [ ] Add `edition` field to album metadata schema
   - [ ] Create edition detection and parsing algorithms
-  - [ ] Support common edition types: Deluxe, Limited, Anniversary, Remastered, etc.
+  - [ ] Support common edition types: Deluxe, Limited, Anniversary, Remastered, Demo, Instrumental, Split, etc.
   - [ ] Add edition-based filtering and search
   - [ ] Track multiple editions of the same album
   - [ ] Generate edition comparison insights
@@ -462,6 +462,45 @@
 }
 ```
 
+**Demo Album Schema Example**:
+```json
+{
+  "name": "No Life 'Til Leather",
+  "year": 1982,
+  "type": "Demo",
+  "edition": "Demo",
+  "track_count": 7,
+  "missing": false,
+  "folder_path": "1982 - No Life 'Til Leather (Demo)"
+}
+```
+
+**Instrumental Album Schema Example**:
+```json
+{
+  "name": "...And Justice for All",
+  "year": 1988,
+  "type": "Instrumental",
+  "edition": "Instrumental",
+  "track_count": 9,
+  "missing": false,
+  "folder_path": "1988 - ...And Justice for All (Instrumental)"
+}
+```
+
+**Split Album Schema Example**:
+```json
+{
+  "name": "Split Series Vol. 1",
+  "year": 2001,
+  "type": "Split",
+  "edition": "Split",
+  "track_count": 4,
+  "missing": false,
+  "folder_path": "2001 - Split Series Vol. 1 (Split)"
+}
+```
+
 ### Task 6.2: Album Naming Convention Processing and Parsing
 - [ ] **Default Folder Structure Support**
   - [ ] Support default pattern: `Band Name/YYYY - Album Name (Edition?)`
@@ -481,7 +520,7 @@
   - [ ] Support albums without year or edition information
 
 - [ ] **Enhanced Type-Based Folder Structure (Optional)**
-  - [ ] Implement type-based folder detection: Album/, Compilation/, EP/, Live/, Single/
+  - [ ] Implement type-based folder detection: Album/, Compilation/, EP/, Live/, Single/, Demo/, Instrumental/, Split/
   - [ ] Support enhanced pattern: `Band Name/Type/YYYY - Album Name (Edition?)`
   - [ ] Add folder structure validation for type-specific organization
   - [ ] Create folder structure compliance checking
@@ -493,8 +532,14 @@
 **Folder Structure Examples**:
 - **Default**: `Band Name/2012 - Apocalyptic Love (Deluxe Edition)/` ✅ Default with edition
 - **Default**: `Band Name/2012 - Apocalyptic Love/` ✅ Default without edition  
+- **Default Demo**: `Band Name/1982 - No Life 'Til Leather (Demo)/` ✅ Default with demo
+- **Default Instrumental**: `Band Name/1988 - ...And Justice for All (Instrumental)/` ✅ Default instrumental
+- **Default Split**: `Band Name/2001 - Split Series Vol. 1 (Split)/` ✅ Default split
 - **Legacy**: `Band Name/Apocalyptic Love/` ⚠️ Missing year (legacy support)
 - **Enhanced**: `Band Name/Album/2012 - Apocalyptic Love (Deluxe Edition)/` ✅ Enhanced with type
+- **Enhanced Demo**: `Band Name/Demo/1982 - No Life 'Til Leather (Demo)/` ✅ Enhanced demo type
+- **Enhanced Instrumental**: `Band Name/Instrumental/1986 - Losfer Words (Instrumental)/` ✅ Enhanced instrumental type
+- **Enhanced Split**: `Band Name/Split/2001 - Split Series Vol. 1 (Split)/` ✅ Enhanced split type
 
 ### Task 6.3: Band Structure Detection System
 - [ ] **Band Structure Detection Implementation**
@@ -542,10 +587,16 @@ AC/DC/
 ├── Album/
 │   ├── 1980 - Back in Black/
 │   └── 1990 - The Razors Edge/
+├── Demo/
+│   └── 1978 - Early Recordings (Demo)/
 ├── Live/
 │   └── 1991 - Live at Donington/
-└── Compilation/
-    └── 2003 - The Complete Collection/
+├── Compilation/
+│   └── 2003 - The Complete Collection/
+├── Instrumental/
+│   └── 1985 - Thunderstruck (Instrumental)/
+└── Split/
+    └── 2004 - AC/DC vs. Metallica (Split)/
 → folder_structure.type = "enhanced"
 ```
 
@@ -678,15 +729,15 @@ Queen/
 
 - [ ] **Album Type Detection and Classification**
   - [ ] Implement intelligent album type detection algorithms
-  - [ ] Analyze album names for type indicators (Live, EP, Compilation keywords)
+  - [ ] Analyze album names for type indicators (Live, EP, Compilation, Demo, Instrumental, Split keywords)
   - [ ] Use existing metadata to determine album types
   - [ ] Apply heuristics for ambiguous cases (track count, naming patterns)
   - [ ] Allow manual type specification for edge cases
   - [ ] Create type mapping rules and customization options
-  - [ ] Handle special cases (soundtracks, tributes, covers)
+  - [ ] Handle special cases (soundtracks, tributes, covers, demos, instrumentals, splits)
 
 - [ ] **Folder Structure Migration Logic**
-  - [ ] Create type-based folder structure: Album/, Compilation/, EP/, Live/, Single/
+  - [ ] Create type-based folder structure: Album/, Compilation/, EP/, Live/, Single/, Demo/, Instrumental/, Split/
   - [ ] Move albums from flat structure to appropriate type folders
   - [ ] Handle album naming: preserve "YYYY - Album Name (Edition)" pattern
   - [ ] Detect and resolve folder name conflicts
@@ -782,10 +833,10 @@ Slash/
 
 ### Task 6.7: Advanced Album Analysis and Insights
 - [ ] **Advanced Album Analysis**
-  - [ ] Analyze album distribution by type (Album: 60%, EP: 20%, etc.)
-  - [ ] Track edition prevalence (Deluxe editions, remasters, etc.)
+  - [ ] Analyze album distribution by type (Album: 55%, EP: 15%, Demo: 10%, Live: 8%, Compilation: 5%, Instrumental: 4%, Split: 2%, Single: 1%)
+  - [ ] Track edition prevalence (Deluxe editions, remasters, demos, instrumentals, splits, etc.)
   - [ ] Generate collection organization health score
-  - [ ] Create type-specific recommendations (missing EPs, rare compilations)
+  - [ ] Create type-specific recommendations (missing EPs, rare compilations, early demos, instrumental versions, split releases)
   - [ ] Add advanced search by type, year range, and edition
   - [ ] Generate organizational insights and trends
 
@@ -798,7 +849,7 @@ Slash/
   - [ ] Add comparative analytics against music collection best practices
 
 - [ ] **Enhanced Insights and Recommendations**
-  - [ ] Generate missing album type recommendations (complete with EPs, compilations)
+  - [ ] Generate missing album type recommendations (complete with EPs, compilations, demos, instrumentals, splits)
   - [ ] Create edition upgrade suggestions (standard → deluxe editions)
   - [ ] Provide organization improvement roadmaps
   - [ ] Generate collection completion percentage by type
@@ -806,6 +857,58 @@ Slash/
   - [ ] Add collection value and rarity insights
 
 **Implementation Priority**: Advanced analytics and insights that leverage the enhanced album organization features to provide intelligent recommendations and collection management guidance.
+
+**Demo Migration Example**:
+
+**Before Migration (Default Structure)**:
+```
+Metallica/
+├── 1982 - No Life 'Til Leather (Demo)/
+├── 1983 - Kill 'Em All/
+├── 1984 - Ride the Lightning/
+└── 1991 - The Black Album/
+```
+
+**After Migration (Enhanced Structure)**:
+```
+Metallica/
+├── Demo/
+│   └── 1982 - No Life 'Til Leather (Demo)/
+├── Album/
+│   ├── 1983 - Kill 'Em All/
+│   ├── 1984 - Ride the Lightning/
+│   └── 1991 - The Black Album/
+```
+
+**Multi-Type Migration Example**:
+
+**Before Migration (Mixed Default Structure)**:
+```
+Iron Maiden/
+├── 1978 - The Soundhouse Tapes (Demo)/
+├── 1982 - The Number of the Beast/
+├── 1985 - Live After Death (Live)/
+├── 1986 - Losfer Words (Instrumental)/
+├── 1996 - Best of the Beast (Compilation)/
+└── 2001 - Split Series Vol. 1 (Split)/
+```
+
+**After Migration (Enhanced Structure)**:
+```
+Iron Maiden/
+├── Demo/
+│   └── 1978 - The Soundhouse Tapes (Demo)/
+├── Album/
+│   └── 1982 - The Number of the Beast/
+├── Live/
+│   └── 1985 - Live After Death (Live)/
+├── Instrumental/
+│   └── 1986 - Losfer Words (Instrumental)/
+├── Compilation/
+│   └── 1996 - Best of the Beast (Compilation)/
+└── Split/
+    └── 2001 - Split Series Vol. 1 (Split)/
+```
 
 **Benefits**:
 - **Comprehensive Analytics**: Deep insights into collection organization and composition
