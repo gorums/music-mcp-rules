@@ -30,12 +30,14 @@ This project implements a Model Context Protocol (MCP) server that provides inte
 
 ### MCP Components
 
-#### Tools (4 tools)
+#### Tools (7 tools)
 1. **`scan_music_folders`** - Discovers all band folders in the music directory including the albums inside the band folder
 2. **`get_band_list`** - Returns list of all discovered bands and albums that we have for each band. 
 3. **`save_band_metadata`** - Stores band information in local JSON files
-3. **`save_band_analyze`** - Stores band information in local JSON files
-4. **`save_collection_insight`** - Stores insights about the entire collection
+4. **`validate_band_metadata`** - Validate band metadata structure without saving it
+5. **`save_band_analyze`** - Stores band information in local JSON files
+6. **`save_collection_insight`** - Stores insights about the entire collection
+7. **`migrate_band_structure`** - Create migration from one structure type to another structure
 
 #### Resources (2 resources)
 1. **`band_info/{band_name}`** - Provides detailed information for a specific band in a markdown format using the .band_metadata.json

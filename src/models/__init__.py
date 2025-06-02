@@ -10,7 +10,8 @@ from .band import (
     AlbumType,
     AlbumAnalysis, 
     BandAnalysis, 
-    BandMetadata
+    BandMetadata,
+    FolderCompliance
 )
 
 from .collection import (
@@ -35,6 +36,25 @@ from .album_parser import (
     FolderStructureValidator
 )
 
+from .band_structure import (
+    StructureType,
+    StructureConsistency,
+    FolderStructure,
+    BandStructureDetector,
+    StructureAnalyzer
+)
+
+from .compliance import (
+    ComplianceLevel,
+    ComplianceIssueType,
+    ComplianceIssue,
+    BandComplianceReport,
+    ComplianceValidator
+)
+
+# Rebuild models to resolve forward references
+BandMetadata.model_rebuild()
+
 __all__ = [
     # Band models
     'Album',
@@ -42,6 +62,7 @@ __all__ = [
     'AlbumAnalysis',
     'BandAnalysis',
     'BandMetadata',
+    'FolderCompliance',
     
     # Collection models
     'BandIndexEntry',
@@ -60,5 +81,19 @@ __all__ = [
     
     # Album parsing utilities
     'AlbumFolderParser',
-    'FolderStructureValidator'
+    'FolderStructureValidator',
+    
+    # Band structure detection
+    'StructureType',
+    'StructureConsistency',
+    'FolderStructure',
+    'BandStructureDetector',
+    'StructureAnalyzer',
+    
+    # Compliance validation
+    'ComplianceLevel',
+    'ComplianceIssueType',
+    'ComplianceIssue',
+    'BandComplianceReport',
+    'ComplianceValidator'
 ] 

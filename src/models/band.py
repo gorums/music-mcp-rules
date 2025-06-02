@@ -1,9 +1,14 @@
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict, field_serializer
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
 from enum import Enum
 import re
+
+# Import FolderStructure at the top to avoid circular imports - it will be defined later
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .band_structure import FolderStructure
 
 
 class AlbumType(str, Enum):
@@ -30,6 +35,47 @@ class AlbumType(str, Enum):
     SPLIT = "Split"
 
 
+class FolderCompliance(BaseModel):
+    """
+    Folder compliance tracking for individual albums.
+    
+    Attributes:
+        has_year_prefix: True if folder name has year prefix (YYYY - )
+        has_edition_suffix: True if edition is properly formatted in folder name
+        using_type_folders: True if album is organized in type folders
+        compliance_score: Numerical score (0-100) representing folder naming compliance
+        issues: List of identified compliance issues
+        recommended_path: Recommended folder path for optimal organization
+        original_path: Original folder path as found
+        needs_migration: True if folder should be migrated for better organization
+    """
+    has_year_prefix: bool = Field(default=False, description="Has year prefix in folder name")
+    has_edition_suffix: bool = Field(default=False, description="Has proper edition suffix")
+    using_type_folders: bool = Field(default=False, description="Uses type-based folder organization")
+    compliance_score: int = Field(default=0, ge=0, le=100, description="Compliance score (0-100)")
+    issues: List[str] = Field(default_factory=list, description="List of compliance issues")
+    recommended_path: str = Field(default="", description="Recommended folder path")
+    original_path: str = Field(default="", description="Original folder path")
+    needs_migration: bool = Field(default=False, description="Whether migration is recommended")
+
+    def get_compliance_level(self) -> str:
+        """Get compliance level based on score."""
+        if self.compliance_score >= 90:
+            return "excellent"
+        elif self.compliance_score >= 75:
+            return "good"
+        elif self.compliance_score >= 50:
+            return "fair"
+        elif self.compliance_score >= 25:
+            return "poor"
+        else:
+            return "critical"
+
+    def is_compliant(self) -> bool:
+        """Check if folder is considered compliant (score >= 75)."""
+        return self.compliance_score >= 75
+
+
 class Album(BaseModel):
     """
     Enhanced album metadata model with type, edition, and track information.
@@ -44,6 +90,7 @@ class Album(BaseModel):
         duration: Album duration in format "67min"
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
+        folder_compliance: Folder organization compliance information
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -54,6 +101,7 @@ class Album(BaseModel):
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
+    folder_compliance: Optional[FolderCompliance] = Field(default=None, description="Folder compliance information")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -154,6 +202,10 @@ class Album(BaseModel):
         if not self.edition and self.folder_path:
             self.edition = self.detect_edition_from_folder()
 
+    def update_compliance(self, compliance: FolderCompliance) -> None:
+        """Update folder compliance information for this album."""
+        self.folder_compliance = compliance
+
 
 class AlbumAnalysis(BaseModel):
     """
@@ -203,7 +255,7 @@ class BandAnalysis(BaseModel):
 
 class BandMetadata(BaseModel):
     """
-    Complete band metadata including basic information, albums, and analysis.
+    Complete band metadata including basic information, albums, analysis, and folder structure.
     
     Attributes:
         band_name: Name of the band
@@ -216,6 +268,7 @@ class BandMetadata(BaseModel):
         albums: List of album metadata
         last_updated: ISO datetime of last metadata update
         analyze: Optional analysis data with reviews and ratings
+        folder_structure: Optional folder structure analysis data
     """
     band_name: str = Field(..., description="Band name")
     formed: str = Field(default="", pattern=r"^\d{4}$|^$", description="Formation year (YYYY)")
@@ -227,6 +280,7 @@ class BandMetadata(BaseModel):
     albums: List[Album] = Field(default_factory=list, description="Album metadata list")
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
     analyze: Optional[BandAnalysis] = Field(default=None, description="Band analysis data")
+    folder_structure: Optional['FolderStructure'] = Field(default=None, description="Folder structure analysis data")
 
     @model_validator(mode='before')
     @classmethod
