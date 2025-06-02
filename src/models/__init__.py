@@ -30,6 +30,11 @@ from .validation import (
     search_albums_by_criteria
 )
 
+from .album_parser import (
+    AlbumFolderParser,
+    FolderStructureValidator
+)
+
 __all__ = [
     # Band models
     'Album',
@@ -51,5 +56,9 @@ __all__ = [
     'get_album_type_distribution',
     'get_edition_distribution',
     'filter_albums_by_type',
-    'search_albums_by_criteria'
+    'search_albums_by_criteria',
+    
+    # Album parsing utilities
+    'AlbumFolderParser',
+    'FolderStructureValidator'
 ] 
