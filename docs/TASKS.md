@@ -421,9 +421,362 @@
 
 **Ready for Production**: All deployment preparation components implemented and tested, providing a professional-grade deployment system suitable for individual users, development teams, and enterprise environments.
 
-## Phase 6: Advanced Features and Optimization
 
-### Task 6.1: Performance Optimization
+
+### Task 6.4: Advanced Album Organization and Type Classification
+- [ ] **Album Type Classification System**
+  - [ ] Define album types: Album (standard), Compilation, EP, Live, Single
+  - [ ] Update album metadata schema to include `type` field
+  - [ ] Create album type validation and detection logic
+  - [ ] Add album type filtering and search capabilities
+  - [ ] Update collection statistics to include type distribution
+
+- [ ] **Band Structure Detection System**
+  - [ ] Detect band's organizational structure during scanning
+  - [ ] Identify Default Structure: `Band Name/YYYY - Album Name (Edition?)`
+  - [ ] Identify Enhanced Structure: `Band Name/Type/YYYY - Album Name (Edition?)`
+  - [ ] Identify Mixed Structure: combination of both within same band
+  - [ ] Identify Legacy Structure: albums without year prefix
+  - [ ] Add `folder_structure` field to band metadata
+  - [ ] Track structure consistency across band's albums
+  - [ ] Generate structure recommendations for inconsistent bands
+
+- [ ] **Default Folder Structure Support**
+  - [ ] Support default pattern: `Band Name/YYYY - Album Name (Edition?)`
+  - [ ] Parse album folder names with pattern: "YYYY - Album Name (Edition)" where edition is optional
+  - [ ] Extract year from album folder names (validate YYYY format)
+  - [ ] Extract album name from folder names (handle special characters)
+  - [ ] Parse edition information when present: Deluxe Edition, Limited Edition, etc.
+  - [ ] Handle albums without edition information gracefully
+  - [ ] Support albums without year prefix (legacy collections)
+
+- [ ] **Enhanced Type-Based Folder Structure (Optional)**
+  - [ ] Implement type-based folder detection: Album/, Compilation/, EP/, Live/, Single/
+  - [ ] Support enhanced pattern: `Band Name/Type/YYYY - Album Name (Edition?)`
+  - [ ] Add folder structure validation for type-specific organization
+  - [ ] Create folder structure compliance checking
+  - [ ] Add automatic folder structure recommendations
+  - [ ] Support mixed organization (both default and type-based structures)
+
+- [ ] **Album Naming Convention Processing**
+  - [ ] Parse album folder names with pattern: "YYYY - Album Name (Edition)"
+  - [ ] Extract year from album folder names (validate YYYY format)
+  - [ ] Extract album name from folder names (handle special characters)
+  - [ ] Parse edition information: Deluxe Edition, Limited Edition, Anniversary Edition, etc.
+  - [ ] Handle edition variations and standardization
+  - [ ] Support albums without year or edition information
+
+- [ ] **Album Edition Management**
+  - [ ] Add `edition` field to album metadata schema
+  - [ ] Create edition detection and parsing algorithms
+  - [ ] Support common edition types: Deluxe, Limited, Anniversary, Remastered, etc.
+  - [ ] Add edition-based filtering and search
+  - [ ] Track multiple editions of the same album
+  - [ ] Generate edition comparison insights
+
+- [ ] **Folder Structure Compliance and Validation**
+  - [ ] Detect albums missing year prefix in folder name
+  - [ ] Identify albums missing edition suffix when edition exists in metadata
+  - [ ] For type-based folders: detect albums in incorrect type folders
+  - [ ] Validate structure consistency within each band
+  - [ ] Create compliance report with specific recommendations
+  - [ ] Add batch folder renaming suggestions
+  - [ ] Generate folder structure migration plans
+
+- [ ] **Enhanced Metadata Enrichment**
+  - [ ] Add `folder_compliance` field to track organization issues
+  - [ ] Add `folder_structure` field to band metadata
+  - [ ] Store original folder path vs. recommended folder path
+  - [ ] Track missing information (year, edition, correct type folder if using enhanced structure)
+  - [ ] Add compliance score for each album and band
+  - [ ] Create compliance improvement suggestions
+  - [ ] Support bulk metadata updates for compliance fixes
+
+- [ ] **Advanced Album Analysis**
+  - [ ] Analyze album distribution by type (Album: 60%, EP: 20%, etc.)
+  - [ ] Track edition prevalence (Deluxe editions, remasters, etc.)
+  - [ ] Generate collection organization health score
+  - [ ] Create type-specific recommendations (missing EPs, rare compilations)
+  - [ ] Add advanced search by type, year range, and edition
+  - [ ] Generate organizational insights and trends
+
+- [ ] **Tool Enhancements**
+  - [ ] Update `scan_music_folders` to detect album types and parse naming conventions
+  - [ ] Add band structure detection to scanning process
+  - [ ] Enhance `get_band_list` to show album types and compliance status
+  - [ ] Modify `save_band_metadata` to handle enhanced album schema with types and editions
+  - [ ] Update band info resource to display albums organized by type
+  - [ ] Add collection summary resource to show type distribution and compliance
+
+- [ ] **Example Implementation**
+  - [ ] **Default structure**: `Slash/2012 - Apocalyptic Love (Deluxe Edition)/`
+  - [ ] **Enhanced structure**: `Slash/Compilation/2012 - Apocalyptic Love (Deluxe Edition)/`
+  - [ ] Extract: type="Compilation" (if in type folder), year=2012, name="Apocalyptic Love", edition="Deluxe Edition"
+  - [ ] Detect band structure: "default", "enhanced", "mixed", or "legacy"
+  - [ ] Validate compliance and generate recommendations
+  - [ ] Support legacy flat structure during transition period
+  - [ ] Create migration tools for existing collections
+
+**Implementation Priority**: This task extends the existing album handling system with advanced organization features, supporting the default `band/year - album (edition?)` structure with optional type-based organization and automatic structure detection.
+
+**Example Enhanced Band Metadata Schema**:
+```json
+{
+  "name": "Slash",
+  "folder_structure": {
+    "type": "default",
+    "consistency": "consistent",
+    "albums_with_year_prefix": 8,
+    "albums_without_year_prefix": 1,
+    "albums_with_type_folders": 0,
+    "structure_score": 89,
+    "detected_patterns": ["YYYY - Album Name (Edition)", "YYYY - Album Name"],
+    "recommendations": ["Add year prefix to 'Apocalyptic Love' album"]
+  },
+  "albums": [
+    {
+      "name": "Apocalyptic Love",
+      "year": 2012,
+      "type": "Album",
+      "edition": "Deluxe Edition",
+      "track_count": 15,
+      "missing": false,
+      "folder_path": "2012 - Apocalyptic Love (Deluxe Edition)",
+      "folder_compliance": {
+        "has_year_prefix": true,
+        "has_edition_suffix": true,
+        "using_type_folders": false,
+        "compliance_score": 100,
+        "issues": []
+      }
+    }
+  ]
+}
+```
+
+**Structure Detection Examples**:
+
+**Default Structure Band**:
+```
+Slash/
+├── 2010 - Slash/
+├── 2012 - Apocalyptic Love (Deluxe Edition)/
+└── 2014 - World on Fire/
+→ folder_structure.type = "default"
+```
+
+**Enhanced Structure Band**:
+```
+AC/DC/
+├── Album/
+│   ├── 1980 - Back in Black/
+│   └── 1990 - The Razors Edge/
+├── Live/
+│   └── 1991 - Live at Donington/
+└── Compilation/
+    └── 2003 - The Complete Collection/
+→ folder_structure.type = "enhanced"
+```
+
+**Mixed Structure Band**:
+```
+Queen/
+├── 1975 - A Night at the Opera/
+├── Album/
+│   └── 1986 - A Kind of Magic/
+└── Live/
+    └── 1985 - Live Aid/
+→ folder_structure.type = "mixed"
+```
+
+**Legacy Structure Band**:
+```
+The Beatles/
+├── Abbey Road/
+├── Sgt. Pepper's Lonely Hearts Club Band/
+└── The White Album/
+→ folder_structure.type = "legacy"
+```
+
+**Default Structure Examples**:
+- `Band Name/2012 - Apocalyptic Love (Deluxe Edition)/` ✅ Default with edition
+- `Band Name/2012 - Apocalyptic Love/` ✅ Default without edition  
+- `Band Name/Apocalyptic Love/` ⚠️ Missing year (legacy support)
+
+**Enhanced Structure Examples** (Optional):
+- `Band Name/Compilation/2012 - Apocalyptic Love (Deluxe Edition)/` ✅ Enhanced with type
+- `Band Name/EP/2020 - Live Sessions/` ✅ Enhanced EP structure
+- `Band Name/Single/2023 - New Hit/` ✅ Enhanced single structure
+
+**Benefits**:
+- Automatic detection of each band's organizational structure
+- Support for default `band/year - album (edition?)` structure
+- Optional enhanced type-based organization for advanced users
+- Track structure consistency and provide recommendations
+- Migration support for existing collections to new organizational standards
+
+### Task 6.5: Band Structure Migration Tool
+- [ ] **Migration Tool Implementation**
+  - [ ] Create `migrate_band_structure` MCP tool
+  - [ ] Support migration from Default to Enhanced structure
+  - [ ] Support migration from Legacy to Default structure
+  - [ ] Support migration from Mixed to Enhanced structure
+  - [ ] Add dry-run mode for preview without actual migration
+  - [ ] Implement rollback functionality for failed migrations
+  - [ ] Add progress tracking for large band migrations
+
+- [ ] **Album Type Detection and Classification**
+  - [ ] Implement intelligent album type detection algorithms
+  - [ ] Analyze album names for type indicators (Live, EP, Compilation keywords)
+  - [ ] Use existing metadata to determine album types
+  - [ ] Apply heuristics for ambiguous cases (track count, naming patterns)
+  - [ ] Allow manual type specification for edge cases
+  - [ ] Create type mapping rules and customization options
+  - [ ] Handle special cases (soundtracks, tributes, covers)
+
+- [ ] **Folder Structure Migration Logic**
+  - [ ] Create type-based folder structure: Album/, Compilation/, EP/, Live/, Single/
+  - [ ] Move albums from flat structure to appropriate type folders
+  - [ ] Handle album naming: preserve "YYYY - Album Name (Edition)" pattern
+  - [ ] Detect and resolve folder name conflicts
+  - [ ] Preserve file permissions and timestamps during migration
+  - [ ] Create backup of original structure before migration
+  - [ ] Update folder paths in metadata files
+
+- [ ] **Migration Validation and Safety**
+  - [ ] Validate source band structure before migration
+  - [ ] Check for existing type folders and handle conflicts
+  - [ ] Verify album type assignments before moving files
+  - [ ] Validate destination paths and folder creation
+  - [ ] Create comprehensive migration log with all operations
+  - [ ] Implement atomic operations for safe migrations
+  - [ ] Add integrity checks post-migration
+
+- [ ] **Metadata Synchronization**
+  - [ ] Update band metadata with new folder_structure type
+  - [ ] Update album metadata with type classifications
+  - [ ] Update folder_path references in all album entries
+  - [ ] Synchronize collection index with new structure
+  - [ ] Update folder_compliance scores and metrics
+  - [ ] Preserve existing metadata (ratings, reviews, analysis)
+  - [ ] Update last_updated timestamps
+
+- [ ] **Migration Reporting and Analytics**
+  - [ ] Generate detailed migration report with statistics
+  - [ ] Show before/after folder structure comparison
+  - [ ] Report album type distribution changes
+  - [ ] Track migration success/failure rates
+  - [ ] Provide folder organization improvement metrics
+  - [ ] Generate recommendations for unmigrated albums
+  - [ ] Create migration history tracking
+
+- [ ] **Error Handling and Recovery**
+  - [ ] Handle file system permission errors gracefully
+  - [ ] Detect and resolve disk space issues
+  - [ ] Handle locked files and directories
+  - [ ] Implement partial migration recovery
+  - [ ] Provide detailed error messages and solutions
+  - [ ] Create automatic rollback on critical failures
+  - [ ] Support manual intervention for complex cases
+
+- [ ] **Tool Parameters and Configuration**
+  - [ ] Add `band_name` parameter for specific band migration
+  - [ ] Add `migration_type` parameter: "default_to_enhanced", "legacy_to_default", "mixed_to_enhanced"
+  - [ ] Add `dry_run` parameter for preview mode
+  - [ ] Add `album_type_overrides` parameter for manual type specification
+  - [ ] Add `backup_original` parameter for safety options
+  - [ ] Add `force` parameter to override safety checks
+  - [ ] Add `exclude_albums` parameter to skip specific albums
+
+**Example Migration Tool Usage**:
+```json
+{
+  "tool": "migrate_band_structure",
+  "arguments": {
+    "band_name": "Slash",
+    "migration_type": "default_to_enhanced",
+    "dry_run": false,
+    "album_type_overrides": {
+      "Apocalyptic Love": "Album",
+      "Live at the Roxy": "Live"
+    },
+    "backup_original": true
+  }
+}
+```
+
+**Migration Flow Example**:
+
+**Before Migration (Default Structure)**:
+```
+Slash/
+├── 2010 - Slash/
+├── 2012 - Apocalyptic Love (Deluxe Edition)/
+├── 2014 - World on Fire/
+└── 2019 - Live at the Roxy (Live)/
+```
+
+**After Migration (Enhanced Structure)**:
+```
+Slash/
+├── Album/
+│   ├── 2010 - Slash/
+│   ├── 2012 - Apocalyptic Love (Deluxe Edition)/
+│   └── 2014 - World on Fire/
+└── Live/
+    └── 2019 - Live at the Roxy (Live)/
+```
+
+**Migration Report Example**:
+```json
+{
+  "migration_id": "slash_20250130_143022",
+  "band_name": "Slash",
+  "migration_type": "default_to_enhanced",
+  "status": "completed",
+  "started_at": "2025-01-30T14:30:22Z",
+  "completed_at": "2025-01-30T14:30:45Z",
+  "duration_seconds": 23,
+  "albums_migrated": 4,
+  "albums_failed": 0,
+  "type_distribution": {
+    "Album": 3,
+    "Live": 1,
+    "EP": 0,
+    "Compilation": 0,
+    "Single": 0
+  },
+  "folders_created": ["Album/", "Live/"],
+  "backup_location": "/backups/slash_migration_20250130_143022/",
+  "migration_log": [
+    "Created folder: Slash/Album/",
+    "Created folder: Slash/Live/",
+    "Moved: 2010 - Slash/ → Album/2010 - Slash/",
+    "Moved: 2012 - Apocalyptic Love (Deluxe Edition)/ → Album/2012 - Apocalyptic Love (Deluxe Edition)/",
+    "Moved: 2014 - World on Fire/ → Album/2014 - World on Fire/",
+    "Moved: 2019 - Live at the Roxy (Live)/ → Live/2019 - Live at the Roxy (Live)/",
+    "Updated band metadata with enhanced structure",
+    "Updated collection index"
+  ],
+  "warnings": [],
+  "errors": []
+}
+```
+
+**Implementation Priority**: This migration tool provides a safe and automated way for users to upgrade their collection organization from flat structure to type-based structure, with comprehensive safety features and detailed reporting.
+
+**Benefits**:
+- **Safe Migration**: Dry-run mode and backup creation before actual migration
+- **Intelligent Type Detection**: Automatic album type classification with manual override options
+- **Comprehensive Reporting**: Detailed logs and statistics for migration tracking
+- **Rollback Support**: Ability to revert migrations if needed
+- **Flexible Configuration**: Support for various migration scenarios and edge cases
+- **Metadata Preservation**: All existing ratings, reviews, and analysis data maintained
+- **Progress Tracking**: Real-time migration progress for large collections
+
+## Phase 7: Advanced Features and Optimization
+
+### Task 7.1: Performance Optimization
 - [ ] Implement parallel processing for large collections
 - [ ] Add memory optimization for large datasets with albums
 - [ ] Create incremental scanning (only new/changed folders)
@@ -432,7 +785,7 @@
 - [ ] Implement intelligent caching strategies for albums
 - [ ] Optimize markdown generation for resources
 
-### Task 6.2: Enhanced Features
+### Task 7.2: Enhanced Features
 - [ ] Add album-level metadata enhancement
 - [ ] Implement music file tag reading integration
 - [ ] Create duplicate detection for band and album names
@@ -442,7 +795,7 @@
 - [ ] Create missing album recommendation system
 - [ ] Add rating-based collection insights
 
-### Task 6.3: User Experience Improvements
+### Task 7.3: User Experience Improvements
 - [ ] Add progress indicators for album scanning operations
 - [ ] Create interactive configuration setup
 - [ ] Add collection health checks and album recommendations
