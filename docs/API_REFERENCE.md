@@ -1,21 +1,21 @@
-# Music Collection MCP Server - API Reference
+# Music Collection MCP Server - API Reference with Album Type Classification
 
 ## Overview
 
-The Music Collection MCP Server provides a comprehensive API for managing and accessing local music collections through the Model Context Protocol (MCP). This reference documents all available tools, resources, and prompts with their schemas, parameters, and usage examples.
+The Music Collection MCP Server provides a comprehensive API for managing and accessing local music collections through the Model Context Protocol (MCP). This reference documents all available tools, resources, and prompts with their schemas, parameters, and usage examples, including the new album type classification and folder structure analysis features.
 
 ## Quick Reference
 
 ### Tools (5 available)
-- [`scan_music_folders`](#scan_music_folders) - Scan and index music collection
-- [`get_band_list`](#get_band_list) - List bands and albums with filtering
-- [`save_band_metadata`](#save_band_metadata) - Store band metadata
+- [`scan_music_folders`](#scan_music_folders) - Scan and index music collection with type detection
+- [`get_band_list`](#get_band_list) - List bands and albums with type filtering and structure analysis
+- [`save_band_metadata`](#save_band_metadata) - Store band metadata with album types
 - [`save_band_analyze`](#save_band_analyze) - Store band analysis data
 - [`save_collection_insight`](#save_collection_insight) - Store collection insights
 
 ### Resources (2 available)
-- [`band://info/{band_name}`](#band-info-resource) - Get band information in markdown
-- [`collection://summary`](#collection-summary-resource) - Get collection overview
+- [`band://info/{band_name}`](#band-info-resource) - Get band information with album types
+- [`collection://summary`](#collection-summary-resource) - Get collection overview with type distribution
 
 ### Prompts (4 available)
 - [`fetch_band_info`](#fetch_band_info) - Template for fetching band data
@@ -25,11 +25,40 @@ The Music Collection MCP Server provides a comprehensive API for managing and ac
 
 ---
 
+## Album Type Classification System
+
+The server supports 8 distinct album types with intelligent auto-detection:
+
+### Album Types
+
+| Type | Description | Detection Keywords |
+|------|-------------|-------------------|
+| `Album` | Standard studio albums | (default classification) |
+| `Compilation` | Greatest hits, collections | "greatest hits", "best of", "collection" |
+| `EP` | Extended plays | "ep", "e.p." |
+| `Live` | Live recordings | "live", "concert", "unplugged" |
+| `Single` | Single releases | "single" |
+| `Demo` | Demo recordings | "demo", "demos", "unreleased" |
+| `Instrumental` | Instrumental versions | "instrumental", "instrumentals" |
+| `Split` | Split releases | "split", "vs.", "versus" |
+
+### Folder Structure Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `default` | Flat structure | `1973 - Album Name` |
+| `enhanced` | Type-based structure | `Album/1973 - Album Name` |
+| `mixed` | Combination of both | Mixed patterns |
+| `legacy` | No year prefix | `Album Name` |
+| `unknown` | Unrecognized pattern | Various |
+
+---
+
 ## Tools
 
 ### scan_music_folders
 
-Scans the music collection directory to discover bands and albums, creating or updating the collection index.
+Scans the music collection directory to discover bands and albums with album type detection and folder structure analysis.
 
 #### Parameters
 
@@ -37,6 +66,9 @@ Scans the music collection directory to discover bands and albums, creating or u
 |-----------|------|----------|---------|-------------|
 | `force_rescan` | boolean | No | `false` | Force full rescan even if folders haven't changed |
 | `force_full_scan` | boolean | No | `false` | Perform complete scan regardless of cache |
+| `include_missing_albums` | boolean | No | `true` | Include missing albums in results |
+| `analyze_structure` | boolean | No | `true` | Perform folder structure analysis |
+| `detect_album_types` | boolean | No | `true` | Enable album type detection |
 
 #### Response Schema
 
@@ -49,7 +81,30 @@ Scans the music collection directory to discover bands and albums, creating or u
     "albums_found": 1847,
     "local_albums": 1623,
     "missing_albums": 224,
-    "scan_duration": "5.2s"
+    "scan_duration": "5.2s",
+    "album_type_distribution": {
+      "Album": 1245,
+      "Live": 187,
+      "Compilation": 156,
+      "EP": 89,
+      "Demo": 67,
+      "Single": 23,
+      "Instrumental": 15,
+      "Split": 8
+    },
+    "structure_analysis": {
+      "enhanced_structure_bands": 45,
+      "default_structure_bands": 89,
+      "legacy_structure_bands": 8,
+      "average_compliance_score": 78.5,
+      "structure_distribution": {
+        "enhanced": 32,
+        "default": 63,
+        "mixed": 28,
+        "legacy": 15,
+        "unknown": 4
+      }
+    }
   },
   "collection_path": "/music/collection",
   "index_updated": true
@@ -64,7 +119,9 @@ Scans the music collection directory to discover bands and albums, creating or u
   "params": {
     "name": "scan_music_folders",
     "arguments": {
-      "force_rescan": true
+      "force_rescan": true,
+      "analyze_structure": true,
+      "detect_album_types": true
     }
   }
 }
@@ -74,7 +131,7 @@ Scans the music collection directory to discover bands and albums, creating or u
 
 ### get_band_list
 
-Retrieves a list of bands with optional filtering, sorting, and pagination.
+Retrieves a list of bands with optional filtering by album types, compliance levels, and structure types.
 
 #### Parameters
 
@@ -82,7 +139,10 @@ Retrieves a list of bands with optional filtering, sorting, and pagination.
 |-----------|------|----------|---------|-------------|
 | `search_term` | string | No | `""` | Search bands by name (partial match) |
 | `genre_filter` | string | No | `""` | Filter by genre |
-| `sort_by` | string | No | `"name"` | Sort field: `name`, `albums_count`, `year_formed` |
+| `filter_album_types` | array | No | `[]` | Filter by album types: `["Album", "Live", "EP"]` |
+| `filter_compliance_levels` | array | No | `[]` | Filter by compliance: `["excellent", "good", "fair"]` |
+| `filter_structure_types` | array | No | `[]` | Filter by structure: `["enhanced", "default", "mixed"]` |
+| `sort_by` | string | No | `"name"` | Sort field: `name`, `albums_count`, `compliance_score` |
 | `sort_order` | string | No | `"asc"` | Sort order: `asc`, `desc` |
 | `limit` | integer | No | `50` | Maximum results to return |
 | `offset` | integer | No | `0` | Number of results to skip |
@@ -97,13 +157,41 @@ Retrieves a list of bands with optional filtering, sorting, and pagination.
     {
       "band_name": "Pink Floyd",
       "albums_count": 15,
-      "local_albums": 8,
-      "missing_albums": 7,
+      "local_albums": 12,
+      "missing_albums": 3,
       "has_metadata": true,
       "has_analysis": true,
       "formed": "1965",
       "genres": ["Progressive Rock", "Psychedelic Rock"],
-      "last_updated": "2024-01-15T10:30:00Z"
+      "last_updated": "2024-01-15T10:30:00Z",
+      "album_type_distribution": {
+        "Album": 9,
+        "Live": 3,
+        "Compilation": 2,
+        "Demo": 1
+      },
+      "structure_analysis": {
+        "structure_type": "enhanced",
+        "compliance_score": 95,
+        "compliance_level": "excellent",
+        "issues_count": 0,
+        "recommendations": []
+      },
+      "albums": [
+        {
+          "album_name": "The Wall",
+          "type": "Album",
+          "year": "1979",
+          "edition": "Deluxe Edition",
+          "missing": false,
+          "tracks_count": 26,
+          "compliance": {
+            "score": 100,
+            "level": "excellent",
+            "issues": []
+          }
+        }
+      ]
     }
   ],
   "pagination": {
@@ -114,7 +202,25 @@ Retrieves a list of bands with optional filtering, sorting, and pagination.
   },
   "filters_applied": {
     "search_term": "",
-    "genre_filter": "Rock"
+    "genre_filter": "Rock",
+    "album_types": ["Album", "Live"],
+    "compliance_levels": ["excellent"],
+    "structure_types": ["enhanced"]
+  },
+  "collection_stats": {
+    "total_albums_by_type": {
+      "Album": 1245,
+      "Live": 187,
+      "Compilation": 156,
+      "EP": 89
+    },
+    "compliance_distribution": {
+      "excellent": 45,
+      "good": 67,
+      "fair": 23,
+      "poor": 5,
+      "critical": 2
+    }
   }
 }
 ```
@@ -127,8 +233,9 @@ Retrieves a list of bands with optional filtering, sorting, and pagination.
   "params": {
     "name": "get_band_list",
     "arguments": {
-      "genre_filter": "Rock",
-      "sort_by": "albums_count",
+      "filter_album_types": ["Live", "Demo"],
+      "filter_compliance_levels": ["excellent", "good"],
+      "sort_by": "compliance_score",
       "sort_order": "desc",
       "limit": 10
     }
@@ -140,18 +247,18 @@ Retrieves a list of bands with optional filtering, sorting, and pagination.
 
 ### save_band_metadata
 
-Stores comprehensive metadata for a band including albums, members, and basic information.
+Stores comprehensive metadata for a band including albums with type classification and compliance information.
 
 #### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `band_name` | string | Yes | Name of the band |
-| `metadata` | object | Yes | Band metadata object (see schema below) |
+| `metadata` | object | Yes | Band metadata object with enhanced album schema |
 | `preserve_analyze` | boolean | No | Preserve existing analysis data (default: `true`) |
 | `clear_analyze` | boolean | No | Clear existing analysis data (default: `false`) |
 
-#### Metadata Schema
+#### Enhanced Metadata Schema
 
 ```json
 {
@@ -165,10 +272,36 @@ Stores comprehensive metadata for a band including albums, members, and basic in
     {
       "album_name": "The Dark Side of the Moon",
       "year": "1973",
+      "type": "Album",
+      "edition": "",
       "genres": ["Progressive Rock"],
       "tracks_count": 10,
       "duration": "43min",
-      "missing": false
+      "missing": false,
+      "folder_path": "1973 - The Dark Side of the Moon",
+      "compliance": {
+        "score": 100,
+        "level": "excellent",
+        "issues": [],
+        "recommendations": []
+      }
+    },
+    {
+      "album_name": "Live at Pompeii",
+      "year": "1972",
+      "type": "Live",
+      "edition": "",
+      "genres": ["Progressive Rock"],
+      "tracks_count": 8,
+      "duration": "65min",
+      "missing": false,
+      "folder_path": "Live/1972 - Live at Pompeii",
+      "compliance": {
+        "score": 95,
+        "level": "excellent",
+        "issues": [],
+        "recommendations": []
+      }
     }
   ]
 }
@@ -179,15 +312,34 @@ Stores comprehensive metadata for a band including albums, members, and basic in
 ```json
 {
   "success": true,
-  "message": "Successfully saved metadata for Pink Floyd",
+  "message": "Successfully saved metadata for Pink Floyd with album type classification",
   "band_name": "Pink Floyd",
   "metadata_file": "/music/Pink Floyd/.band_metadata.json",
   "albums_processed": 15,
+  "album_types_detected": {
+    "Album": 9,
+    "Live": 3,
+    "Compilation": 2,
+    "Demo": 1
+  },
+  "structure_analysis": {
+    "structure_type": "enhanced",
+    "compliance_score": 95,
+    "compliance_level": "excellent"
+  },
   "analyze_preserved": true,
   "analyze_action": "preserved_existing",
   "validation": {
     "errors": [],
-    "warnings": ["Album 'Ummagumma' missing year information"]
+    "warnings": ["Album 'Ummagumma' missing year information"],
+    "type_validation": {
+      "auto_detected_types": 3,
+      "manual_overrides": 0,
+      "confidence_scores": {
+        "Live at Pompeii": 0.95,
+        "The Wall": 0.88
+      }
+    }
   },
   "backup_created": "/music/Pink Floyd/.band_metadata_backup_20240115103000.json"
 }
@@ -205,17 +357,12 @@ Stores comprehensive metadata for a band including albums, members, and basic in
       "metadata": {
         "band_name": "Pink Floyd",
         "formed": "1965",
-        "genres": ["Progressive Rock", "Psychedelic Rock"],
-        "origin": "London, England",
-        "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright"],
-        "description": "Pioneering progressive rock band",
         "albums": [
           {
-            "album_name": "The Dark Side of the Moon",
-            "year": "1973",
-            "genres": ["Progressive Rock"],
-            "tracks_count": 10,
-            "missing": false
+            "album_name": "The Wall",
+            "year": "1979",
+            "type": "Album",
+            "tracks_count": 26
           }
         ]
       }
@@ -228,30 +375,38 @@ Stores comprehensive metadata for a band including albums, members, and basic in
 
 ### save_band_analyze
 
-Stores analysis data including reviews, ratings, and similar bands information.
+Stores analysis data for bands including album-specific reviews and ratings with type-aware analysis.
 
 #### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `band_name` | string | Yes | Name of the band |
-| `analysis` | object | Yes | Analysis data object (see schema below) |
+| `analyze_data` | object | Yes | Analysis data object |
 | `analyze_missing_albums` | boolean | No | Include missing albums in analysis (default: `false`) |
 
-#### Analysis Schema
+#### Analysis Data Schema
 
 ```json
 {
-  "review": "Pink Floyd revolutionized progressive rock with their atmospheric soundscapes and conceptual albums. Their ability to blend experimental music with accessible melodies created a unique sound that influenced countless artists.",
+  "band_name": "Pink Floyd",
+  "review": "Pioneering progressive rock band with innovative soundscapes",
   "rate": 9,
-  "albums": [
+  "similar_bands": ["King Crimson", "Genesis", "Yes"],
+  "album_analysis": [
     {
-      "album_name": "The Dark Side of the Moon",
-      "review": "A masterpiece of progressive rock that explores themes of conflict, greed, and mental illness through innovative use of sound effects and seamless song transitions.",
+      "album_name": "The Wall",
+      "type": "Album",
+      "review": "Conceptual masterpiece exploring themes of isolation",
       "rate": 10
+    },
+    {
+      "album_name": "Live at Pompeii",
+      "type": "Live",
+      "review": "Atmospheric live performance in unique setting",
+      "rate": 9
     }
-  ],
-  "similar_bands": ["Genesis", "Yes", "King Crimson", "Gentle Giant"]
+  ]
 }
 ```
 
@@ -260,45 +415,30 @@ Stores analysis data including reviews, ratings, and similar bands information.
 ```json
 {
   "success": true,
-  "message": "Successfully saved analysis for Pink Floyd",
+  "message": "Successfully saved analysis for Pink Floyd with type-aware album analysis",
   "band_name": "Pink Floyd",
-  "analysis_file": "/music/Pink Floyd/.band_metadata.json",
-  "albums_analyzed": 8,
-  "missing_albums_included": false,
-  "ratings": {
-    "band_rating": 9,
-    "average_album_rating": 8.5,
-    "album_count": 8
+  "analyze_file": "/music/Pink Floyd/.band_metadata.json",
+  "albums_analyzed": 12,
+  "missing_albums_analyzed": 3,
+  "analysis_by_type": {
+    "Album": {
+      "count": 9,
+      "average_rating": 8.7,
+      "reviewed": 9
+    },
+    "Live": {
+      "count": 3,
+      "average_rating": 8.3,
+      "reviewed": 3
+    }
   },
-  "similar_bands_count": 4,
   "validation": {
     "errors": [],
-    "warnings": []
-  }
-}
-```
-
-#### Usage Example
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_analyze",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "analysis": {
-        "review": "Pink Floyd revolutionized progressive rock...",
-        "rate": 9,
-        "albums": [
-          {
-            "album_name": "The Dark Side of the Moon",
-            "review": "A masterpiece of progressive rock...",
-            "rate": 10
-          }
-        ],
-        "similar_bands": ["Genesis", "Yes", "King Crimson"]
-      }
+    "warnings": [],
+    "rating_distribution": {
+      "10": 2,
+      "9": 4,
+      "8": 6
     }
   }
 }
@@ -308,72 +448,42 @@ Stores analysis data including reviews, ratings, and similar bands information.
 
 ### save_collection_insight
 
-Stores insights and analytics about the entire music collection.
+Stores collection-wide insights including album type distribution and structure analysis.
 
 #### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `insights` | array | No | Collection insights and observations |
-| `recommendations` | array | No | Recommendations for collection improvement |
-| `top_rated_bands` | array | No | List of highest-rated bands |
-| `suggested_purchases` | array | No | Suggested albums to purchase |
-| `collection_health` | object | No | Collection health metrics |
+| `insights` | object | Yes | Collection insights object |
 
-#### Collection Health Schema
+#### Insights Schema
 
 ```json
 {
-  "completion_percentage": 75.5,
-  "metadata_coverage": 89.2,
-  "analysis_coverage": 67.8,
-  "total_bands": 142,
-  "analyzed_bands": 96,
-  "missing_albums_count": 224,
-  "health_score": 8.2
-}
-```
-
-#### Response Schema
-
-```json
-{
-  "success": true,
-  "message": "Successfully saved collection insights",
-  "insights_file": "/music/.collection_index.json",
-  "insights_count": 5,
-  "recommendations_count": 8,
-  "top_rated_bands_count": 10,
-  "suggested_purchases_count": 15,
-  "collection_health_updated": true,
-  "files_modified": [".collection_index.json"],
-  "backup_created": "/music/.collection_index_backup_20240115103000.json"
-}
-```
-
-#### Usage Example
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_collection_insight",
-    "arguments": {
-      "insights": [
-        "Progressive rock is heavily represented with 35 bands",
-        "Most albums are from the 1970s golden era"
-      ],
-      "recommendations": [
-        "Consider adding more contemporary progressive bands",
-        "Fill gaps in classic album collections"
-      ],
-      "collection_health": {
-        "completion_percentage": 75.5,
-        "metadata_coverage": 89.2,
-        "health_score": 8.2
-      }
+  "collection_overview": {
+    "total_bands": 142,
+    "total_albums": 1847,
+    "album_type_distribution": {
+      "Album": 1245,
+      "Live": 187,
+      "Compilation": 156,
+      "EP": 89,
+      "Demo": 67,
+      "Single": 23,
+      "Instrumental": 15,
+      "Split": 8
+    },
+    "structure_analysis": {
+      "enhanced_structure_percentage": 32.4,
+      "average_compliance_score": 78.5,
+      "bands_needing_migration": 45
     }
-  }
+  },
+  "recommendations": [
+    "Consider migrating 45 bands to enhanced folder structure",
+    "Add missing album type classifications for 23 albums",
+    "Improve compliance for 12 bands with poor scores"
+  ]
 }
 ```
 
@@ -381,34 +491,24 @@ Stores insights and analytics about the entire music collection.
 
 ## Resources
 
-### Band Info Resource
+### band://info/{band_name}
 
-**URI**: `band://info/{band_name}`
-
-Provides comprehensive information about a specific band in markdown format.
+Returns comprehensive band information in markdown format including album type distribution and structure analysis.
 
 #### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `band_name` | string | Name of the band (URL encoded) |
+- `band_name`: URL-encoded band name
 
 #### Response Format
 
-Returns markdown-formatted band information including:
-- Band overview (formation, genre, origin, members)
-- Complete albums listing with availability status
-- Missing albums section
-- Analysis and ratings (if available)
-- Similar bands
-- Collection statistics
-- Metadata information
-
-#### Example Request
-
-```
-GET band://info/Pink%20Floyd
-```
+Markdown document with sections:
+- **Band Overview** with formation details and genres
+- **Album Type Distribution** with counts and percentages
+- **Albums by Type** organized by album type
+- **Structure Analysis** with compliance scores and recommendations
+- **Missing Albums** if any
+- **Analysis & Ratings** if available
+- **Similar Bands** if available
 
 #### Example Response
 
@@ -416,78 +516,74 @@ GET band://info/Pink%20Floyd
 # Pink Floyd
 
 ## Band Overview
-🎵 **Genre**: Progressive Rock, Psychedelic Rock  
-📅 **Formed**: 1965  
-🌍 **Origin**: London, England  
-👥 **Members**: David Gilmour, Roger Waters, Nick Mason, Richard Wright
+- **Formed**: 1965
+- **Origin**: London, England
+- **Genres**: Progressive Rock, Psychedelic Rock
+- **Members**: David Gilmour, Roger Waters, Nick Mason, Richard Wright
 
-## Albums (15 total: 8 local + 7 missing)
+## Album Type Distribution
+- 📀 **Albums**: 9 (60.0%)
+- 🎤 **Live**: 3 (20.0%)
+- 📦 **Compilation**: 2 (13.3%)
+- 🎵 **Demo**: 1 (6.7%)
 
-### Local Albums (8)
-| Album | Year | Tracks | Rating | Genres |
+## Structure Analysis
+- **Structure Type**: Enhanced
+- **Compliance Score**: 95/100 (Excellent)
+- **Organization**: Type-based folder structure
+
+## Albums by Type
+
+### 📀 Albums (9)
+| Album | Year | Rating | Tracks | Status |
 |-------|------|--------|--------|--------|
-| The Dark Side of the Moon | 1973 | 10 | ⭐ 10/10 | Progressive Rock |
-| The Wall | 1979 | 26 | ⭐ 9/10 | Progressive Rock, Rock Opera |
+| The Wall | 1979 | ⭐ 10/10 | 26 | ✅ Local |
+| Dark Side of the Moon | 1973 | ⭐ 10/10 | 10 | ✅ Local |
 
-### Missing Albums (7)
-- Ummagumma (1969)
-- Atom Heart Mother (1970)
-...
-
-## Analysis
-**Band Rating**: ⭐ 9/10
-
-Pink Floyd revolutionized progressive rock with their atmospheric soundscapes...
-
-**Similar Bands**: Genesis, Yes, King Crimson, Gentle Giant
+### 🎤 Live Albums (3)
+| Album | Year | Rating | Tracks | Status |
+|-------|------|--------|--------|--------|
+| Live at Pompeii | 1972 | ⭐ 9/10 | 8 | ✅ Local |
 ```
 
 ---
 
-### Collection Summary Resource
+### collection://summary
 
-**URI**: `collection://summary`
-
-Provides a comprehensive overview of the entire music collection.
+Returns collection overview with album type statistics and structure analysis.
 
 #### Response Format
 
-Returns markdown-formatted collection summary including:
-- Collection overview with statistics
-- Band distribution analysis
-- Missing albums analysis
-- Collection insights and recommendations
-- Health assessment
-- Metadata information
-
-#### Example Request
-
-```
-GET collection://summary
-```
+Markdown document with sections:
+- **Collection Statistics** with totals and distributions
+- **Album Type Analysis** with detailed breakdowns
+- **Folder Structure Overview** with compliance metrics
+- **Collection Health** with recommendations
+- **Top Rated Content** by album type
 
 #### Example Response
 
 ```markdown
 # Music Collection Summary
 
-## Collection Overview
-🎵 **Total Bands**: 142  
-💿 **Total Albums**: 1,847 (1,623 local + 224 missing)  
-📊 **Completion**: 87.9%  
-📈 **Health Score**: 8.5/10
+## Collection Statistics
+- **Total Bands**: 142
+- **Total Albums**: 1,847 (1,623 local + 224 missing)
+- **Completion Rate**: 87.9%
 
-## Band Distribution
-| Size | Count | Percentage |
-|------|-------|------------|
-| Large Collections (≥10 albums) | 45 | 31.7% |
-| Medium Collections (4-9 albums) | 67 | 47.2% |
-| Small Collections (1-3 albums) | 30 | 21.1% |
+## Album Type Distribution
+| Type | Count | Percentage | Avg Rating |
+|------|-------|------------|------------|
+| 📀 Album | 1,245 | 67.4% | 8.2/10 |
+| 🎤 Live | 187 | 10.1% | 7.8/10 |
+| 📦 Compilation | 156 | 8.4% | 7.5/10 |
+| 🎵 EP | 89 | 4.8% | 8.0/10 |
 
-## Missing Albums Analysis
-**Total Missing**: 224 albums (12.1% of collection)
-- 15 bands missing 50%+ of their albums
-- 67 bands missing 1-3 albums each
+## Folder Structure Analysis
+- **Enhanced Structure**: 32.4% (46 bands)
+- **Default Structure**: 62.7% (89 bands)
+- **Average Compliance**: 78.5/100
+- **Bands Needing Migration**: 45
 ```
 
 ---
@@ -496,202 +592,123 @@ GET collection://summary
 
 ### fetch_band_info
 
-Generates prompts for fetching band information using external sources like Brave Search.
+Template for fetching comprehensive band information with album type awareness.
 
 #### Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `band_name` | string | No | `""` | Specific band to fetch info for |
-| `information_scope` | string | No | `"full"` | Scope: `basic`, `full`, `albums_only` |
-| `existing_albums` | array | No | `[]` | Known albums for missing detection |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `band_name` | string | Yes | Name of the band to fetch information for |
+| `information_scope` | string | No | Scope: `basic`, `full`, `albums_only` (default: `full`) |
+| `existing_albums` | array | No | List of known albums for missing album detection |
 
-#### Response
+#### Template Features
 
-Returns a structured prompt template for fetching band information with specific instructions and output format requirements.
-
-#### Usage Example
-
-```json
-{
-  "method": "prompts/get",
-  "params": {
-    "name": "fetch_band_info",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "information_scope": "full"
-    }
-  }
-}
-```
+- **Album Type Detection**: Instructions for identifying album types
+- **Structure Analysis**: Guidelines for folder organization recommendations
+- **Missing Album Detection**: Comparison with existing collection
+- **Edition Recognition**: Detection of special editions and remasters
 
 ---
 
 ### analyze_band
 
-Generates prompts for comprehensive band analysis including reviews and ratings.
+Template for analyzing bands with type-specific analysis guidelines.
 
 #### Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `band_name` | string | No | `""` | Specific band to analyze |
-| `analysis_scope` | string | No | `"full"` | Scope: `basic`, `full`, `albums_only` |
-| `albums` | array | No | `[]` | Albums to include in analysis |
-| `analyze_missing_albums` | boolean | No | `false` | Include missing albums |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `band_name` | string | Yes | Name of the band to analyze |
+| `analysis_scope` | string | No | Scope: `basic`, `full`, `albums_only` (default: `full`) |
+| `albums` | array | No | List of albums to analyze |
+| `analyze_missing_albums` | boolean | No | Include missing albums in analysis |
 
-#### Response
+#### Template Features
 
-Returns a structured prompt template for band analysis with rating guidelines and output format.
-
-#### Usage Example
-
-```json
-{
-  "method": "prompts/get",
-  "params": {
-    "name": "analyze_band",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "analysis_scope": "full",
-      "analyze_missing_albums": true
-    }
-  }
-}
-```
+- **Type-Specific Analysis**: Different criteria for different album types
+- **Rating Guidelines**: Type-aware rating scales and criteria
+- **Historical Context**: Analysis considering album type evolution
+- **Collection Balance**: Recommendations for type diversity
 
 ---
 
 ### compare_bands
 
-Generates prompts for comparing multiple bands across various dimensions.
+Template for comparing bands with album type distribution analysis.
 
 #### Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `band_names` | array | No | `[]` | Bands to compare (minimum 2) |
-| `comparison_scope` | string | No | `"full"` | Scope: `basic`, `full`, `summary` |
-| `comparison_aspects` | array | No | `["all"]` | Aspects: `style`, `discography`, `influence`, etc. |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `band_names` | array | Yes | List of band names to compare (minimum 2) |
+| `comparison_aspects` | array | No | Aspects to compare: `style`, `discography`, `influence` |
+| `comparison_scope` | string | No | Scope: `basic`, `full`, `summary` |
 
-#### Response
+#### Template Features
 
-Returns a structured prompt template for band comparison with specific analysis dimensions.
-
-#### Usage Example
-
-```json
-{
-  "method": "prompts/get",
-  "params": {
-    "name": "compare_bands",
-    "arguments": {
-      "band_names": ["Pink Floyd", "Genesis", "Yes"],
-      "comparison_scope": "full",
-      "comparison_aspects": ["style", "influence", "discography"]
-    }
-  }
-}
-```
+- **Discography Comparison**: Album type distribution analysis
+- **Evolution Analysis**: How album types evolved over time
+- **Influence Assessment**: Impact on different album formats
+- **Collection Recommendations**: Suggested album types to explore
 
 ---
 
 ### collection_insights
 
-Generates prompts for analyzing the entire music collection and providing insights.
+Template for generating collection-wide insights with type and structure analysis.
 
 #### Parameters
 
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `collection_data` | object | No | `{}` | Collection statistics |
-| `insights_scope` | string | No | `"comprehensive"` | Scope: `basic`, `comprehensive`, `health_only` |
-| `focus_areas` | array | No | `["all"]` | Areas: `statistics`, `recommendations`, `health`, etc. |
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `analysis_focus` | string | No | Focus area: `types`, `structure`, `quality`, `gaps` |
+| `include_recommendations` | boolean | No | Include improvement recommendations |
 
-#### Response
+#### Template Features
 
-Returns a structured prompt template for collection analysis with data-driven insights.
-
-#### Usage Example
-
-```json
-{
-  "method": "prompts/get",
-  "params": {
-    "name": "collection_insights",
-    "arguments": {
-      "insights_scope": "comprehensive",
-      "focus_areas": ["statistics", "recommendations", "health"]
-    }
-  }
-}
-```
+- **Type Distribution Analysis**: Balance across album types
+- **Structure Optimization**: Folder organization recommendations
+- **Collection Gaps**: Missing album types and opportunities
+- **Quality Assessment**: Type-specific quality metrics
 
 ---
 
 ## Error Handling
 
-### Standard Error Response
-
-All API endpoints return standardized error responses:
+### Common Error Responses
 
 ```json
 {
   "success": false,
-  "error": {
-    "code": "BAND_NOT_FOUND",
-    "message": "Band 'Unknown Band' not found in collection",
-    "details": {
-      "band_name": "Unknown Band",
-      "suggestion": "Use scan_music_folders to refresh the collection index"
-    }
+  "error": "ValidationError",
+  "message": "Invalid album type 'InvalidType'. Must be one of: Album, Compilation, EP, Live, Single, Demo, Instrumental, Split",
+  "details": {
+    "field": "album.type",
+    "value": "InvalidType",
+    "valid_values": ["Album", "Compilation", "EP", "Live", "Single", "Demo", "Instrumental", "Split"]
   }
 }
 ```
 
-### Common Error Codes
+### Album Type Validation Errors
 
-| Code | Description | Typical Resolution |
-|------|-------------|-------------------|
-| `BAND_NOT_FOUND` | Band not found in collection | Scan collection or check band name |
-| `METADATA_VALIDATION_ERROR` | Invalid metadata format | Check schema and fix validation errors |
-| `FILE_PERMISSION_ERROR` | Cannot write to metadata file | Check file permissions |
-| `COLLECTION_INDEX_CORRUPTED` | Collection index file is corrupted | Rescan collection to rebuild index |
-| `INVALID_RATING` | Rating outside 1-10 range | Provide rating between 1 and 10 |
+- **Invalid Type**: When an unsupported album type is provided
+- **Type Detection Failed**: When automatic type detection cannot determine type
+- **Structure Mismatch**: When folder structure doesn't match declared type
 
----
+### Compliance Validation Errors
 
-## Rate Limits and Performance
-
-### Performance Characteristics
-
-| Operation | Typical Response Time | Memory Usage |
-|-----------|----------------------|--------------|
-| `scan_music_folders` (1000 bands) | < 60 seconds | < 500 MB |
-| `get_band_list` (500 bands) | < 5 seconds | < 100 MB |
-| `save_band_metadata` | < 1 second | < 50 MB |
-| Resource access | < 500ms | < 10 MB |
-
-### Best Practices
-
-1. **Scanning**: Use `force_rescan=false` for regular operations
-2. **Listing**: Use pagination for large collections (limit ≤ 100)
-3. **Metadata**: Validate data before saving to avoid rollbacks
-4. **Resources**: Cache results when possible for better performance
-5. **Concurrent Access**: The server handles file locking automatically
+- **Low Compliance Score**: When folder structure has significant issues
+- **Missing Required Fields**: When album metadata lacks required type information
+- **Structure Inconsistency**: When band has mixed structure patterns
 
 ---
 
-## Versioning
+## Version Information
 
-Current API Version: **1.1.0**
-
-### Version History
-
-- **1.1.0**: Added analyze preservation in `save_band_metadata`
-- **1.0.0**: Initial stable release with all core features
-- **0.9.x**: Beta releases with incremental feature additions
-
-### Backwards Compatibility
-
-The API maintains backwards compatibility within major versions. Deprecated features are marked with `@deprecated` and will be removed in the next major version. 
+- **API Version**: 1.1.0
+- **Album Type System**: 1.0.0
+- **Folder Structure Analysis**: 1.0.0
+- **MCP Protocol**: 1.0.0
+- **Last Updated**: 2025-01-30 

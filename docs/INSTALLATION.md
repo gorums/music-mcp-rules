@@ -1,4 +1,4 @@
-# Music Collection MCP Server - Installation Guide
+# Music Collection MCP Server - Installation Guide with Album Type Classification
 
 ## Prerequisites
 
@@ -11,12 +11,13 @@
 - Music collection organized in folders (band/album structure)
 - Minimum 1GB free disk space for metadata storage
 - Network access for external band information fetching
+- Understanding of supported folder organization patterns
 
 ## Installation Methods
 
 ### Method 1: Docker Deployment (Recommended)
 
-Docker provides the most reliable and consistent environment for running the MCP server.
+Docker provides the most reliable and consistent environment for running the MCP server with album type classification features.
 
 #### Step 1: Clone the Repository
 ```bash
@@ -30,45 +31,86 @@ docker build -t music-mcp-server .
 ```
 
 #### Step 3: Prepare Your Music Collection
-Ensure your music collection follows this structure:
+
+The server supports multiple folder organization patterns with intelligent type detection:
+
+#### Enhanced Structure (Recommended)
 ```
 /path/to/your/music/
 ├── Pink Floyd/
-│   ├── The Wall/
-│   │   ├── 01 - In The Flesh.mp3
-│   │   └── 02 - The Thin Ice.mp3
-│   ├── Dark Side of the Moon/
-│   │   ├── 01 - Speak to Me.mp3
-│   │   └── 02 - Breathe.mp3
+│   ├── Album/
+│   │   ├── 1973 - The Dark Side of the Moon/
+│   │   │   ├── 01 - Speak to Me.mp3
+│   │   │   └── 02 - Breathe.mp3
+│   │   └── 1979 - The Wall (Deluxe Edition)/
+│   ├── Live/
+│   │   └── 1988 - Delicate Sound of Thunder/
+│   ├── Compilation/
+│   │   └── 2001 - Echoes - The Best of Pink Floyd/
 │   └── .band_metadata.json (created automatically)
 ├── The Beatles/
-│   ├── Abbey Road/
-│   │   ├── 01 - Come Together.mp3
-│   │   └── 02 - Something.mp3
+│   ├── Album/
+│   │   ├── 1967 - Sgt. Pepper's Lonely Hearts Club Band/
+│   │   └── 1969 - Abbey Road/
+│   ├── Compilation/
+│   │   └── 1996 - Anthology/
 │   └── .band_metadata.json (created automatically)
 └── .collection_index.json (created automatically)
 ```
 
-#### Step 4: Run the MCP Server
+#### Default Structure (Also Supported)
+```
+/path/to/your/music/
+├── Pink Floyd/
+│   ├── 1973 - The Dark Side of the Moon/
+│   ├── 1979 - The Wall (Deluxe Edition)/
+│   ├── 1988 - Delicate Sound of Thunder (Live)/
+│   ├── 2001 - Echoes - The Best of Pink Floyd (Compilation)/
+│   └── .band_metadata.json (created automatically)
+├── The Beatles/
+│   ├── 1967 - Sgt. Pepper's Lonely Hearts Club Band/
+│   ├── 1969 - Abbey Road/
+│   └── .band_metadata.json (created automatically)
+└── .collection_index.json (created automatically)
+```
+
+#### Legacy Structure (Supported with Migration)
+```
+/path/to/your/music/
+├── Pink Floyd/
+│   ├── The Dark Side of the Moon/
+│   ├── The Wall/
+│   ├── Live at Pompeii/  # Type detected from keywords
+│   └── .band_metadata.json (created automatically)
+```
+
+#### Step 4: Run the MCP Server with Album Type Features
 ```bash
-# Linux/macOS
+# Linux/macOS - Enhanced Features Enabled
 docker run -d --name music-mcp-container \
   -v "/path/to/your/music:/music" \
   -e "MUSIC_ROOT_PATH=/music" \
   -e "CACHE_DURATION_DAYS=30" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  -e "TYPE_DETECTION_CONFIDENCE=0.8" \
+  -e "DEFAULT_ALBUM_TYPE=Album" \
   music-mcp-server
 
-# Windows
+# Windows - Enhanced Features Enabled
 docker run -d --name music-mcp-container \
   -v "D:\Music:/music" \
   -e "MUSIC_ROOT_PATH=/music" \
   -e "CACHE_DURATION_DAYS=30" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  -e "TYPE_DETECTION_CONFIDENCE=0.8" \
   music-mcp-server
 ```
 
 ### Method 2: Local Python Installation
 
-For development or custom deployment scenarios.
+For development or custom deployment scenarios with full album type classification features.
 
 #### Step 1: Create Virtual Environment
 ```bash
@@ -83,12 +125,27 @@ music-mcp-env\Scripts\activate     # Windows
 pip install -r requirements.txt
 ```
 
-#### Step 3: Configure Environment
+#### Step 3: Configure Environment with Type Features
 Create a `.env` file in the project root:
 ```env
+# Basic Configuration
 MUSIC_ROOT_PATH=/path/to/your/music
 CACHE_DURATION_DAYS=30
 LOG_LEVEL=INFO
+
+# Album Type Classification Features
+ENABLE_TYPE_DETECTION=true
+TYPE_DETECTION_CONFIDENCE=0.8
+DEFAULT_ALBUM_TYPE=Album
+
+# Folder Structure Analysis Features
+ENABLE_STRUCTURE_ANALYSIS=true
+STRUCTURE_ANALYSIS_DEPTH=2
+AUTO_MIGRATION_SUGGESTIONS=true
+
+# Performance Settings
+TYPE_DETECTION_CACHE_SIZE=1000
+STRUCTURE_ANALYSIS_CACHE_TTL=3600
 ```
 
 #### Step 4: Run the MCP Server
@@ -98,7 +155,7 @@ python main.py
 
 ### Method 3: Development Setup
 
-For contributors and developers working on the project.
+For contributors and developers working on album type classification and structure analysis features.
 
 #### Step 1: Clone and Setup
 ```bash
@@ -109,29 +166,119 @@ source venv/bin/activate  # Linux/macOS
 pip install -r requirements.txt
 ```
 
-#### Step 2: Setup Test Environment
+#### Step 2: Setup Test Environment with Type Features
 ```bash
-# Create test music collection
+# Create test music collection with various structures
 mkdir -p test_music_collection
 cp -r test_data/* test_music_collection/
 
-# Set test environment
+# Set test environment with type detection enabled
 export MUSIC_ROOT_PATH="$(pwd)/test_music_collection"
+export ENABLE_TYPE_DETECTION=true
+export ENABLE_STRUCTURE_ANALYSIS=true
+export LOG_LEVEL=DEBUG
 ```
 
-#### Step 3: Run Tests
+#### Step 3: Run Tests Including Type Features
 ```bash
-# Unit tests
+# Unit tests for album type classification
 docker build -f Dockerfile.test -t music-mcp-tests .
+docker run --rm music-mcp-tests python -m pytest tests/test_album_types.py -v
+
+# Structure analysis tests
+docker run --rm music-mcp-tests python -m pytest tests/test_structure_analysis.py -v
+
+# Full test suite
 docker run --rm music-mcp-tests python -m pytest . -v
 
-# Manual testing
+# Manual testing with type features
 python main.py
 ```
 
+## Configuration Options for Album Type Classification
+
+### Environment Variables
+
+#### Core Album Type Settings
+```bash
+# Enable/disable album type detection
+ENABLE_TYPE_DETECTION=true  # Default: true
+
+# Confidence threshold for type detection (0.0-1.0)
+TYPE_DETECTION_CONFIDENCE=0.8  # Default: 0.8
+
+# Default type when detection is uncertain
+DEFAULT_ALBUM_TYPE=Album  # Default: Album
+
+# Enable multiple detection strategies
+ENABLE_KEYWORD_DETECTION=true  # Default: true
+ENABLE_FOLDER_STRUCTURE_DETECTION=true  # Default: true
+ENABLE_METADATA_TYPE_DETECTION=true  # Default: true
+```
+
+#### Folder Structure Analysis Settings
+```bash
+# Enable/disable structure analysis
+ENABLE_STRUCTURE_ANALYSIS=true  # Default: true
+
+# Analysis depth (how deep to scan subfolders)
+STRUCTURE_ANALYSIS_DEPTH=2  # Default: 2
+
+# Enable automatic migration suggestions
+AUTO_MIGRATION_SUGGESTIONS=true  # Default: true
+
+# Compliance scoring thresholds
+COMPLIANCE_EXCELLENT_THRESHOLD=90  # Default: 90
+COMPLIANCE_GOOD_THRESHOLD=70      # Default: 70
+COMPLIANCE_FAIR_THRESHOLD=50      # Default: 50
+```
+
+#### Performance Tuning
+```bash
+# Cache settings for type detection
+TYPE_DETECTION_CACHE_SIZE=1000  # Default: 1000
+TYPE_DETECTION_CACHE_TTL=3600   # Default: 3600 (1 hour)
+
+# Structure analysis caching
+STRUCTURE_ANALYSIS_CACHE_SIZE=500  # Default: 500
+STRUCTURE_ANALYSIS_CACHE_TTL=3600  # Default: 3600
+
+# Batch processing settings
+MAX_ALBUMS_PER_BATCH=100  # Default: 100
+PARALLEL_PROCESSING=true  # Default: true
+MAX_WORKER_THREADS=4      # Default: 4
+```
+
+### Supported Album Types
+
+The system automatically detects and classifies the following album types:
+
+| Type | Description | Detection Keywords |
+|------|-------------|-------------------|
+| **Album** | Standard studio albums | Default classification |
+| **Compilation** | Greatest hits, collections | "greatest hits", "best of", "collection", "anthology" |
+| **EP** | Extended plays | "ep", "e.p." |
+| **Live** | Live recordings | "live", "concert", "unplugged", "acoustic" |
+| **Single** | Single releases | "single" |
+| **Demo** | Demo recordings | "demo", "demos", "unreleased", "early recordings" |
+| **Instrumental** | Instrumental versions | "instrumental", "instrumentals" |
+| **Split** | Split releases | "split", "vs.", "versus", "with" |
+
+### Folder Structure Types
+
+The system recognizes and analyzes these organization patterns:
+
+| Structure Type | Description | Example |
+|----------------|-------------|---------|
+| **Enhanced** | Type-based folders | `Album/1973 - Album Name/` |
+| **Default** | Flat with year prefix | `1973 - Album Name/` |
+| **Legacy** | Simple names | `Album Name/` |
+| **Mixed** | Combination of patterns | Various patterns mixed |
+| **Unknown** | Unrecognized pattern | Non-standard organization |
+
 ## MCP Client Configuration
 
-### Claude Desktop Configuration
+### Claude Desktop Configuration with Type Features
 
 Add the following to your Claude Desktop configuration file:
 
@@ -139,7 +286,7 @@ Add the following to your Claude Desktop configuration file:
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-#### Docker Configuration
+#### Docker Configuration with Album Type Features
 ```json
 {
   "mcpServers": {
@@ -150,6 +297,10 @@ Add the following to your Claude Desktop configuration file:
         "-v", "/path/to/your/music:/music",
         "-e", "MUSIC_ROOT_PATH=/music",
         "-e", "CACHE_DURATION_DAYS=30",
+        "-e", "ENABLE_TYPE_DETECTION=true",
+        "-e", "ENABLE_STRUCTURE_ANALYSIS=true",
+        "-e", "TYPE_DETECTION_CONFIDENCE=0.8",
+        "-e", "AUTO_MIGRATION_SUGGESTIONS=true",
         "music-mcp-server"
       ],
       "cwd": "/path/to/music-catalog-mcp"
@@ -158,7 +309,7 @@ Add the following to your Claude Desktop configuration file:
 }
 ```
 
-#### Local Python Configuration
+#### Local Python Configuration with Type Features
 ```json
 {
   "mcpServers": {
@@ -167,14 +318,18 @@ Add the following to your Claude Desktop configuration file:
       "args": ["/path/to/music-catalog-mcp/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/your/music",
-        "CACHE_DURATION_DAYS": "30"
+        "CACHE_DURATION_DAYS": "30",
+        "ENABLE_TYPE_DETECTION": "true",
+        "ENABLE_STRUCTURE_ANALYSIS": "true",
+        "TYPE_DETECTION_CONFIDENCE": "0.8",
+        "LOG_LEVEL": "INFO"
       }
     }
   }
 }
 ```
 
-### Cline Configuration
+### Cline Configuration with Album Type Features
 
 For VS Code with Cline extension:
 
@@ -187,6 +342,8 @@ For VS Code with Cline extension:
         "run", "--rm", "--interactive",
         "-v", "/path/to/your/music:/music",
         "-e", "MUSIC_ROOT_PATH=/music",
+        "-e", "ENABLE_TYPE_DETECTION=true",
+        "-e", "ENABLE_STRUCTURE_ANALYSIS=true",
         "music-mcp-server"
       ]
     }
@@ -194,132 +351,153 @@ For VS Code with Cline extension:
 }
 ```
 
-### Other MCP Clients
+### Other MCP Clients with Type Features
 
 For any MCP-compatible client, use these connection parameters:
 - **Transport**: stdio
-- **Command**: `docker run --rm --interactive -v "/path/to/music:/music" -e "MUSIC_ROOT_PATH=/music" music-mcp-server`
-- **Working Directory**: Project root directory
+- **Environment Variables**: Include type detection and structure analysis settings
+- **Capabilities**: Support for enhanced metadata with album types and compliance scoring
 
-## Configuration Options
+## Verification and Testing
 
-### Environment Variables
+### Verify Installation with Type Features
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `MUSIC_ROOT_PATH` | ✅ Yes | None | Path to your music collection root directory |
-| `CACHE_DURATION_DAYS` | ❌ No | 30 | Number of days to cache metadata before refresh |
-| `LOG_LEVEL` | ❌ No | INFO | Logging level (DEBUG, INFO, WARNING, ERROR) |
-
-### Configuration Validation
-
-The server validates configuration at startup:
+#### Test Basic Functionality
 ```bash
-# Check configuration
-docker run --rm -v "/path/to/music:/music" -e "MUSIC_ROOT_PATH=/music" music-mcp-server --validate-config
-
-# Expected output:
-✅ Configuration valid
-✅ Music directory accessible: /music
-✅ Permissions verified: read/write access
-✅ Directory structure: 150 bands, 850 albums detected
+# Test connection and basic scanning
+docker run --rm -v "/path/to/music:/music" \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  music-mcp-server python -c "
+from src.tools.scanner import scan_music_folders
+result = scan_music_folders()
+print(f'Scan completed. Found {result.get(\"total_albums\", 0)} albums')
+print(f'Type distribution: {result.get(\"album_type_distribution\", {})}')
+"
 ```
 
-## Verification
-
-### 1. Container Health Check
+#### Test Album Type Detection
 ```bash
-# Check if container is running
-docker ps | grep music-mcp-container
-
-# Check logs
-docker logs music-mcp-container
-
-# Expected output:
-INFO: Music Collection MCP Server starting...
-INFO: Configuration loaded: MUSIC_ROOT_PATH=/music
-INFO: Collection found: 150 bands, 850 albums
-INFO: MCP server ready on stdio
+# Test type detection on specific folders
+docker run --rm -v "/path/to/music:/music" \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "LOG_LEVEL=DEBUG" \
+  music-mcp-server python -c "
+from src.utils.type_detector import AlbumTypeDetector
+detector = AlbumTypeDetector()
+test_cases = [
+    '1985 - Live at Wembley',
+    '1996 - Greatest Hits', 
+    '1980 - Love EP',
+    '1978 - Early Demos'
+]
+for case in test_cases:
+    result = detector.detect_from_folder_name(case)
+    print(f'{case} → {result}')
+"
 ```
 
-### 2. MCP Client Connection Test
-
-In your MCP client, test the connection:
-```
-Use the scan_music_folders tool to verify the server is working
-```
-
-Expected response:
-```json
-{
-  "status": "success",
-  "results": {
-    "total_bands": 150,
-    "total_albums": 850,
-    "music_files_found": 12500,
-    "scan_duration": "15.2 seconds"
-  }
-}
-```
-
-### 3. Resource Access Test
-
-Try accessing a band resource:
-```
-Request the resource: band://info/Pink Floyd
-```
-
-You should receive a markdown document with band information.
-
-## Common Issues
-
-### Permission Errors
+#### Test Structure Analysis
 ```bash
-# Fix Docker volume permissions
-sudo chown -R $(id -u):$(id -g) /path/to/your/music
-chmod 755 /path/to/your/music
+# Test folder structure analysis
+docker run --rm -v "/path/to/music:/music" \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  music-mcp-server python -c "
+from src.services.structure_analyzer import analyze_collection_structure
+result = analyze_collection_structure()
+print(f'Structure analysis completed')
+print(f'Average compliance: {result.get(\"average_compliance\", 0)}')
+print(f'Structure types: {result.get(\"structure_distribution\", {})}')
+"
 ```
 
-### Port Conflicts
-The MCP server uses stdio transport (no ports), but if using custom transport:
+### Common Configuration Issues
+
+#### Type Detection Not Working
 ```bash
-# Check for port conflicts
-netstat -tulpn | grep :8000
+# Check if type detection is enabled
+echo $ENABLE_TYPE_DETECTION  # Should output 'true'
+
+# Verify confidence threshold
+echo $TYPE_DETECTION_CONFIDENCE  # Should be 0.0-1.0
+
+# Check logs for detection attempts
+docker logs music-mcp-container | grep "type.*detect"
 ```
 
-### Memory Issues
-For large collections (>10,000 albums):
+#### Structure Analysis Issues
 ```bash
-# Increase Docker memory limit
-docker run --memory=2g --name music-mcp-container ...
+# Verify structure analysis is enabled
+echo $ENABLE_STRUCTURE_ANALYSIS  # Should output 'true'
+
+# Check analysis depth setting
+echo $STRUCTURE_ANALYSIS_DEPTH  # Should be 1-3
+
+# Review structure analysis logs
+docker logs music-mcp-container | grep "structure.*analysis"
 ```
 
-### Path Issues on Windows
+### Performance Optimization
+
+#### For Large Collections (>1000 albums)
 ```bash
-# Use forward slashes in Docker commands
-docker run -v "D:/Music:/music" ...
+# Optimize cache settings
+export TYPE_DETECTION_CACHE_SIZE=2000
+export STRUCTURE_ANALYSIS_CACHE_SIZE=1000
 
-# Or use WSL2 paths
-docker run -v "/mnt/d/Music:/music" ...
+# Enable parallel processing
+export PARALLEL_PROCESSING=true
+export MAX_WORKER_THREADS=6
+
+# Increase batch size
+export MAX_ALBUMS_PER_BATCH=200
 ```
 
-## Next Steps
+#### For Slower Systems
+```bash
+# Reduce cache sizes
+export TYPE_DETECTION_CACHE_SIZE=500
+export STRUCTURE_ANALYSIS_CACHE_SIZE=250
 
-1. **Scan Your Collection**: Use the `scan_music_folders` tool to discover your music
-2. **Get Band List**: Use `get_band_list` to see all discovered bands
-3. **Fetch Band Info**: Use the `fetch_band_info` prompt to gather comprehensive band data
-4. **Save Metadata**: Use `save_band_metadata` to store band information locally
-5. **Analyze Collection**: Use collection insights to understand your music library
+# Disable some features if needed
+export ENABLE_STRUCTURE_ANALYSIS=false
+export AUTO_MIGRATION_SUGGESTIONS=false
 
-## Support
+# Reduce concurrency
+export MAX_WORKER_THREADS=2
+export MAX_ALBUMS_PER_BATCH=50
+```
 
-- **Documentation**: See `docs/` directory for comprehensive guides
-- **Issues**: Report bugs on GitHub repository
-- **Testing**: Use the test suite to verify functionality
-- **Logs**: Check Docker logs for troubleshooting information
+## Troubleshooting
 
-For additional help, see:
-- [Configuration Guide](CONFIGURATION.md)
-- [Usage Examples](USAGE_EXAMPLES.md)
-- [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [FAQ](FAQ.md) 
+### Album Type Detection Issues
+
+#### Types Not Being Detected
+1. **Check Configuration**: Ensure `ENABLE_TYPE_DETECTION=true`
+2. **Verify Confidence**: Lower `TYPE_DETECTION_CONFIDENCE` if needed
+3. **Review Folder Names**: Ensure they contain recognizable keywords
+4. **Check Logs**: Look for detection attempts in debug logs
+
+#### Incorrect Type Detection
+1. **Increase Confidence**: Raise `TYPE_DETECTION_CONFIDENCE` threshold
+2. **Manual Override**: Use metadata to manually specify types
+3. **Review Keywords**: Check if folder names contain misleading terms
+
+### Structure Analysis Issues
+
+#### Low Compliance Scores
+1. **Review Organization**: Check folder naming consistency
+2. **Add Year Prefixes**: Ensure albums have year prefixes
+3. **Consider Type Folders**: Upgrade to enhanced structure
+4. **Check Recommendations**: Review system suggestions
+
+#### Analysis Not Running
+1. **Enable Feature**: Ensure `ENABLE_STRUCTURE_ANALYSIS=true`
+2. **Check Permissions**: Verify read access to music folders
+3. **Review Logs**: Look for analysis errors in logs
+
+For additional troubleshooting, see the [Troubleshooting Guide](TROUBLESHOOTING.md).
+
+This enhanced installation process provides full access to the album type classification and folder structure analysis features, enabling intelligent music collection management with automated organization assessment and recommendations. 

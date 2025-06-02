@@ -1,14 +1,14 @@
-# Music Collection MCP Server - Usage Examples
+# Music Collection MCP Server - Usage Examples with Album Type Classification
 
 ## Overview
 
-This guide provides comprehensive examples of using all MCP tools, resources, and prompts with real-world scenarios and album data.
+This guide provides comprehensive examples of using all MCP tools, resources, and prompts with real-world scenarios, focusing on the new album type classification and folder structure analysis features.
 
 ## Getting Started
 
-### Initial Setup and Collection Scan
+### Initial Setup and Collection Scan with Type Detection
 
-Start by scanning your music collection to discover all bands and albums:
+Start by scanning your music collection to discover all bands, albums, and automatically detect album types:
 
 ```json
 {
@@ -23,7 +23,7 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-**Expected Response:**
+**Expected Response with Album Type Classification:**
 ```json
 {
   "status": "success",
@@ -35,20 +35,36 @@ Start by scanning your music collection to discover all bands and albums:
     "scan_duration": "15.2 seconds",
     "cache_used": false,
     "bands_updated": 5,
-    "new_bands_found": 2
+    "new_bands_found": 2,
+    "album_type_distribution": {
+      "Album": 632,
+      "Live": 97,
+      "Compilation": 73,
+      "EP": 28,
+      "Demo": 15,
+      "Single": 3,
+      "Instrumental": 2,
+      "Split": 0
+    },
+    "structure_analysis": {
+      "enhanced_structure_bands": 45,
+      "default_structure_bands": 89,
+      "legacy_structure_bands": 16,
+      "average_compliance_score": 78
+    }
   },
   "tool_info": {
     "tool_name": "scan_music_folders",
-    "version": "1.0.0"
+    "version": "1.1.0"
   }
 }
 ```
 
-## MCP Tools Usage Examples
+## MCP Tools Usage Examples with Album Type Features
 
-### Tool 1: scan_music_folders
+### Tool 1: scan_music_folders (Enhanced)
 
-#### Basic Collection Scan
+#### Basic Collection Scan with Type Detection
 ```json
 {
   "method": "tools/call",
@@ -59,20 +75,21 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-#### Force Full Rescan (Bypass Cache)
+#### Force Full Rescan with Structure Analysis
 ```json
 {
   "method": "tools/call",
   "params": {
     "name": "scan_music_folders",
     "arguments": {
-      "force_rescan": true
+      "force_rescan": true,
+      "analyze_structure": true
     }
   }
 }
 ```
 
-#### Scan with Missing Album Detection
+#### Scan with Type-Specific Focus
 ```json
 {
   "method": "tools/call",
@@ -80,15 +97,16 @@ Start by scanning your music collection to discover all bands and albums:
     "name": "scan_music_folders",
     "arguments": {
       "force_rescan": false,
-      "include_missing_albums": true
+      "include_missing_albums": true,
+      "detect_album_types": true
     }
   }
 }
 ```
 
-### Tool 2: get_band_list
+### Tool 2: get_band_list (Enhanced with Type Filtering)
 
-#### Basic Band List
+#### Basic Band List with Album Types
 ```json
 {
   "method": "tools/call",
@@ -99,7 +117,7 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-**Response Example:**
+**Response Example with Album Types:**
 ```json
 {
   "status": "success",
@@ -108,22 +126,58 @@ Start by scanning your music collection to discover all bands and albums:
       {
         "band_name": "Pink Floyd",
         "albums_count": 15,
-        "missing_albums_count": 12,
-        "physical_albums_count": 3,
+        "missing_albums_count": 3,
+        "physical_albums_count": 12,
         "has_metadata": true,
         "has_analysis": true,
         "last_updated": "2025-01-29T10:30:00Z",
+        "album_type_distribution": {
+          "Album": 9,
+          "Live": 3,
+          "Compilation": 2,
+          "Demo": 1
+        },
+        "structure_analysis": {
+          "structure_type": "enhanced",
+          "compliance_score": 95,
+          "compliance_level": "excellent"
+        },
         "albums": [
           {
             "album_name": "The Wall",
+            "type": "Album",
+            "year": "1979",
+            "edition": "Deluxe Edition",
             "missing": false,
             "tracks_count": 26,
-            "year": "1979"
+            "compliance": {
+              "score": 100,
+              "level": "excellent",
+              "issues": []
+            }
           },
           {
-            "album_name": "Dark Side of the Moon", 
+            "album_name": "Live at Pompeii",
+            "type": "Live", 
+            "year": "1972",
+            "missing": false,
+            "tracks_count": 8,
+            "compliance": {
+              "score": 95,
+              "level": "excellent",
+              "issues": []
+            }
+          },
+          {
+            "album_name": "Early Demos",
+            "type": "Demo",
+            "year": "1967",
             "missing": true,
-            "year": "1973"
+            "compliance": {
+              "score": 0,
+              "level": "critical",
+              "issues": ["Album folder missing"]
+            }
           }
         ]
       }
@@ -136,14 +190,14 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-#### Filtered Band List by Genre
+#### Filter Bands by Album Type
 ```json
 {
   "method": "tools/call",
   "params": {
     "name": "get_band_list",
     "arguments": {
-      "filter_genre": "Progressive Rock",
+      "filter_album_types": ["Live", "Demo"],
       "page": 1,
       "page_size": 20
     }
@@ -151,39 +205,52 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-#### Search Bands by Name
+#### Filter by Folder Structure Compliance
 ```json
 {
   "method": "tools/call",
   "params": {
     "name": "get_band_list",
     "arguments": {
-      "search": "floyd",
+      "filter_compliance_level": ["excellent", "good"],
+      "filter_structure_type": "enhanced"
+    }
+  }
+}
+```
+
+#### Search Bands with Poor Structure Compliance
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "filter_compliance_level": ["poor", "critical"],
+      "sort_by": "compliance_score",
+      "sort_order": "asc"
+    }
+  }
+}
+```
+
+#### Filter by Structure Type
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "filter_structure_type": "legacy",
       "filter_has_analysis": true
     }
   }
 }
 ```
 
-#### Pagination Example
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "get_band_list",
-    "arguments": {
-      "page": 2,
-      "page_size": 25,
-      "sort_by": "albums_count",
-      "sort_order": "desc"
-    }
-  }
-}
-```
+### Tool 3: save_band_metadata (Enhanced with Types)
 
-### Tool 3: save_band_metadata
-
-#### Complete Band Metadata Save
+#### Complete Band Metadata Save with Album Types
 ```json
 {
   "method": "tools/call",
@@ -198,36 +265,41 @@ Start by scanning your music collection to discover all bands and albums:
         "origin": "London, England",
         "members": [
           "David Gilmour (guitar, vocals)",
+          "Roger Waters (bass, vocals)",
           "Nick Mason (drums)",
-          "Roger Waters (bass, vocals) - former",
-          "Richard Wright (keyboards) - former",
-          "Syd Barrett (guitar, vocals) - former"
+          "Richard Wright (keyboards)"
         ],
-        "description": "English rock band formed in London in 1965. Gaining an early following as one of the first British psychedelic groups, they were distinguished for their extended compositions, sonic experimentation, philosophical lyrics and elaborate live shows.",
+        "description": "Pioneering progressive rock band known for their philosophical lyrics and conceptual albums.",
         "albums": [
           {
-            "album_name": "The Wall",
-            "missing": false,
-            "tracks_count": 26,
-            "duration": "81min",
-            "year": "1979",
-            "genres": ["Progressive Rock", "Concept Album"]
-          },
-          {
-            "album_name": "Dark Side of the Moon",
-            "missing": true,
-            "tracks_count": 10,
-            "duration": "43min", 
+            "album_name": "The Dark Side of the Moon",
             "year": "1973",
-            "genres": ["Progressive Rock", "Psychedelic Rock"]
+            "type": "Album",
+            "edition": "",
+            "genres": ["Progressive Rock", "Art Rock"],
+            "tracks_count": 10,
+            "duration": "43min",
+            "missing": false
           },
           {
-            "album_name": "Wish You Were Here",
-            "missing": true,
-            "tracks_count": 5,
-            "duration": "44min",
-            "year": "1975", 
-            "genres": ["Progressive Rock"]
+            "album_name": "Live at Pompeii",
+            "year": "1972",
+            "type": "Live",
+            "edition": "",
+            "genres": ["Progressive Rock", "Live"],
+            "tracks_count": 8,
+            "duration": "65min",
+            "missing": false
+          },
+          {
+            "album_name": "Greatest Hits",
+            "year": "1996",
+            "type": "Compilation",
+            "edition": "",
+            "genres": ["Progressive Rock"],
+            "tracks_count": 16,
+            "duration": "78min",
+            "missing": true
           }
         ]
       }
@@ -236,288 +308,415 @@ Start by scanning your music collection to discover all bands and albums:
 }
 ```
 
-#### Minimal Metadata Save
+#### Save Metadata with Folder Structure Information
 ```json
 {
   "method": "tools/call",
   "params": {
-    "name": "save_band_metadata", 
+    "name": "save_band_metadata",
     "arguments": {
-      "band_name": "The Beatles",
+      "band_name": "Queen",
       "metadata": {
-        "band_name": "The Beatles",
-        "formed": "1960",
-        "genres": ["Rock", "Pop"],
-        "origin": "Liverpool, England"
-      }
-    }
-  }
-}
-```
-
-### Tool 4: save_band_analyze
-
-#### Complete Band Analysis with Album Reviews
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_analyze",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "analysis": {
-        "review": "Pink Floyd stands as one of the most innovative and influential rock bands in history. Their sonic experimentation, philosophical depth, and conceptual approach to album-making set them apart from their contemporaries. From their early psychedelic explorations to their later progressive rock masterpieces, Pink Floyd consistently pushed the boundaries of what rock music could be.",
-        "rate": 9,
+        "band_name": "Queen",
+        "formed": "1970",
+        "genres": ["Rock", "Progressive Rock", "Art Rock"],
         "albums": [
           {
-            "album_name": "The Wall",
-            "review": "A sprawling rock opera that explores themes of isolation, war, and mental breakdown. Roger Waters' deeply personal concept album is both Pink Floyd's most ambitious work and their most accessible. The narrative follows Pink, a rock star who builds a metaphorical wall around himself.",
-            "rate": 9
-          },
-          {
-            "album_name": "Dark Side of the Moon",
-            "review": "Perhaps the greatest achievement in progressive rock history. This meditation on the human condition covers themes of conflict, greed, time, death, and mental illness. The album's seamless flow, innovative production, and universal themes make it a timeless masterpiece.",
-            "rate": 10
+            "album_name": "A Night at the Opera",
+            "year": "1975",
+            "type": "Album",
+            "edition": "Deluxe Edition"
           }
         ],
-        "similar_bands": ["King Crimson", "Genesis", "Yes", "Jethro Tull", "The Moody Blues", "Radiohead"]
-      },
-      "analyze_missing_albums": false
-    }
-  }
-}
-```
-
-#### Analysis with Missing Albums Included
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_analyze",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "analysis": {
-        "review": "Comprehensive analysis covering their entire discography...",
-        "rate": 9,
-        "albums": [
-          {
-            "album_name": "The Wall",
-            "review": "Physical album review...",
-            "rate": 9
-          },
-          {
-            "album_name": "Dark Side of the Moon",
-            "review": "Missing album review...",
-            "rate": 10
-          },
-          {
-            "album_name": "Wish You Were Here", 
-            "review": "Another missing album analysis...",
-            "rate": 9
-          }
-        ],
-        "similar_bands": ["King Crimson", "Genesis", "Yes"]
-      },
-      "analyze_missing_albums": true
-    }
-  }
-}
-```
-
-#### Band-Only Analysis (No Album Reviews)
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_analyze",
-    "arguments": {
-      "band_name": "Led Zeppelin",
-      "analysis": {
-        "review": "Led Zeppelin revolutionized hard rock and heavy metal with their powerful sound, innovative songwriting, and legendary live performances. Jimmy Page's guitar wizardry, Robert Plant's soaring vocals, John Paul Jones' versatile bass and keyboards, and John Bonham's thunderous drumming created a chemistry that has never been matched.",
-        "rate": 10,
-        "similar_bands": ["Black Sabbath", "Deep Purple", "The Who", "Cream", "Jimi Hendrix Experience"]
-      }
-    }
-  }
-}
-```
-
-### Tool 5: save_collection_insight
-
-#### Complete Collection Insights
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_collection_insight",
-    "arguments": {
-      "insights": [
-        "Your collection heavily favors classic rock from the 1970s, representing 40% of all albums",
-        "Progressive rock bands like Pink Floyd, Genesis, and Yes dominate your highest-rated albums",
-        "There's a notable gap in modern indie and alternative rock from the 2000s onwards",
-        "Your British rock representation is excellent, but American bands from the same era are underrepresented",
-        "The collection shows a preference for concept albums and long-form musical narratives"
-      ],
-      "recommendations": [
-        "Consider adding more modern progressive rock bands like Tool, Porcupine Tree, or Steven Wilson",
-        "Expand into jazz fusion with artists like Weather Report, Return to Forever, or Mahavishnu Orchestra",
-        "Add more American classic rock: The Allman Brothers, Lynyrd Skynyrd, The Eagles",
-        "Explore krautrock pioneers: Can, Neu!, Kraftwerk to complement your progressive collection"
-      ],
-      "top_rated_bands": [
-        {"band_name": "Pink Floyd", "rating": 9.5, "album_count": 15},
-        {"band_name": "Led Zeppelin", "rating": 9.3, "album_count": 8},
-        {"band_name": "The Beatles", "rating": 9.2, "album_count": 13},
-        {"band_name": "King Crimson", "rating": 9.0, "album_count": 12},
-        {"band_name": "Genesis", "rating": 8.8, "album_count": 15}
-      ],
-      "suggested_purchases": [
-        {
-          "album": "Dark Side of the Moon - Pink Floyd",
-          "reason": "Essential masterpiece missing from your collection",
-          "priority": "High"
-        },
-        {
-          "album": "Led Zeppelin IV - Led Zeppelin", 
-          "reason": "Classic album to complete your Zeppelin collection",
-          "priority": "High"
-        },
-        {
-          "album": "The Lamb Lies Down on Broadway - Genesis",
-          "reason": "Peter Gabriel-era Genesis concept album masterpiece",
-          "priority": "Medium"
+        "folder_structure": {
+          "structure_type": "enhanced",
+          "consistency": "consistent",
+          "consistency_score": 95,
+          "albums_analyzed": 12,
+          "albums_with_type_folders": 12,
+          "type_folders_found": ["Album", "Live", "Compilation"],
+          "structure_score": 92,
+          "recommendations": [],
+          "issues": []
         }
-      ],
-      "collection_health": {
-        "status": "Excellent",
-        "metadata_coverage": 85,
-        "completion_rate": 78,
-        "missing_albums_count": 127,
-        "analysis_coverage": 65
       }
     }
   }
 }
 ```
 
-#### Minimal Collection Health Update
+### Enhanced Album Type Examples
+
+#### Save Different Album Types
 ```json
 {
   "method": "tools/call",
   "params": {
-    "name": "save_collection_insight",
+    "name": "save_band_metadata",
     "arguments": {
-      "collection_health": {
-        "status": "Good",
-        "completion_rate": 82,
-        "metadata_coverage": 90
+      "band_name": "Iron Maiden",
+      "metadata": {
+        "band_name": "Iron Maiden",
+        "albums": [
+          {
+            "album_name": "The Number of the Beast",
+            "year": "1982",
+            "type": "Album",
+            "tracks_count": 8,
+            "missing": false
+          },
+          {
+            "album_name": "Live After Death",
+            "year": "1985", 
+            "type": "Live",
+            "tracks_count": 15,
+            "missing": false
+          },
+          {
+            "album_name": "Running Free EP",
+            "year": "1980",
+            "type": "EP",
+            "tracks_count": 4,
+            "missing": false
+          },
+          {
+            "album_name": "Best of the Beast",
+            "year": "1996",
+            "type": "Compilation",
+            "tracks_count": 18,
+            "missing": false
+          },
+          {
+            "album_name": "The Soundhouse Tapes",
+            "year": "1978",
+            "type": "Demo",
+            "tracks_count": 3,
+            "missing": true
+          }
+        ]
       }
     }
   }
 }
 ```
 
-## MCP Resources Usage Examples
+### Tool 4: Album Type Distribution Analysis
 
-### Resource 1: band://info/{band_name}
-
-#### Accessing Band Information
+#### Get Type-Specific Collection Statistics
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "include_type_stats": true,
+      "sort_by": "album_type_diversity",
+      "sort_order": "desc"
+    }
+  }
+}
 ```
-Resource URI: band://info/Pink Floyd
+
+**Response with Type Statistics:**
+```json
+{
+  "status": "success",
+  "results": {
+    "bands": [...],
+    "collection_statistics": {
+      "total_albums_by_type": {
+        "Album": 632,
+        "Live": 97,
+        "Compilation": 73,
+        "EP": 28,
+        "Demo": 15,
+        "Single": 3,
+        "Instrumental": 2,
+        "Split": 0
+      },
+      "bands_by_type_presence": {
+        "has_albums": 150,
+        "has_live": 87,
+        "has_compilations": 45,
+        "has_eps": 23,
+        "has_demos": 12,
+        "has_singles": 3,
+        "has_instrumentals": 2,
+        "has_splits": 0
+      },
+      "type_diversity_analysis": {
+        "most_diverse_bands": [
+          {
+            "band_name": "Metallica",
+            "types_count": 6,
+            "types": ["Album", "Live", "Demo", "EP", "Compilation", "Instrumental"]
+          }
+        ],
+        "missing_type_recommendations": [
+          {
+            "band_name": "Pink Floyd",
+            "missing_types": ["Single", "Split"],
+            "recommendation": "Consider adding singles collection"
+          }
+        ]
+      }
+    }
+  }
+}
 ```
 
-**Expected Markdown Response:**
+## Resources Usage Examples with Album Types
+
+### Resource 1: band://info/{band_name} (Enhanced)
+
+#### Access Band Information with Type Organization
+```json
+{
+  "method": "resources/read",
+  "params": {
+    "uri": "band://info/Pink Floyd"
+  }
+}
+```
+
+**Enhanced Response with Album Type Organization:**
 ```markdown
-# Pink Floyd 🎸
+# 🎵 Pink Floyd
 
-## Band Overview
+## Band Information
 - **Formed**: 1965
 - **Origin**: London, England  
 - **Genres**: Progressive Rock, Psychedelic Rock, Art Rock
-- **Collection Status**: 3/15 albums (20% complete) 📀
+- **Albums**: 15 total (12 local, 3 missing)
 
-## Members
-- David Gilmour (guitar, vocals)
-- Nick Mason (drums)
-- Roger Waters (bass, vocals) - former
-- Richard Wright (keyboards) - former
-- Syd Barrett (guitar, vocals) - former
+## 🎵 Available Albums
 
-## Description
-English rock band formed in London in 1965. Gaining an early following as one of the first British psychedelic groups, they were distinguished for their extended compositions, sonic experimentation, philosophical lyrics and elaborate live shows.
+### 💿 Albums (9)
 
-## Albums in Collection (3/15)
+**1973 - The Dark Side of the Moon** ⭐ 10/10  
+*Progressive Rock, Art Rock* • 10 tracks • 43min  
+📁 `Album/1973 - The Dark Side of the Moon`  
+✅ Excellent compliance (100/100)
 
-| Album | Year | Tracks | Status | Rating |
-|-------|------|--------|--------|--------|
-| The Wall | 1979 | 26 | ✅ Local | ⭐ 9/10 |
-| Dark Side of the Moon | 1973 | 10 | ❌ Missing | ⭐ 10/10 |
-| Wish You Were Here | 1975 | 5 | ❌ Missing | ⭐ 9/10 |
+**1979 - The Wall** ⭐ 9/10  
+*Progressive Rock, Rock Opera* • 26 tracks • 81min  
+📁 `Album/1979 - The Wall (Deluxe Edition)`  
+✅ Excellent compliance (100/100)
 
-## Analysis & Reviews
+### 🎤 Live Albums (3)
 
-### Band Review (Rating: 9/10)
-Pink Floyd stands as one of the most innovative and influential rock bands in history...
+**1972 - Live at Pompeii**  
+*Progressive Rock, Live* • 8 tracks • 65min  
+📁 `Live/1972 - Live at Pompeii`  
+✅ Excellent compliance (100/100)
 
-### Album Reviews
-**The Wall (9/10)**: A sprawling rock opera that explores themes of isolation, war, and mental breakdown...
+**1988 - Delicate Sound of Thunder**  
+*Progressive Rock, Live* • 19 tracks • 99min  
+📁 `Live/1988 - Delicate Sound of Thunder`  
+✅ Excellent compliance (95/100)
 
-## Similar Bands
-King Crimson, Genesis, Yes, Jethro Tull, The Moody Blues, Radiohead
+### 📦 Compilations (2)
+
+**1996 - Greatest Hits** ❌ Missing  
+*Progressive Rock* • 16 tracks • 78min  
+📁 *Recommended: `Compilation/1996 - Greatest Hits`*  
+❌ Critical compliance (0/100) - Album folder missing
+
+### 🔧 Demos (1)
+
+**1967 - Early Singles** ❌ Missing  
+*Psychedelic Rock, Demo* • 4 tracks  
+📁 *Recommended: `Demo/1967 - Early Singles`*  
+❌ Critical compliance (0/100) - Album folder missing
+
+## 📊 Collection Analysis
+
+### Album Type Distribution
+- **Albums**: 9/15 (60%) - Strong studio collection ✅
+- **Live**: 3/15 (20%) - Good live representation ✅  
+- **Compilations**: 2/15 (13%) - Reasonable ✅
+- **Demos**: 1/15 (7%) - Could expand 🔶
+- **Missing Types**: EP, Single, Instrumental, Split
+
+### Folder Structure Health
+- **Structure Type**: Enhanced (type-based folders)
+- **Compliance Score**: 92/100 (Excellent)
+- **Organization**: Consistent pattern across collection
+- **Recommendations**: Collection is well-organized overall
+
+## 🎯 Analysis & Reviews
+
+**Overall Rating**: ⭐ 9/10
+
+Pink Floyd revolutionized progressive rock with their atmospheric soundscapes and conceptual albums. Their ability to blend experimental music with accessible melodies created a unique sound that influenced countless artists.
+
+**Similar Bands**: Genesis, Yes, King Crimson, Gentle Giant, Emerson Lake & Palmer
 ```
 
-### Resource 2: collection://summary
+### Resource 2: collection://summary (Enhanced)
 
-#### Accessing Collection Summary
-```
-Resource URI: collection://summary
+#### Get Collection Overview with Type Analysis
+```json
+{
+  "method": "resources/read", 
+  "params": {
+    "uri": "collection://summary"
+  }
+}
 ```
 
-**Expected Markdown Response:**
+**Enhanced Response with Album Type Statistics:**
 ```markdown
-# Music Collection Summary 🎵
+# 🎵 Music Collection Summary
 
 ## Collection Overview
-- **Total Bands**: 150 🎸
-- **Total Albums**: 850 💿
-- **Physical Albums**: 723 📀
-- **Missing Albums**: 127 ❌
-- **Collection Status**: Large Collection 🏆
+- **Total Bands**: 150
+- **Total Albums**: 850 (825 local, 25 missing)
+- **Total Tracks**: 12,500+ 
+- **Collection Completion**: 97.1%
+- **Last Updated**: 2025-01-29 10:30 UTC
 
-## Key Statistics
-- **Completion Rate**: 85.1% ✅
-- **Metadata Coverage**: 89.3% 📝
-- **Analysis Coverage**: 67.3% 🔍
-- **Health Status**: Excellent 💚
+## 📊 Album Type Distribution
 
-## Band Distribution Analysis
+### By Type
+| Type | Count | Percentage | Avg per Band |
+|------|-------|------------|--------------|
+| 💿 **Album** | 632 | 74.4% | 4.2 |
+| 🎤 **Live** | 97 | 11.4% | 0.6 |
+| 📦 **Compilation** | 73 | 8.6% | 0.5 |
+| 💽 **EP** | 28 | 3.3% | 0.2 |
+| 🔧 **Demo** | 15 | 1.8% | 0.1 |
+| 🎵 **Single** | 3 | 0.4% | 0.02 |
+| 🎼 **Instrumental** | 2 | 0.2% | 0.01 |
+| 🤝 **Split** | 0 | 0.0% | 0.0 |
 
-| Collection Size | Count | Percentage |
-|----------------|-------|------------|
-| Large (10+ albums) | 25 | 16.7% |
-| Medium (5-9 albums) | 45 | 30.0% |
-| Small (1-4 albums) | 80 | 53.3% |
+### Collection Balance Assessment
+- ✅ **Strong**: Studio albums (74.4%) - Excellent foundation
+- ✅ **Good**: Live albums (11.4%) - Well represented  
+- ✅ **Adequate**: Compilations (8.6%) - Reasonable coverage
+- 🔶 **Could Improve**: EPs (3.3%) - Consider expanding
+- 🔶 **Limited**: Demos (1.8%) - Opportunity for rare material
+- ⚠️ **Missing**: Singles, Instrumentals, Splits - Consider adding
 
-## Missing Albums Analysis
-- **Total Missing**: 127 albums
-- **Completion Rate**: 85.1%
-- **Top Missing Band**: Pink Floyd (12 missing albums)
+## 🏗️ Folder Structure Analysis
 
-## Collection Insights
-- Your collection heavily favors classic rock from the 1970s
-- Progressive rock dominates your highest-rated albums
-- Strong British rock representation
+### Structure Type Distribution
+| Structure Type | Bands | Percentage | Avg Compliance |
+|----------------|-------|------------|---------------|
+| **Enhanced** | 45 | 30.0% | 94.2 |
+| **Default** | 89 | 59.3% | 82.1 |
+| **Legacy** | 16 | 10.7% | 45.8 |
 
-## Top Rated Bands
-1. Pink Floyd (9.5/10) - 15 albums
-2. Led Zeppelin (9.3/10) - 8 albums  
-3. The Beatles (9.2/10) - 13 albums
+### Compliance Level Distribution
+| Level | Albums | Percentage | Score Range |
+|-------|--------|------------|-------------|
+| ✅ **Excellent** | 623 | 73.3% | 90-100 |
+| ✅ **Good** | 156 | 18.4% | 70-89 |
+| 🔶 **Fair** | 46 | 5.4% | 50-69 |
+| ⚠️ **Poor** | 20 | 2.4% | 25-49 |
+| ❌ **Critical** | 5 | 0.6% | 0-24 |
 
-## Metadata Information
-- **Last Collection Scan**: 2025-01-29 15:30:00
-- **Index Version**: 1.2.0
-- **Resource URI**: collection://summary
+### Overall Structure Health: **Excellent** (87.3/100)
+
+## 🎯 Collection Insights
+
+### Most Diverse Collections (by album types)
+1. **Metallica** - 6 types (Album, Live, Demo, EP, Compilation, Instrumental)
+2. **Iron Maiden** - 5 types (Album, Live, EP, Compilation, Demo)
+3. **Pink Floyd** - 4 types (Album, Live, Compilation, Demo)
+
+### Bands Missing Key Album Types
+- **48 bands** lack live albums - Consider live recordings
+- **105 bands** lack compilations - Opportunity for best-of collections  
+- **127 bands** lack EPs - Short-form releases missing
+- **138 bands** lack demo material - Rare/unreleased content opportunity
+
+### Structure Improvement Opportunities
+- **16 legacy bands** could benefit from year prefixes
+- **89 default structure bands** could upgrade to type-based organization
+- **25 albums** need compliance improvements
+
+## 📈 Recommendations
+
+### Collection Enhancement
+1. **Add Missing Types**: Focus on live albums for 48 bands
+2. **Expand EP Collections**: Only 28 EPs across 150 bands
+3. **Acquire Demo Material**: Limited demo representation (1.8%)
+4. **Consider Instrumental Versions**: Only 2 instrumental albums
+
+### Organization Improvements  
+1. **Upgrade to Enhanced Structure**: 89 bands could benefit from type folders
+2. **Fix Compliance Issues**: 25 albums need naming/organization fixes
+3. **Add Missing Years**: 16 legacy structure bands need year prefixes
+
+### Metadata Enhancement
+1. **25 bands** lack metadata files
+2. **67 bands** could benefit from analysis/reviews
+3. **15 bands** have incomplete album information
 ```
+
+## Advanced Usage Examples
+
+### Type-Based Collection Analysis
+
+#### Find Bands with Specific Type Combinations
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "filter_album_types": ["Album", "Live", "Demo"],
+      "require_all_types": true,
+      "sort_by": "type_diversity",
+      "sort_order": "desc"
+    }
+  }
+}
+```
+
+#### Identify Collection Gaps
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "missing_album_types": ["EP", "Single"],
+      "filter_has_metadata": true
+    }
+  }
+}
+```
+
+### Structure Migration Examples
+
+#### Find Bands Needing Structure Upgrades
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list",
+    "arguments": {
+      "filter_structure_type": "legacy",
+      "sort_by": "albums_count",
+      "sort_order": "desc"
+    }
+  }
+}
+```
+
+#### Get Migration Recommendations
+```json
+{
+  "method": "resources/read",
+  "params": {
+    "uri": "band://info/Led Zeppelin"
+  }
+}
+```
+
+*Response includes specific migration suggestions for improving folder structure and organization.*
 
 ## MCP Prompts Usage Examples
 

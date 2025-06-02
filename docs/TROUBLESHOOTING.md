@@ -1,8 +1,8 @@
-# Music Collection MCP Server - Troubleshooting Guide
+# Music Collection MCP Server - Troubleshooting Guide with Album Type Classification
 
 ## Overview
 
-This guide helps you diagnose and resolve common issues with the Music Collection MCP Server, including album scanning problems, Docker configuration issues, and MCP client integration challenges.
+This guide helps you diagnose and resolve common issues with the Music Collection MCP Server, including album scanning problems, Docker configuration issues, MCP client integration challenges, and the new album type classification and folder structure analysis features.
 
 ## Quick Diagnostic Commands
 
@@ -14,18 +14,343 @@ docker ps | grep music-mcp
 # Check server logs
 docker logs music-mcp-container
 
-# Test configuration
-docker run --rm -v "/path/to/music:/music" -e "MUSIC_ROOT_PATH=/music" music-mcp-server --validate-config
+# Test configuration with type detection
+docker run --rm -v "/path/to/music:/music" \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "LOG_LEVEL=DEBUG" \
+  music-mcp-server --validate-config
 ```
 
 ### Basic Functionality Test
 ```bash
-# Test music directory scanning
-docker run --rm -v "/path/to/music:/music" -e "MUSIC_ROOT_PATH=/music" music-mcp-server python -c "
-from src.tools.scanner import scan_music_folders
-result = scan_music_folders()
-print(f'Found {result[\"total_bands\"]} bands, {result[\"total_albums\"]} albums')
+# Test music directory scanning with type detection
+docker run --rm -v "/path/to/music:/music" \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  music-mcp-server python -c "
+from src.tools.scanner import MusicScanner
+from src.config import Config
+config = Config()
+scanner = MusicScanner(config)
+result = scanner.scan_music_folders(force_rescan=True)
+print(f'Found {result.stats.bands_scanned} bands, {result.stats.albums_found} albums')
+print(f'Type distribution: {result.stats.album_type_distribution}')
+print(f'Average compliance: {result.stats.structure_analysis.average_compliance_score}')
 "
+```
+
+## Album Type Classification Issues
+
+### Problem: "Album types not being detected"
+
+**Symptoms:**
+```
+All albums showing as type "Album"
+No type distribution in scan results
+Type detection confidence scores are 0.0
+```
+
+**Diagnostic Steps:**
+1. **Check Type Detection Configuration**
+```bash
+# Verify type detection is enabled
+docker run --rm music-mcp-server python -c "
+from src.config import Config
+config = Config()
+print(f'Type detection enabled: {config.enable_type_detection}')
+print(f'Confidence threshold: {config.type_detection_confidence}')
+print(f'Default type: {config.default_album_type}')
+"
+```
+
+2. **Enable Debug Logging**
+```bash
+# Run with debug logging to see detection attempts
+docker run -e "LOG_LEVEL=DEBUG" -e "ENABLE_TYPE_DETECTION=true" music-mcp-server
+```
+
+**Solutions:**
+1. **Enable Type Detection**
+```bash
+# Ensure type detection is enabled
+export ENABLE_TYPE_DETECTION=true
+```
+
+2. **Lower Confidence Threshold**
+```bash
+# Reduce confidence requirement for more detections
+export TYPE_DETECTION_CONFIDENCE=0.6  # Default is 0.8
+```
+
+3. **Check Folder Names**
+```bash
+# Ensure folder names contain recognizable keywords
+# Good examples:
+"1972 - Live at Pompeii"          # → Live
+"2001 - Greatest Hits"            # → Compilation  
+"1980 - Demo Sessions"            # → Demo
+"1985 - Instrumentals"            # → Instrumental
+
+# Poor examples (won't be detected):
+"1973 - DSOTM"                    # → Album (no keywords)
+"1979 - Wall"                     # → Album (no keywords)
+```
+
+### Problem: "Incorrect album types detected"
+
+**Symptoms:**
+```
+Studio albums detected as "Live"
+Compilations detected as "Album"
+High confidence scores for wrong types
+```
+
+**Diagnostic Steps:**
+1. **Review Detection Keywords**
+```bash
+# Check what keywords triggered detection
+grep "Album type detected" /var/log/music-mcp.log
+grep "confidence:" /var/log/music-mcp.log
+```
+
+2. **Test Specific Albums**
+```bash
+# Test type detection for specific album
+docker run --rm music-mcp-server python -c "
+from src.models.validation import AlbumTypeDetector
+result = AlbumTypeDetector.detect_type_from_folder_name('1972 - Live at Pompeii')
+print(f'Detected type: {result}')
+"
+```
+
+**Solutions:**
+1. **Increase Confidence Threshold**
+```bash
+# Require higher confidence for detection
+export TYPE_DETECTION_CONFIDENCE=0.9
+```
+
+2. **Manual Override in Metadata**
+```json
+{
+  "albums": [
+    {
+      "album_name": "The Wall",
+      "type": "Album",  // Manual override
+      "year": "1979"
+    }
+  ]
+}
+```
+
+3. **Review Folder Naming**
+```bash
+# Avoid misleading keywords in studio album names
+"1973 - Live Wire"        # May be detected as Live
+"1979 - The Wall Live"    # May be detected as Live
+
+# Better naming:
+"1973 - Live Wire (Album)"
+"1979 - The Wall"
+```
+
+### Problem: "Type detection confidence too low"
+
+**Symptoms:**
+```
+Many albums falling back to DEFAULT_ALBUM_TYPE
+Low confidence scores in debug logs
+Type detection working but not confident enough
+```
+
+**Solutions:**
+1. **Lower Confidence Threshold**
+```bash
+# Accept lower confidence detections
+export TYPE_DETECTION_CONFIDENCE=0.5  # From default 0.8
+```
+
+2. **Improve Folder Naming**
+```bash
+# Add clear type indicators to folder names
+"Live/1972 - Live at Pompeii"         # Enhanced structure
+"1972 - Live at Pompeii (Live)"       # Edition indicator
+"1972 - Live at Pompeii - Live Album" # Clear descriptor
+```
+
+3. **Use Enhanced Folder Structure**
+```bash
+# Organize albums by type for better detection
+Band Name/
+├── Album/
+│   └── 1973 - Album Name/
+├── Live/
+│   └── 1972 - Live Album/
+└── Compilation/
+    └── 2001 - Greatest Hits/
+```
+
+## Folder Structure Analysis Issues
+
+### Problem: "Low compliance scores"
+
+**Symptoms:**
+```
+Compliance scores below 70
+Many "poor" or "critical" compliance levels
+Structure analysis showing many issues
+```
+
+**Diagnostic Steps:**
+1. **Check Structure Analysis Results**
+```bash
+# Get detailed compliance information
+docker run --rm music-mcp-server python -c "
+from src.resources.collection_summary import get_collection_summary
+summary = get_collection_summary()
+print(summary)  # Look for compliance section
+"
+```
+
+2. **Review Specific Band Issues**
+```bash
+# Check individual band compliance
+docker run --rm music-mcp-server python -c "
+from src.models.band_structure import FolderStructureAnalyzer
+from pathlib import Path
+analyzer = FolderStructureAnalyzer()
+result = analyzer.analyze_band_structure(Path('/music/Pink Floyd'))
+print(f'Compliance: {result.compliance_score}')
+print(f'Issues: {result.issues}')
+print(f'Recommendations: {result.recommendations}')
+"
+```
+
+**Solutions:**
+1. **Standardize Naming Conventions**
+```bash
+# Fix inconsistent year formats
+"Album Name"              # → "1973 - Album Name"
+"73 - Album Name"         # → "1973 - Album Name"  
+"Album Name (1973)"       # → "1973 - Album Name"
+```
+
+2. **Fix Special Characters**
+```bash
+# Replace problematic characters
+"AC/DC - Album"           # → "AC-DC - Album"
+"Album: Subtitle"         # → "Album - Subtitle"
+"Album [Remaster]"        # → "Album (Remaster)"
+```
+
+3. **Consistent Structure**
+```bash
+# Choose one structure and stick to it
+# Either flat:
+Band/1973 - Album/
+Band/1979 - Another Album/
+
+# Or enhanced:
+Band/Album/1973 - Album/
+Band/Album/1979 - Another Album/
+
+# Avoid mixing:
+Band/1973 - Album/           # Flat
+Band/Album/1979 - Another/   # Enhanced - inconsistent!
+```
+
+### Problem: "Structure analysis disabled or failing"
+
+**Symptoms:**
+```
+No compliance scores in results
+Structure analysis section missing
+Error messages about structure analysis
+```
+
+**Diagnostic Steps:**
+1. **Check Configuration**
+```bash
+# Verify structure analysis is enabled
+docker run --rm music-mcp-server python -c "
+from src.config import Config
+config = Config()
+print(f'Structure analysis enabled: {config.enable_structure_analysis}')
+"
+```
+
+2. **Test Structure Analysis**
+```bash
+# Test on specific band folder
+docker run --rm music-mcp-server python -c "
+from src.models.band_structure import FolderStructureAnalyzer
+from pathlib import Path
+analyzer = FolderStructureAnalyzer()
+try:
+    result = analyzer.analyze_band_structure(Path('/music/Test Band'))
+    print(f'Analysis successful: {result.structure_type}')
+except Exception as e:
+    print(f'Analysis failed: {e}')
+"
+```
+
+**Solutions:**
+1. **Enable Structure Analysis**
+```bash
+export ENABLE_STRUCTURE_ANALYSIS=true
+```
+
+2. **Check Folder Permissions**
+```bash
+# Ensure read access to all folders
+chmod -R 755 /path/to/music
+```
+
+3. **Fix Corrupted Folder Names**
+```bash
+# Remove or fix folders with invalid characters
+find /path/to/music -name "*[<>:\"|?*]*" -type d
+```
+
+### Problem: "Mixed structure type detected"
+
+**Symptoms:**
+```
+Structure type showing as "mixed"
+Inconsistent compliance scores
+Recommendations to standardize structure
+```
+
+**Understanding:**
+- Mixed structure means some albums use flat organization while others use type-based folders
+- This isn't necessarily an error, but may indicate inconsistent organization
+
+**Solutions:**
+1. **Accept Mixed Structure**
+```bash
+# Mixed structures are valid, just set appropriate threshold
+export COMPLIANCE_THRESHOLD=60  # Lower threshold for mixed collections
+```
+
+2. **Migrate to Consistent Structure**
+```bash
+# Choose target structure and migrate gradually
+# Option 1: Migrate to flat structure
+Band/Album/1973 - Album Name/  →  Band/1973 - Album Name/
+
+# Option 2: Migrate to enhanced structure  
+Band/1973 - Album Name/        →  Band/Album/1973 - Album Name/
+```
+
+3. **Use Structure Filtering**
+```bash
+# Filter by structure type in get_band_list
+{
+  "filter_structure_types": ["enhanced"],  # Only enhanced structures
+  "sort_by": "compliance_score"
+}
 ```
 
 ## Configuration Issues
@@ -50,13 +375,56 @@ docker run -e "MUSIC_ROOT_PATH=/music" ...
 2. **Check .env File**
 ```bash
 # Create .env file in project root
-echo "MUSIC_ROOT_PATH=/path/to/your/music" > .env
+cat > .env << EOF
+MUSIC_ROOT_PATH=/path/to/your/music
+ENABLE_TYPE_DETECTION=true
+ENABLE_STRUCTURE_ANALYSIS=true
+COMPLIANCE_THRESHOLD=75
+EOF
 ```
 
 3. **Verify Environment Loading**
 ```bash
 # Test configuration loading
 python -c "from src.config import Config; print(Config().music_root_path)"
+```
+
+### Problem: "Invalid album type configuration"
+
+**Symptoms:**
+```
+ERROR: Invalid DEFAULT_ALBUM_TYPE 'InvalidType'
+ERROR: TYPE_DETECTION_CONFIDENCE must be between 0.0 and 1.0
+ERROR: COMPLIANCE_THRESHOLD must be between 0 and 100
+```
+
+**Solutions:**
+1. **Valid Album Types**
+```bash
+# Use only valid album types
+export DEFAULT_ALBUM_TYPE=Album         # Valid
+export DEFAULT_ALBUM_TYPE=Live          # Valid
+export DEFAULT_ALBUM_TYPE=Compilation   # Valid
+
+# Invalid examples:
+export DEFAULT_ALBUM_TYPE=Studio        # Invalid
+export DEFAULT_ALBUM_TYPE=Regular       # Invalid
+```
+
+2. **Valid Confidence Range**
+```bash
+# Confidence must be 0.0 to 1.0
+export TYPE_DETECTION_CONFIDENCE=0.8    # Valid
+export TYPE_DETECTION_CONFIDENCE=1.5    # Invalid - too high
+export TYPE_DETECTION_CONFIDENCE=-0.1   # Invalid - negative
+```
+
+3. **Valid Compliance Threshold**
+```bash
+# Threshold must be 0 to 100
+export COMPLIANCE_THRESHOLD=75          # Valid
+export COMPLIANCE_THRESHOLD=150         # Invalid - too high
+export COMPLIANCE_THRESHOLD=-10         # Invalid - negative
 ```
 
 ### Problem: "Permission denied accessing music directory"
@@ -175,6 +543,7 @@ docker logs music-mcp-container
 "ModuleNotFoundError: No module named 'src'"
 "Configuration validation failed"
 "MUSIC_ROOT_PATH directory not found"
+"Invalid album type configuration"
 ```
 
 2. **Test Container Interactively**
@@ -184,448 +553,302 @@ docker run -it --entrypoint /bin/bash music-mcp-server
 
 # Inside container, test components
 python -c "from src.config import Config; print('Config OK')"
-python -c "from src.tools.scanner import scan_music_folders; print('Scanner OK')"
+python -c "from src.tools.scanner import MusicScanner; print('Scanner OK')"
+python -c "from src.models.validation import AlbumTypeDetector; print('Type Detection OK')"
 ```
 
 3. **Check Resource Limits**
 ```bash
-# Increase memory limit for large collections
-docker run --memory=2g music-mcp-server
+# Increase memory limit for large collections with type detection
+docker run --memory=4g music-mcp-server
 
 # Check system resources
 docker system df
 docker system prune  # Clean up space if needed
 ```
 
-### Problem: "Port already in use" (for custom transports)
+## Performance Issues
+
+### Problem: "Scanning takes too long with type detection"
 
 **Symptoms:**
 ```
-ERROR: bind: address already in use
+Scan times significantly increased
+High CPU usage during scanning
+Memory usage growing during type detection
+```
+
+**Diagnostic Steps:**
+1. **Profile Scanning Performance**
+```bash
+# Time the scanning process
+time docker run --rm music-mcp-server python -c "
+from src.tools.scanner import MusicScanner
+from src.config import Config
+import time
+start = time.time()
+scanner = MusicScanner(Config())
+result = scanner.scan_music_folders(force_rescan=True)
+print(f'Scan took {time.time() - start:.2f} seconds')
+"
+```
+
+2. **Check Type Detection Overhead**
+```bash
+# Compare with and without type detection
+# With type detection:
+export ENABLE_TYPE_DETECTION=true
+# Without type detection:
+export ENABLE_TYPE_DETECTION=false
 ```
 
 **Solutions:**
-1. **Use Standard stdio Transport**
+1. **Optimize Type Detection**
 ```bash
-# Default MCP uses stdio (no ports needed)
-docker run music-mcp-server  # Uses stdio by default
+# Increase confidence threshold for faster scanning
+export TYPE_DETECTION_CONFIDENCE=0.9
+
+# Disable structure analysis for speed
+export ENABLE_STRUCTURE_ANALYSIS=false
+
+# Use higher log level
+export LOG_LEVEL=ERROR
 ```
 
-2. **Find and Kill Process Using Port**
+2. **Increase Resources**
 ```bash
-# Find process using port
-netstat -tulpn | grep :8000
-lsof -i :8000
-
-# Kill process
-kill -9 <PID>
+# Allocate more memory and CPU
+docker run --memory=4g --cpus=2 music-mcp-server
 ```
 
-## Album Scanning Issues
+3. **Incremental Scanning**
+```bash
+# Use incremental scanning for regular updates
+{
+  "force_rescan": false,  # Only scan changed folders
+  "detect_album_types": true
+}
+```
 
-### Problem: "No bands found in music directory"
+### Problem: "High memory usage during structure analysis"
 
 **Symptoms:**
+```
+Memory usage growing during scanning
+Out of memory errors for large collections
+Docker container killed due to memory limits
+```
+
+**Solutions:**
+1. **Disable Structure Analysis**
+```bash
+# For very large collections
+export ENABLE_STRUCTURE_ANALYSIS=false
+```
+
+2. **Increase Memory Limits**
+```bash
+# Allocate more memory
+docker run --memory=8g music-mcp-server
+```
+
+3. **Process in Batches**
+```bash
+# Scan smaller portions of collection at a time
+# Split large collections into subdirectories
+```
+
+## Data Corruption Issues
+
+### Problem: "Metadata files corrupted with type information"
+
+**Symptoms:**
+```
+JSON decode errors when loading metadata
+Invalid album type values in metadata
+Compliance information missing or corrupted
+```
+
+**Diagnostic Steps:**
+1. **Validate JSON Structure**
+```bash
+# Check specific metadata file
+python -c "
+import json
+with open('/music/Band/.band_metadata.json') as f:
+    try:
+        data = json.load(f)
+        print('JSON is valid')
+        # Check for required fields
+        for album in data.get('albums', []):
+            if 'type' in album:
+                print(f'Album {album[\"album_name\"]} type: {album[\"type\"]}')
+    except json.JSONDecodeError as e:
+        print(f'JSON error: {e}')
+"
+```
+
+2. **Check Album Type Validation**
+```bash
+# Validate album types in metadata
+python -c "
+from src.models.band import AlbumType
+valid_types = [t.value for t in AlbumType]
+print(f'Valid types: {valid_types}')
+"
+```
+
+**Solutions:**
+1. **Restore from Backup**
+```bash
+# Find backup files
+find /music -name "*.backup.*" -type f
+
+# Restore from backup
+cp "/music/Band/.band_metadata.json.backup.20250130-120000" \
+   "/music/Band/.band_metadata.json"
+```
+
+2. **Fix Invalid Album Types**
+```bash
+# Edit metadata file to fix invalid types
+# Replace invalid types with valid ones:
+"type": "Studio"      # → "type": "Album"
+"type": "Concert"     # → "type": "Live"  
+"type": "Best Of"     # → "type": "Compilation"
+```
+
+3. **Regenerate Metadata**
+```bash
+# Delete corrupted file and rescan
+rm "/music/Band/.band_metadata.json"
+# Run scan to regenerate with type detection
+```
+
+### Problem: "Collection index corrupted with type distribution"
+
+**Symptoms:**
+```
+Collection summary showing incorrect statistics
+Type distribution data missing or invalid
+Index file JSON errors
+```
+
+**Solutions:**
+1. **Regenerate Collection Index**
+```bash
+# Delete corrupted index
+rm "/music/.collection_index.json"
+
+# Rescan to regenerate
+docker run --rm music-mcp-server python -c "
+from src.tools.scanner import MusicScanner
+from src.config import Config
+scanner = MusicScanner(Config())
+scanner.scan_music_folders(force_rescan=True)
+"
+```
+
+2. **Validate Index Structure**
+```bash
+# Check index file structure
+python -c "
+import json
+with open('/music/.collection_index.json') as f:
+    data = json.load(f)
+    print('Index structure:')
+    for key in data.keys():
+        print(f'  {key}: {type(data[key])}')
+"
+```
+
+## MCP Client Integration Issues
+
+### Problem: "Type filtering not working in Claude Desktop"
+
+**Symptoms:**
+```
+get_band_list with filter_album_types returns all bands
+Type-based filtering parameters ignored
+No error messages but filtering not applied
+```
+
+**Diagnostic Steps:**
+1. **Test Filtering Directly**
+```bash
+# Test filtering outside of MCP client
+docker run --rm music-mcp-server python -c "
+from src.tools.storage import get_band_list
+result = get_band_list(filter_album_types=['Live', 'Demo'])
+print(f'Filtered results: {len(result[\"bands\"])} bands')
+"
+```
+
+2. **Check Parameter Format**
 ```json
+// Correct format
 {
-  "total_bands": 0,
-  "total_albums": 0,
-  "message": "No music bands found in directory"
+  "method": "tools/call",
+  "params": {
+    "name": "get_band_list", 
+    "arguments": {
+      "filter_album_types": ["Live", "Demo"],  // Array of strings
+      "filter_compliance_levels": ["excellent", "good"]
+    }
+  }
 }
 ```
 
 **Solutions:**
-1. **Check Directory Structure**
+1. **Verify Parameter Names**
 ```bash
-# Verify expected structure
-ls -la /path/to/your/music/
-# Should show band folders like:
-# Pink Floyd/
-# The Beatles/
-# Led Zeppelin/
+# Use exact parameter names from API documentation
+"filter_album_types"        # Not "album_types" or "types"
+"filter_compliance_levels"  # Not "compliance" or "levels"
+"filter_structure_types"    # Not "structure" or "structures"
 ```
 
-2. **Expected Folder Organization**
-```
-Music/
-├── Pink Floyd/           # Band folder
-│   ├── The Wall/        # Album folder
-│   │   ├── 01-song.mp3
-│   │   └── 02-song.mp3
-│   └── Animals/
-│       └── *.mp3
-└── The Beatles/
-    ├── Abbey Road/
-    └── Sgt Pepper/
-```
-
-3. **Check for Hidden or System Folders**
+2. **Check Case Sensitivity**
 ```bash
-# Scanner ignores these patterns
-ls -la /music/ | grep -E "^\.|Recycle|System|temp|cache"
-
-# Move or rename problematic folders
-mv "/music/.hidden_band" "/music/Hidden Band"
+# Album types are case-sensitive
+"Live"          # Correct
+"live"          # Incorrect
+"Compilation"   # Correct
+"compilation"   # Incorrect
 ```
 
-### Problem: "Albums not detected in band folders"
-
-**Symptoms:**
-```json
-{
-  "band_name": "Pink Floyd",
-  "albums_count": 0,
-  "albums": []
-}
-```
-
-**Solutions:**
-1. **Verify Album Folder Structure**
-```bash
-# Check band folder contents
-ls -la "/path/to/music/Pink Floyd/"
-# Should show album folders, not loose files
-```
-
-2. **Supported Music File Extensions**
-The scanner looks for these file types:
-- `.mp3`, `.flac`, `.wav`, `.aac`
-- `.m4a`, `.ogg`, `.wma`, `.mp4`, `.m4p`
-
-3. **Minimum Track Count**
-```bash
-# Each album folder needs at least 1 music file
-find "/path/to/music/Pink Floyd/The Wall" -name "*.mp3" -o -name "*.flac" | wc -l
-```
-
-### Problem: "Missing albums not detected"
+### Problem: "Resources not showing type information"
 
 **Symptoms:**
 ```
-Missing albums analysis shows 0 missing albums, but metadata contains more albums than physical folders
+band://info/{band_name} missing album type sections
+collection://summary missing type distribution
+Type information not appearing in markdown output
 ```
 
 **Solutions:**
-1. **Force Full Rescan**
-```json
+1. **Ensure Metadata Contains Type Information**
+```bash
+# Check if band metadata has type information
+python -c "
+import json
+with open('/music/Pink Floyd/.band_metadata.json') as f:
+    data = json.load(f)
+    for album in data.get('albums', []):
+        print(f'{album[\"album_name\"]}: {album.get(\"type\", \"No type\")}')
+"
+```
+
+2. **Rescan with Type Detection**
+```bash
+# Rescan to add type information to existing metadata
 {
   "method": "tools/call",
   "params": {
     "name": "scan_music_folders",
     "arguments": {
       "force_rescan": true,
-      "include_missing_albums": true
-    }
-  }
-}
-```
-
-2. **Check Metadata vs Physical Albums**
-```bash
-# List physical albums
-ls "/path/to/music/Pink Floyd/"
-
-# Check metadata file
-cat "/path/to/music/Pink Floyd/.band_metadata.json" | jq '.albums[].album_name'
-```
-
-3. **Manual Missing Album Detection**
-```python
-# Check missing album logic
-from src.tools.scanner import _detect_missing_albums
-missing = _detect_missing_albums("Pink Floyd", physical_albums, metadata_albums)
-print(f"Missing: {missing}")
-```
-
-## MCP Client Integration Issues
-
-### Problem: "MCP client cannot connect to server"
-
-**Symptoms:**
-- Claude Desktop shows connection error
-- Tools/resources not visible in MCP client
-- "Server not responding" messages
-
-**Solutions:**
-1. **Verify Client Configuration**
-```json
-{
-  "mcpServers": {
-    "music-collection": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "--interactive",
-        "-v", "/absolute/path/to/music:/music",
-        "-e", "MUSIC_ROOT_PATH=/music",
-        "music-mcp-server"
-      ]
-    }
-  }
-}
-```
-
-2. **Test Manual Connection**
-```bash
-# Test if server responds to stdio
-echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1, "params": {}}' | \
-docker run --rm -i -v "/path/to/music:/music" -e "MUSIC_ROOT_PATH=/music" music-mcp-server
-```
-
-3. **Check Server Logs in Client Context**
-```bash
-# For Claude Desktop, check logs at:
-# macOS: ~/Library/Logs/Claude/
-# Windows: %APPDATA%\Claude\logs\
-```
-
-### Problem: "Tools appear as errors in MCP client"
-
-**Symptoms:**
-- Tools are listed but show error icons
-- Error messages in client interface
-- Functions work but appear broken
-
-**Solutions:**
-1. **Lower Log Level**
-```bash
-# Set ERROR log level to suppress INFO messages
-docker run -e "LOG_LEVEL=ERROR" music-mcp-server
-```
-
-2. **Update FastMCP Configuration**
-This is a known FastMCP display issue. Tools work correctly despite error appearance.
-
-3. **Verify Tool Functionality**
-```bash
-# Test tool execution directly
-echo '{"jsonrpc": "2.0", "method": "tools/call", "id": 1, "params": {"name": "scan_music_folders", "arguments": {}}}' | \
-docker run --rm -i music-mcp-server
-```
-
-### Problem: "Resources not loading in client"
-
-**Symptoms:**
-- `band://info/Pink Floyd` shows "Resource not found"
-- `collection://summary` returns empty response
-
-**Solutions:**
-1. **Verify Resource URIs**
-```bash
-# Correct URI format
-band://info/Pink Floyd           # Correct
-collection://summary             # Correct
-
-# Incorrect formats
-band/Pink Floyd                  # Wrong
-band://Pink Floyd                # Wrong
-collection/summary               # Wrong
-```
-
-2. **Check Band Name Encoding**
-```bash
-# URL encode special characters
-band://info/AC%2FDC              # For "AC/DC"
-band://info/Guns%20N%27%20Roses  # For "Guns N' Roses"
-```
-
-3. **Verify Band Exists**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "get_band_list",
-    "arguments": {"search": "Pink Floyd"}
-  }
-}
-```
-
-## Performance Issues
-
-### Problem: "Scanning takes very long time"
-
-**Symptoms:**
-```
-Scan duration: 300+ seconds for moderate collections
-Memory usage continuously increasing
-```
-
-**Solutions:**
-1. **Optimize Docker Resources**
-```bash
-# Increase memory and CPU limits
-docker run --memory=4g --cpus=2 music-mcp-server
-```
-
-2. **Use SSD Storage**
-```bash
-# Mount music directory from SSD
-docker run -v "/ssd/path/to/music:/music" music-mcp-server
-```
-
-3. **Enable Incremental Scanning**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "scan_music_folders",
-    "arguments": {
-      "force_rescan": false  // Use cache when possible
-    }
-  }
-}
-```
-
-### Problem: "Memory usage too high"
-
-**Symptoms:**
-```
-Docker container using >2GB RAM
-System becomes slow during scanning
-```
-
-**Solutions:**
-1. **Implement Pagination**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "get_band_list",
-    "arguments": {
-      "page_size": 20,  // Smaller page sizes
-      "page": 1
-    }
-  }
-}
-```
-
-2. **Clear Caches Periodically**
-```bash
-# Clean up container caches
-docker run --rm music-mcp-server python -c "
-from src.tools.cache import clear_expired_cache
-clear_expired_cache()
-"
-```
-
-## Data Issues
-
-### Problem: "Corrupted metadata files"
-
-**Symptoms:**
-```
-JSONDecodeError: Expecting ',' delimiter
-Invalid metadata format in .band_metadata.json
-```
-
-**Solutions:**
-1. **Backup and Restore**
-```bash
-# Check for backup files
-ls /path/to/music/Pink\ Floyd/.band_metadata.json.backup.*
-
-# Restore from backup
-cp "/path/to/music/Pink Floyd/.band_metadata.json.backup.20250129" \
-   "/path/to/music/Pink Floyd/.band_metadata.json"
-```
-
-2. **Validate JSON Format**
-```bash
-# Check JSON syntax
-python -m json.tool "/path/to/music/Pink Floyd/.band_metadata.json"
-
-# Fix common issues
-sed -i 's/,\s*}/}/g' "/path/to/music/Pink Floyd/.band_metadata.json"  # Remove trailing commas
-```
-
-3. **Regenerate Metadata**
-```bash
-# Delete corrupted file and rescan
-rm "/path/to/music/Pink Floyd/.band_metadata.json"
-
-# Force rescan to regenerate
-docker run music-mcp-server python -c "
-from src.tools.scanner import scan_music_folders
-scan_music_folders(force_rescan=True)
-"
-```
-
-### Problem: "Analysis data lost after metadata update"
-
-**Symptoms:**
-```
-Band metadata updated successfully, but analyze section is now empty
-Previous ratings and reviews are missing
-```
-
-**Solutions:**
-1. **Check Analysis Preservation Settings**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_metadata",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "metadata": {...},
-      "preserve_analyze": true  // Ensure this is true
-    }
-  }
-}
-```
-
-2. **Restore from Backup**
-```bash
-# Check for analyze backup
-grep -l "analyze" /path/to/music/Pink\ Floyd/.band_metadata.json.backup.*
-
-# Copy analyze section from backup
-python -c "
-import json
-with open('backup.json') as f: backup = json.load(f)
-with open('current.json') as f: current = json.load(f)
-current['analyze'] = backup.get('analyze', {})
-with open('current.json', 'w') as f: json.dump(current, f, indent=2)
-"
-```
-
-## Network and API Issues
-
-### Problem: "Brave search integration not working"
-
-**Symptoms:**
-```
-Error: Unable to fetch band information from external sources
-Brave search API timeout or connection error
-```
-
-**Solutions:**
-1. **Check Network Connectivity**
-```bash
-# Test from container
-docker run --rm music-mcp-server python -c "
-import requests
-response = requests.get('https://api.search.brave.com/res/v1/web/search')
-print(f'Status: {response.status_code}')
-"
-```
-
-2. **Verify API Configuration**
-```bash
-# Check if Brave search MCP is available
-# This depends on your MCP client configuration
-```
-
-3. **Use Offline Mode**
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "save_band_metadata",
-    "arguments": {
-      "band_name": "Pink Floyd",
-      "metadata": {
-        // Manually entered metadata
-      }
+      "detect_album_types": true
     }
   }
 }
@@ -633,111 +856,130 @@ print(f'Status: {response.status_code}')
 
 ## Advanced Troubleshooting
 
-### Debug Mode
-
-Enable detailed logging for troubleshooting:
+### Enable Comprehensive Debugging
 
 ```bash
-# Run with debug logging
-docker run -e "LOG_LEVEL=DEBUG" music-mcp-server
-
-# Save debug logs
-docker logs music-mcp-container > debug.log 2>&1
+# Maximum debugging for type detection and structure analysis
+docker run --rm \
+  -e "LOG_LEVEL=DEBUG" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  -e "TYPE_DETECTION_CONFIDENCE=0.5" \
+  -v "/path/to/music:/music" \
+  music-mcp-server 2>&1 | tee debug.log
 ```
 
-### Container Inspection
+### Performance Profiling
 
 ```bash
-# Inspect running container
-docker exec -it music-mcp-container /bin/bash
+# Profile type detection performance
+docker run --rm music-mcp-server python -c "
+import cProfile
+import pstats
+from src.tools.scanner import MusicScanner
+from src.config import Config
 
-# Check mounted volumes
-df -h
-ls -la /music
+def profile_scan():
+    scanner = MusicScanner(Config())
+    return scanner.scan_music_folders(force_rescan=True)
 
-# Check Python environment
-python --version
-pip list | grep -E "mcp|pydantic|fastapi"
+cProfile.run('profile_scan()', 'scan_profile.stats')
+stats = pstats.Stats('scan_profile.stats')
+stats.sort_stats('cumulative').print_stats(20)
+"
 ```
 
-### Manual Testing Scripts
+### Memory Usage Analysis
 
-Create test script for component validation:
-
-```python
-#!/usr/bin/env python3
-# test_components.py
-
-def test_config():
-    try:
-        from src.config import Config
-        config = Config()
-        print(f"✅ Config loaded: {config.music_root_path}")
-        return True
-    except Exception as e:
-        print(f"❌ Config failed: {e}")
-        return False
-
-def test_scanner():
-    try:
-        from src.tools.scanner import scan_music_folders
-        result = scan_music_folders()
-        print(f"✅ Scanner: {result['total_bands']} bands found")
-        return True
-    except Exception as e:
-        print(f"❌ Scanner failed: {e}")
-        return False
-
-def test_storage():
-    try:
-        from src.tools.storage import load_collection_index
-        index = load_collection_index()
-        print(f"✅ Storage: {len(index.bands)} bands in index")
-        return True
-    except Exception as e:
-        print(f"❌ Storage failed: {e}")
-        return False
-
-if __name__ == "__main__":
-    tests = [test_config, test_scanner, test_storage]
-    results = [test() for test in tests]
-    success_rate = sum(results) / len(results) * 100
-    print(f"\nOverall: {success_rate:.1f}% tests passed")
-```
-
-Run the test script:
 ```bash
-docker run --rm -v "$(pwd)/test_components.py:/app/test_components.py" music-mcp-server python test_components.py
+# Monitor memory usage during scanning
+docker run --rm music-mcp-server python -c "
+import psutil
+import os
+from src.tools.scanner import MusicScanner
+from src.config import Config
+
+process = psutil.Process(os.getpid())
+print(f'Initial memory: {process.memory_info().rss / 1024 / 1024:.2f} MB')
+
+scanner = MusicScanner(Config())
+result = scanner.scan_music_folders(force_rescan=True)
+
+print(f'Final memory: {process.memory_info().rss / 1024 / 1024:.2f} MB')
+print(f'Albums scanned: {result.stats.albums_found}')
+"
 ```
 
 ## Getting Help
 
-### Log Collection
-When reporting issues, collect these logs:
+### Collecting Diagnostic Information
 
+When reporting issues, include:
+
+1. **System Information**
 ```bash
-# System information
+# System details
 uname -a
 docker --version
 python --version
 
-# Container logs
-docker logs music-mcp-container
-
 # Configuration
-docker run --rm music-mcp-server python -c "from src.config import Config; print(Config())"
-
-# File permissions
-ls -la /path/to/your/music/
+env | grep -E "(MUSIC_|ENABLE_|TYPE_|COMPLIANCE_)"
 ```
 
-### Support Channels
-- **GitHub Issues**: Report bugs with full logs
-- **Documentation**: Check other documentation files
-- **Test Suite**: Run the test suite to verify functionality
+2. **Collection Statistics**
+```bash
+# Collection size (without sensitive paths)
+find /path/to/music -type d -name "*" | wc -l  # Total folders
+find /path/to/music -name "*.mp3" | wc -l      # Total files
+```
 
-For additional help, see:
-- [Installation Guide](INSTALLATION.md)
-- [Configuration Guide](CONFIGURATION.md)
-- [Usage Examples](USAGE_EXAMPLES.md)
-- [FAQ](FAQ.md) 
+3. **Error Logs**
+```bash
+# Recent error logs
+docker logs music-mcp-container --tail 100 2>&1 | grep -E "(ERROR|WARN)"
+```
+
+4. **Type Detection Results**
+```bash
+# Type detection statistics
+docker run --rm music-mcp-server python -c "
+from src.tools.scanner import MusicScanner
+from src.config import Config
+scanner = MusicScanner(Config())
+result = scanner.scan_music_folders()
+print(f'Type distribution: {result.stats.album_type_distribution}')
+print(f'Structure analysis: {result.stats.structure_analysis}')
+"
+```
+
+### Common Log Patterns
+
+**Successful Type Detection:**
+```
+DEBUG: Album type detected: Live (confidence: 0.95) for "1972 - Live at Pompeii"
+DEBUG: Structure type detected: enhanced for band "Pink Floyd"
+DEBUG: Compliance score calculated: 95/100 for band "Pink Floyd"
+```
+
+**Type Detection Issues:**
+```
+WARN: Low confidence type detection (0.4) for album "Unknown Album"
+ERROR: Invalid album type "InvalidType" in metadata
+ERROR: Structure analysis failed for band "Corrupted Band"
+```
+
+**Performance Issues:**
+```
+WARN: Type detection taking longer than expected (>5s per band)
+WARN: High memory usage detected during structure analysis
+```
+
+---
+
+## Version Information
+
+- **Troubleshooting Guide Version**: 2.0.0
+- **Album Type System**: 1.0.0
+- **Folder Structure Analysis**: 1.0.0
+- **Last Updated**: 2025-01-30 

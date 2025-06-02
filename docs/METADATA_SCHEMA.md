@@ -2,12 +2,12 @@
 
 ## Overview
 
-The Music Collection MCP Server uses a comprehensive JSON-based metadata schema to store information about bands, albums, and collection insights. This document provides detailed specifications for all data structures, validation rules, and examples.
+The Music Collection MCP Server uses a comprehensive JSON-based metadata schema to store information about bands, albums, collection insights, and folder structure analysis. This document provides detailed specifications for all data structures, validation rules, and examples.
 
 ## Schema Versions
 
-- **Current Version**: 1.0
-- **Migration Support**: From version 0.9 (automatic migration available)
+- **Current Version**: 1.1
+- **Migration Support**: From version 1.0 and 0.9 (automatic migration available)
 - **Backwards Compatibility**: Maintained within major versions
 
 ---
@@ -34,10 +34,20 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
     {
       "album_name": "string (required)",
       "year": "string (YYYY format, optional)",
+      "type": "string (AlbumType enum, optional, default: 'Album')",
+      "edition": "string (optional)",
       "genres": ["array of strings (optional)"],
       "tracks_count": "integer (optional)",
+      "track_count": "integer (alias for tracks_count, optional)",
       "duration": "string (e.g., '45min', optional)",
-      "missing": "boolean (default: false)"
+      "missing": "boolean (default: false)",
+      "folder_path": "string (relative path from band folder, optional)",
+      "compliance": {
+        "score": "integer (0-100, optional)",
+        "level": "string (excellent/good/fair/poor/critical, optional)",
+        "issues": ["array of strings (optional)"],
+        "recommended_path": "string (optional)"
+      }
     }
   ],
   "last_updated": "string (ISO 8601 datetime, auto-generated)",
@@ -51,14 +61,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
         "rate": "integer (1-10, optional)"
       }
     ],
-    "similar_bands": ["array of strings (optional)"],
-    "albums": [
-      {
-        "album_name": "string (required for matching)",
-        "review": "string (optional)",
-        "rate": "integer (1-10, optional)"
-      }
-    ]
+    "similar_bands": ["array of strings (optional)"]
   },
   "folder_structure": {
     "structure_type": "string (default/enhanced/mixed/legacy/unknown)",
@@ -76,7 +79,9 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
     "analysis_metadata": {
       "pattern_counts": "object",
       "compliance_distribution": "object",
-      "structure_health": "string"
+      "structure_health": "string",
+      "album_type_distribution": "object (optional)",
+      "edition_usage": "object (optional)"
     }
   }
 }
@@ -97,16 +102,44 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `description` | string | No | Max 2000 chars | Band description |
 | `last_updated` | string | Auto | ISO 8601 format | Last modification timestamp |
 
-#### Album Information
+#### Enhanced Album Information
 
 | Field | Type | Required | Validation | Description |
 |-------|------|----------|------------|-------------|
 | `album_name` | string | Yes | Non-empty, max 200 chars | Album title |
 | `year` | string | No | YYYY format (1800-2100) | Release year |
+| `type` | string | No | AlbumType enum | Album type classification |
+| `edition` | string | No | Max 100 chars | Special edition information |
 | `genres` | array | No | Each string max 50 chars | Album-specific genres |
-| `tracks_count` | integer | No | 1-999 | Number of tracks |
+| `tracks_count` | integer | No | 0-999 | Number of tracks |
+| `track_count` | integer | No | 0-999 | Alias for tracks_count |
 | `duration` | string | No | Format: "\d+min" | Album duration |
 | `missing` | boolean | No | true/false | Whether album is missing locally |
+| `folder_path` | string | No | Valid path | Relative path from band folder |
+
+#### Album Compliance Information
+
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `score` | integer | No | 0-100 inclusive | Compliance score |
+| `level` | string | No | Enum values | Compliance level |
+| `issues` | array | No | String array | List of compliance issues |
+| `recommended_path` | string | No | Valid path | Recommended folder path |
+
+#### Album Type Enumeration
+
+The system supports 8 distinct album types:
+
+| Type | Value | Description | Detection Keywords |
+|------|-------|-------------|-------------------|
+| **Album** | "Album" | Standard studio album | Default fallback |
+| **Compilation** | "Compilation" | Greatest hits, collections | "greatest hits", "best of", "collection", "anthology", "compilation" |
+| `EP` | "EP" | Extended Play | "ep", "e.p." |
+| **Live** | "Live" | Live recordings | "live", "concert", "unplugged", "acoustic", "live at" |
+| **Single** | "Single" | Single releases | "single" |
+| **Demo** | "Demo" | Demo recordings | "demo", "demos", "early recordings", "unreleased" |
+| **Instrumental** | "Instrumental" | Instrumental versions | "instrumental", "instrumentals" |
+| **Split** | "Split" | Split releases | "split", "vs.", "vs", "versus", "with" |
 
 #### Analysis Information
 
@@ -155,7 +188,33 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 - **inconsistent**: Albums use multiple different patterns (below 70% consistency)
 - **unknown**: Unable to determine consistency
 
+#### Compliance Level Values
+- **excellent**: 90-100 compliance score
+- **good**: 70-89 compliance score
+- **fair**: 50-69 compliance score
+- **poor**: 25-49 compliance score
+- **critical**: 0-24 compliance score
+
 ### Validation Rules
+
+#### Album Type Validation
+- **Format**: String enum value
+- **Valid Values**: "Album", "Compilation", "EP", "Live", "Single", "Demo", "Instrumental", "Split"
+- **Case Sensitivity**: Must match exact casing
+- **Default**: "Album" if not specified
+- **Auto-Detection**: System can automatically detect types from folder names
+
+#### Edition Validation
+- **Format**: String
+- **Common Values**: "Deluxe Edition", "Limited Edition", "Remastered", "Anniversary Edition"
+- **Max Length**: 100 characters
+- **Normalization**: System removes wrapping parentheses if present
+
+#### Compliance Validation
+- **Score Range**: 0-100 (inclusive)
+- **Level Values**: Must be one of: excellent, good, fair, poor, critical
+- **Issues**: Array of descriptive strings
+- **Recommended Path**: Must be valid folder path format
 
 #### Genre Validation
 - **Format**: String array
@@ -189,7 +248,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 - **Arrays**: Pattern and folder arrays contain strings
 - **Health Values**: excellent, good, fair, poor, critical
 
-### Example: Complete Band Metadata
+### Example: Complete Band Metadata with Album Types
 
 ```json
 {
@@ -209,26 +268,69 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
     {
       "album_name": "The Dark Side of the Moon",
       "year": "1973",
+      "type": "Album",
+      "edition": "",
       "genres": ["Progressive Rock", "Art Rock"],
       "tracks_count": 10,
       "duration": "43min",
-      "missing": false
+      "missing": false,
+      "folder_path": "Album/1973 - The Dark Side of the Moon",
+      "compliance": {
+        "score": 95,
+        "level": "excellent",
+        "issues": [],
+        "recommended_path": "Album/1973 - The Dark Side of the Moon"
+      }
     },
     {
       "album_name": "The Wall",
       "year": "1979",
+      "type": "Album",
+      "edition": "Deluxe Edition",
       "genres": ["Progressive Rock", "Rock Opera"],
       "tracks_count": 26,
       "duration": "81min",
-      "missing": false
+      "missing": false,
+      "folder_path": "Album/1979 - The Wall (Deluxe Edition)",
+      "compliance": {
+        "score": 100,
+        "level": "excellent",
+        "issues": [],
+        "recommended_path": "Album/1979 - The Wall (Deluxe Edition)"
+      }
     },
     {
-      "album_name": "Ummagumma",
-      "year": "1969",
-      "genres": ["Psychedelic Rock", "Experimental"],
+      "album_name": "Live at Pompeii",
+      "year": "1972",
+      "type": "Live",
+      "edition": "",
+      "genres": ["Progressive Rock", "Live"],
       "tracks_count": 8,
-      "duration": "86min",
-      "missing": true
+      "duration": "65min",
+      "missing": false,
+      "folder_path": "Live/1972 - Live at Pompeii",
+      "compliance": {
+        "score": 100,
+        "level": "excellent",
+        "issues": [],
+        "recommended_path": "Live/1972 - Live at Pompeii"
+      }
+    },
+    {
+      "album_name": "Greatest Hits",
+      "year": "1996",
+      "type": "Compilation",
+      "edition": "",
+      "genres": ["Progressive Rock"],
+      "tracks_count": 16,
+      "duration": "78min",
+      "missing": true,
+      "compliance": {
+        "score": 0,
+        "level": "critical",
+        "issues": ["Album folder missing"],
+        "recommended_path": "Compilation/1996 - Greatest Hits"
+      }
     }
   ],
   "last_updated": "2024-01-15T10:30:00Z",
@@ -250,37 +352,155 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
     "similar_bands": ["Genesis", "Yes", "King Crimson", "Gentle Giant", "Emerson Lake & Palmer"]
   },
   "folder_structure": {
-    "structure_type": "default",
-    "consistency": "consistent", 
-    "consistency_score": 92,
-    "albums_analyzed": 13,
-    "albums_with_year_prefix": 13,
+    "structure_type": "enhanced",
+    "consistency": "consistent",
+    "consistency_score": 95,
+    "albums_analyzed": 14,
+    "albums_with_year_prefix": 14,
     "albums_without_year_prefix": 0,
-    "albums_with_type_folders": 0,
-    "detected_patterns": ["YYYY - Album Name", "YYYY - Album Name (Edition)"],
-    "type_folders_found": [],
-    "structure_score": 88,
-    "recommendations": [
-      "Folder organization is excellent with consistent year prefixes",
-      "Consider acquiring missing albums: Ummagumma, Animals"
-    ],
+    "albums_with_type_folders": 14,
+    "detected_patterns": ["enhanced_with_edition", "enhanced_no_edition"],
+    "type_folders_found": ["Album", "Live", "Compilation"],
+    "structure_score": 92,
+    "recommendations": [],
     "issues": [],
     "analysis_metadata": {
       "pattern_counts": {
-        "YYYY - Album Name": 11,
-        "YYYY - Album Name (Edition)": 2
+        "enhanced_with_edition": 8,
+        "enhanced_no_edition": 6
       },
       "compliance_distribution": {
-        "excellent": 11,
-        "good": 2,
+        "excellent": 13,
+        "good": 1,
         "fair": 0,
-        "poor": 0
+        "poor": 0,
+        "critical": 1
       },
-      "structure_health": "excellent"
+      "structure_health": "excellent",
+      "album_type_distribution": {
+        "Album": 11,
+        "Live": 2,
+        "Compilation": 2
+      },
+      "edition_usage": {
+        "Deluxe Edition": 3,
+        "Remastered": 2,
+        "": 10
+      }
     }
   }
 }
 ```
+
+## Album Type Detection Examples
+
+### Automatic Type Detection from Folder Names
+
+The system automatically detects album types using intelligent keyword matching:
+
+```json
+// Live albums
+"1985 - Live at Wembley" → type: "Live"
+"Unplugged in New York" → type: "Live"
+"Acoustic Sessions" → type: "Live"
+
+// Demo albums  
+"1982 - Early Demos" → type: "Demo"
+"Unreleased Tracks" → type: "Demo"
+"Rough Mixes" → type: "Demo"
+
+// Compilation albums
+"Greatest Hits" → type: "Compilation"
+"Best of Queen" → type: "Compilation"
+"The Collection" → type: "Compilation"
+
+// EP albums
+"Love EP" → type: "EP"
+"Extended Play" → type: "EP"
+
+// Instrumental albums
+"Album (Instrumental)" → type: "Instrumental"
+"Instrumentals Collection" → type: "Instrumental"
+
+// Split albums
+"Band A vs. Band B" → type: "Split"
+"Split Series Vol. 1" → type: "Split"
+
+// Standard albums (default)
+"1980 - Back in Black" → type: "Album"
+"Dark Side of the Moon" → type: "Album"
+```
+
+### Enhanced Folder Structure Detection
+
+The system recognizes type-based folder structures:
+
+```
+Pink Floyd/
+├── Album/                  ← Type folder detected
+│   ├── 1973 - The Dark Side of the Moon/
+│   └── 1979 - The Wall/
+├── Live/                   ← Type folder detected
+│   └── 1985 - Live at Wembley/
+└── Compilation/            ← Type folder detected
+    └── 1996 - Greatest Hits/
+```
+
+### Compliance Scoring Examples
+
+Albums are scored based on multiple factors:
+
+```json
+// Excellent compliance (90-100)
+{
+  "folder_path": "Album/1973 - The Dark Side of the Moon",
+  "compliance": {
+    "score": 100,
+    "level": "excellent",
+    "issues": []
+  }
+}
+
+// Good compliance (70-89)
+{
+  "folder_path": "1973 - The Dark Side of the Moon",  // Missing type folder
+  "compliance": {
+    "score": 85,
+    "level": "good", 
+    "issues": ["Could benefit from type folder organization"]
+  }
+}
+
+// Poor compliance (25-49)
+{
+  "folder_path": "Dark Side of the Moon",  // Missing year and type folder
+  "compliance": {
+    "score": 40,
+    "level": "poor",
+    "issues": ["Missing year prefix", "Missing type folder"]
+  }
+}
+```
+
+## Migration and Compatibility
+
+### Schema Version Migration
+
+The system automatically migrates older schema versions:
+
+- **From 1.0 to 1.1**: Adds album type and compliance fields with defaults
+- **From 0.9 to 1.1**: Comprehensive migration including structure analysis
+- **Backwards Compatibility**: Existing metadata remains functional
+
+### Default Values for New Fields
+
+When migrating existing metadata:
+- `type`: Defaults to "Album", then auto-detection runs
+- `edition`: Defaults to empty string
+- `compliance`: Generated during next scan
+- `folder_structure`: Analyzed during next scan
+
+This comprehensive schema supports the full range of album type classification and folder structure analysis features while maintaining backwards compatibility with existing collections.
 
 ---
 
@@ -406,48 +626,6 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "health_score": 8.2
     }
   }
-}
-```
-
----
-
-## Data Migration
-
-### Migration from Version 0.9 to 1.0
-
-The server automatically handles migration from older schema versions:
-
-#### Changes in Version 1.0
-- Changed `genre` field to `genres` (array)
-- Added `albums_count` auto-calculation
-- Enhanced validation rules
-- Added `analyze.albums` structure
-- Improved error handling
-
-#### Migration Process
-1. **Backup**: Original files backed up with timestamp
-2. **Transform**: Convert single `genre` to `genres` array
-3. **Validate**: Apply new validation rules
-4. **Update**: Save migrated data with new version
-
-#### Migration Example
-
-**Before (v0.9)**:
-```json
-{
-  "band_name": "Pink Floyd",
-  "genre": "Progressive Rock",
-  "albums": [...]
-}
-```
-
-**After (v1.0)**:
-```json
-{
-  "band_name": "Pink Floyd",
-  "genres": ["Progressive Rock"],
-  "albums_count": 15,
-  "albums": [...]
 }
 ```
 

@@ -1,8 +1,8 @@
-# Album Handling and Missing Detection Logic
+# Album Handling, Type Classification, and Folder Structure Analysis
 
 ## Overview
 
-The Music Collection MCP Server implements sophisticated album handling and missing detection logic to manage comprehensive music collections. This document details the algorithms, data structures, and workflows used for album discovery, tracking, and missing album detection.
+The Music Collection MCP Server implements sophisticated album handling, type classification, and folder structure analysis to manage comprehensive music collections. This document details the algorithms, data structures, and workflows used for album discovery, type detection, structure analysis, and missing album detection.
 
 ## Core Concepts
 
@@ -26,50 +26,313 @@ class AlbumState(Enum):
     CORRUPTED = "corrupted"   # Present but unreadable
 ```
 
+### Album Type Classification System
+
+The system supports 8 distinct album types with intelligent auto-detection:
+
+```python
+class AlbumType(str, Enum):
+    """
+    Enumeration of supported album types.
+    
+    Values:
+        ALBUM: Standard studio album
+        COMPILATION: Compilation or greatest hits album
+        EP: Extended Play (typically 4-7 tracks)
+        LIVE: Live recording album
+        SINGLE: Single release
+        DEMO: Demo recording
+        INSTRUMENTAL: Instrumental version of an album
+        SPLIT: Split release with multiple artists
+    """
+    ALBUM = "Album"
+    COMPILATION = "Compilation"
+    EP = "EP"
+    LIVE = "Live"
+    SINGLE = "Single"
+    DEMO = "Demo"
+    INSTRUMENTAL = "Instrumental"
+    SPLIT = "Split"
+```
+
+### Folder Structure Types
+
+The system recognizes and analyzes multiple folder organization patterns:
+
+```python
+class StructureType(str, Enum):
+    """
+    Enumeration of folder structure types.
+    
+    Values:
+        DEFAULT: Standard flat structure with "YYYY - Album Name (Edition?)" pattern
+        ENHANCED: Type-based structure with "Type/YYYY - Album Name (Edition?)" pattern
+        MIXED: Combination of both default and enhanced structures
+        LEGACY: Albums without year prefix, just "Album Name" pattern
+        UNKNOWN: Unable to determine structure type
+    """
+    DEFAULT = "default"
+    ENHANCED = "enhanced"
+    MIXED = "mixed"
+    LEGACY = "legacy"
+    UNKNOWN = "unknown"
+```
+
 ## Album Discovery Algorithm
 
-### File System Scanning
+### File System Scanning with Type Detection
 
-The album discovery process follows a structured approach:
+The album discovery process includes type classification:
 
 ```python
 def discover_albums_in_band_folder(band_path: Path) -> List[Album]:
     """
-    Discover albums within a band's folder structure.
+    Discover albums within a band's folder structure with type detection.
     
     Algorithm:
     1. Scan immediate subdirectories as potential albums
     2. Filter out system/hidden folders
     3. Validate album folders contain music files
     4. Extract album metadata from folder structure
-    5. Count tracks and calculate statistics
+    5. Detect album type from folder name and location
+    6. Parse edition information
+    7. Calculate compliance score
+    8. Count tracks and calculate statistics
     
     Args:
         band_path: Path to the band's root folder
         
     Returns:
-        List of discovered albums with metadata
+        List of discovered albums with metadata and type classification
     """
     albums = []
     
-    # Step 1: Discover album folders
+    # Step 1: Analyze folder structure first
+    structure_detector = BandStructureDetector(band_path)
+    structure_analysis = structure_detector.analyze_structure()
+    
+    # Step 2: Discover album folders
     for item in band_path.iterdir():
         if not item.is_dir():
             continue
             
-        # Step 2: Filter system folders
+        # Step 3: Filter system folders
         if item.name.startswith('.') or item.name.lower() in EXCLUDED_FOLDERS:
             continue
             
-        # Step 3: Validate album folder
+        # Step 4: Validate album folder
         if not contains_music_files(item):
             continue
             
-        # Step 4: Extract album information
-        album = create_album_from_folder(item)
+        # Step 5: Extract album information with type detection
+        album = create_album_from_folder_with_types(
+            item, 
+            structure_analysis.structure_type
+        )
         albums.append(album)
     
     return albums
+
+def create_album_from_folder_with_types(
+    album_path: Path, 
+    structure_type: StructureType
+) -> Album:
+    """
+    Create Album object from folder path with comprehensive type detection.
+    
+    Args:
+        album_path: Path to the album folder
+        structure_type: Detected structure type for the band
+        
+    Returns:
+        Album object with type, edition, and compliance information
+    """
+    # Parse folder structure
+    if structure_type == StructureType.ENHANCED:
+        parsed = AlbumFolderParser.parse_enhanced_folder_structure(str(album_path))
+    else:
+        parsed = AlbumFolderParser.parse_folder_name(album_path.name)
+    
+    # Detect album type
+    album_type = AlbumType(parsed.get('album_type', AlbumType.ALBUM))
+    if album_type == AlbumType.ALBUM:
+        # Try additional detection methods
+        album_type = AlbumTypeDetector.detect_type_from_folder_name(
+            album_path.name, parsed.get('album_name', '')
+        )
+    
+    # Calculate compliance
+    compliance = AlbumComplianceValidator.validate_album_compliance(
+        album_path, structure_type, album_type
+    )
+    
+    # Count tracks
+    track_count = count_tracks_in_album(album_path)
+    
+    return Album(
+        album_name=parsed.get('album_name', album_path.name),
+        year=parsed.get('year', ''),
+        type=album_type,
+        edition=parsed.get('edition', ''),
+        tracks_count=track_count,
+        folder_path=str(album_path.relative_to(album_path.parent)),
+        compliance=compliance
+    )
+```
+
+### Album Type Detection Algorithms
+
+The system uses multiple strategies for type detection:
+
+```python
+class AlbumTypeDetector:
+    """
+    Utility class for detecting album types from folder names and metadata.
+    """
+    
+    # Keywords for album type detection
+    TYPE_KEYWORDS = {
+        AlbumType.LIVE: [
+            'live', 'concert', 'unplugged', 'acoustic', 'in concert',
+            'live at', 'live in', 'live from', 'concert at'
+        ],
+        AlbumType.COMPILATION: [
+            'greatest hits', 'best of', 'collection', 'anthology', 
+            'compilation', 'hits', 'complete', 'essential'
+        ],
+        AlbumType.EP: ['ep', 'e.p.'],
+        AlbumType.SINGLE: ['single'],
+        AlbumType.DEMO: [
+            'demo', 'demos', 'early recordings', 'unreleased',
+            'rough mixes', 'rehearsal', 'pre-production'
+        ],
+        AlbumType.INSTRUMENTAL: ['instrumental', 'instrumentals'],
+        AlbumType.SPLIT: ['split', 'vs.', 'vs', 'versus', 'with']
+    }
+    
+    @classmethod
+    def detect_type_from_folder_name(cls, folder_name: str, album_name: str = "") -> AlbumType:
+        """
+        Detect album type from folder name and album name.
+        
+        Args:
+            folder_name: The album folder name
+            album_name: The album name (optional)
+            
+        Returns:
+            Detected AlbumType
+        """
+        folder_lower = folder_name.lower()
+        name_lower = album_name.lower() if album_name else ""
+        
+        # Check for type indicators in folder name or album name
+        for album_type, keywords in cls.TYPE_KEYWORDS.items():
+            if any(keyword in folder_lower or keyword in name_lower for keyword in keywords):
+                return album_type
+        
+        # Check for type folder structure
+        path_parts = Path(folder_name).parts
+        if len(path_parts) >= 2:
+            potential_type_folder = path_parts[-2].lower()
+            for album_type in AlbumType:
+                if potential_type_folder == album_type.value.lower():
+                    return album_type
+        
+        return AlbumType.ALBUM
+
+    @classmethod
+    def detect_from_track_count(cls, track_count: int) -> AlbumType:
+        """
+        Provide type hints based on track count heuristics.
+        
+        Args:
+            track_count: Number of tracks in the album
+            
+        Returns:
+            Suggested AlbumType based on track count
+        """
+        if track_count == 1:
+            return AlbumType.SINGLE
+        elif 2 <= track_count <= 7:
+            return AlbumType.EP
+        else:
+            return AlbumType.ALBUM
+```
+
+### Folder Structure Analysis
+
+The system analyzes folder organization patterns for compliance and recommendations:
+
+```python
+class BandStructureDetector:
+    """
+    Comprehensive analysis of band folder organization patterns.
+    """
+    
+    def analyze_structure(self) -> FolderStructure:
+        """
+        Analyze band folder structure and generate comprehensive assessment.
+        
+        Returns:
+            FolderStructure object with detailed analysis
+        """
+        albums = self._discover_album_folders()
+        
+        # Analyze patterns
+        pattern_analysis = self._analyze_patterns(albums)
+        
+        # Detect structure type
+        structure_type = self._determine_structure_type(pattern_analysis)
+        
+        # Calculate scores
+        consistency_score = self._calculate_consistency_score(pattern_analysis)
+        structure_score = self._calculate_structure_score(pattern_analysis, structure_type)
+        
+        # Generate recommendations
+        recommendations = self._generate_recommendations(
+            pattern_analysis, structure_type, consistency_score
+        )
+        
+        # Detect issues
+        issues = self._detect_issues(pattern_analysis, structure_type)
+        
+        return FolderStructure(
+            structure_type=structure_type,
+            consistency=self._get_consistency_level(consistency_score),
+            consistency_score=consistency_score,
+            albums_analyzed=len(albums),
+            albums_with_year_prefix=pattern_analysis['year_prefix_count'],
+            albums_without_year_prefix=pattern_analysis['no_year_prefix_count'],
+            albums_with_type_folders=pattern_analysis['type_folder_count'],
+            detected_patterns=pattern_analysis['patterns_found'],
+            type_folders_found=pattern_analysis['type_folders'],
+            structure_score=structure_score,
+            recommendations=recommendations,
+            issues=issues,
+            analysis_metadata={
+                'pattern_counts': pattern_analysis['pattern_counts'],
+                'compliance_distribution': pattern_analysis['compliance_distribution'],
+                'structure_health': self._assess_structure_health(structure_score),
+                'album_type_distribution': pattern_analysis['type_distribution'],
+                'edition_usage': pattern_analysis['edition_usage']
+            }
+        )
+    
+    def _determine_structure_type(self, pattern_analysis: Dict) -> StructureType:
+        """Determine the primary structure type based on analysis."""
+        type_folder_ratio = pattern_analysis['type_folder_count'] / max(pattern_analysis['total_albums'], 1)
+        year_prefix_ratio = pattern_analysis['year_prefix_count'] / max(pattern_analysis['total_albums'], 1)
+        
+        if type_folder_ratio >= 0.8:
+            return StructureType.ENHANCED
+        elif year_prefix_ratio >= 0.8:
+            return StructureType.DEFAULT
+        elif type_folder_ratio > 0.2 and year_prefix_ratio > 0.2:
+            return StructureType.MIXED
+        elif year_prefix_ratio < 0.3:
+            return StructureType.LEGACY
+        else:
+            return StructureType.UNKNOWN
 ```
 
 ### Music File Detection
@@ -105,7 +368,7 @@ def count_tracks_in_album(album_path: Path) -> int:
 
 ## Missing Album Detection
 
-### Detection Algorithm
+### Detection Algorithm with Type Awareness
 
 Missing albums are identified by comparing metadata with file system state:
 
@@ -118,19 +381,22 @@ def detect_missing_albums(
     Detect missing albums by comparing metadata with file system.
     
     Algorithm:
-    1. Discover physical albums in file system
-    2. Create mapping of album names to paths
+    1. Discover physical albums in file system with type detection
+    2. Create mapping of album names to paths and types
     3. Compare metadata albums against physical albums
     4. Classify albums as present or missing
     5. Handle name variations and fuzzy matching
+    6. Preserve type information in results
     
     Returns:
         Tuple of (present_albums, missing_albums)
     """
-    # Step 1: Discover physical albums
+    # Step 1: Discover physical albums with type detection
     physical_albums = discover_albums_in_band_folder(band_path)
-    physical_album_names = {normalize_album_name(album.album_name) 
-                           for album in physical_albums}
+    physical_album_map = {
+        normalize_album_name(album.album_name): album 
+        for album in physical_albums
+    }
     
     present_albums = []
     missing_albums = []
@@ -139,23 +405,49 @@ def detect_missing_albums(
     for metadata_album in metadata_albums:
         normalized_name = normalize_album_name(metadata_album.album_name)
         
-        if normalized_name in physical_album_names:
+        if normalized_name in physical_album_map:
             # Album is present - merge physical and metadata info
-            physical_album = find_physical_album(physical_albums, normalized_name)
-            merged_album = merge_album_data(physical_album, metadata_album)
+            physical_album = physical_album_map[normalized_name]
+            merged_album = merge_album_data_with_types(physical_album, metadata_album)
             merged_album.missing = False
             present_albums.append(merged_album)
         else:
-            # Album is missing - mark as missing
+            # Album is missing - mark as missing but preserve type
             metadata_album.missing = True
+            # Generate compliance score for missing album
+            metadata_album.compliance = generate_missing_album_compliance(
+                metadata_album, band_path
+            )
             missing_albums.append(metadata_album)
     
     return present_albums, missing_albums
+
+def merge_album_data_with_types(physical_album: Album, metadata_album: Album) -> Album:
+    """
+    Merge physical album data with metadata, preserving type information.
+    
+    Priority order:
+    1. Physical folder structure data (type, edition, folder_path, compliance)
+    2. Metadata information (genres, duration, track count)
+    3. Combined information where appropriate
+    """
+    return Album(
+        album_name=metadata_album.album_name,  # Use metadata name as canonical
+        year=metadata_album.year or physical_album.year,
+        type=physical_album.type,  # Trust physical structure for type
+        edition=physical_album.edition or metadata_album.edition,
+        genres=metadata_album.genres or physical_album.genres,
+        tracks_count=physical_album.tracks_count or metadata_album.tracks_count,
+        duration=metadata_album.duration,
+        folder_path=physical_album.folder_path,
+        compliance=physical_album.compliance,
+        missing=False
+    )
 ```
 
-### Name Normalization
+### Name Normalization with Type Awareness
 
-Album name matching handles variations in naming:
+Album name matching handles variations in naming while considering types:
 
 ```python
 def normalize_album_name(name: str) -> str:
@@ -168,6 +460,7 @@ def normalize_album_name(name: str) -> str:
     - Extra whitespace
     - Common abbreviations
     - Unicode variations
+    - Type-specific keywords
     """
     import re
     import unicodedata
@@ -189,39 +482,46 @@ def normalize_album_name(name: str) -> str:
     normalized = normalized.replace(' and ', ' & ')
     normalized = normalized.replace(' pt ', ' part ')
     
+    # Remove common type indicators for better matching
+    type_indicators = ['live', 'demo', 'ep', 'single', 'compilation', 'instrumental']
+    for indicator in type_indicators:
+        if normalized.endswith(f' {indicator}'):
+            normalized = normalized[:-len(f' {indicator}')]
+    
     return normalized
-
-def fuzzy_match_album_names(name1: str, name2: str, threshold: float = 0.8) -> bool:
-    """Fuzzy matching for album names with similarity threshold."""
-    from difflib import SequenceMatcher
-    
-    normalized1 = normalize_album_name(name1)
-    normalized2 = normalize_album_name(name2)
-    
-    similarity = SequenceMatcher(None, normalized1, normalized2).ratio()
-    return similarity >= threshold
 ```
 
 ## Album Data Structures
 
-### Album Model
+### Enhanced Album Model with Type and Compliance
 
 ```python
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from enum import Enum
+
+class AlbumCompliance(BaseModel):
+    """Compliance information for album folder organization."""
+    score: int = Field(0, ge=0, le=100)
+    level: str = Field("unknown")  # excellent, good, fair, poor, critical
+    issues: List[str] = Field(default_factory=list)
+    recommended_path: Optional[str] = Field(None)
 
 class Album(BaseModel):
     """
-    Represents a single album with all associated metadata.
+    Enhanced album representation with type classification and compliance.
     
     Combines file system information with user-provided metadata
-    to create a complete album representation.
+    to create a complete album representation including type detection
+    and folder structure compliance analysis.
     """
     album_name: str = Field(..., min_length=1, max_length=200)
     year: Optional[str] = Field(None, regex=r'^\d{4}$')
+    type: AlbumType = Field(default=AlbumType.ALBUM)
+    edition: Optional[str] = Field(default="", max_length=100)
     genres: List[str] = Field(default_factory=list)
     tracks_count: Optional[int] = Field(None, ge=0, le=999)
+    track_count: Optional[int] = Field(None, ge=0, le=999)  # Alias
     duration: Optional[str] = Field(None, regex=r'^\d+min$')
     missing: bool = Field(default=False)
     
@@ -234,19 +534,60 @@ class Album(BaseModel):
     primary_format: Optional[str] = Field(None)  # e.g., "MP3", "FLAC"
     format_distribution: Optional[Dict[str, int]] = Field(default_factory=dict)
     
+    # Compliance and organization
+    compliance: Optional[AlbumCompliance] = Field(default_factory=AlbumCompliance)
+    
     class Config:
         # Enable validation on assignment
         validate_assignment = True
         
         # Custom validation
-        @validator('tracks_count')
-        def validate_tracks_count(cls, v, values):
+        @validator('tracks_count', 'track_count')
+        def validate_track_count(cls, v, values):
             if v is not None and v == 0:
-                raise ValueError("Album must have at least 1 track")
+                # Allow 0 tracks for certain types like singles or missing albums
+                pass
             return v
+        
+        @validator('type')
+        def validate_album_type(cls, v):
+            if isinstance(v, str):
+                try:
+                    return AlbumType(v)
+                except ValueError:
+                    raise ValueError(f'Invalid album type: {v}. Must be one of: {[t.value for t in AlbumType]}')
+            return v
+    
+    def auto_detect_metadata(self) -> None:
+        """Automatically detect type and edition from folder path."""
+        if self.folder_path:
+            parsed = AlbumFolderParser.parse_folder_name(self.folder_path)
+            if not self.type or self.type == AlbumType.ALBUM:
+                self.type = AlbumTypeDetector.detect_type_from_folder_name(
+                    self.folder_path, self.album_name
+                )
+            if not self.edition:
+                self.edition = parsed.get('edition', '')
+    
+    def detect_type_from_name(self) -> AlbumType:
+        """
+        Detect album type from album name and folder path using keywords.
+        
+        Returns:
+            Detected AlbumType based on name patterns
+        """
+        return AlbumTypeDetector.detect_type_from_folder_name(
+            self.folder_path or '', self.album_name
+        )
+    
+    def calculate_compliance_score(self, structure_type: StructureType) -> AlbumCompliance:
+        """Calculate compliance score based on folder structure."""
+        return AlbumComplianceValidator.validate_album_compliance(
+            self.folder_path, structure_type, self.type
+        )
 ```
 
-### Album Analysis
+### Album Analysis with Type Distribution
 
 ```python
 class AlbumAnalysis(BaseModel):

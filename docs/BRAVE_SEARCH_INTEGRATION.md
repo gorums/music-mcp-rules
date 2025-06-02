@@ -207,44 +207,59 @@ Search specifically for {band_name} discography:
 Focus on reliable music databases and official discographies.
 ```
 
-### Search Quality Guidelines
+#### Albums-Only Scope with Album Type Awareness
+```
+Search for complete discography of {band_name} with album type classification:
+- Studio albums with release years
+- Live albums and concert recordings
+- Compilation albums and greatest hits
+- EPs and extended plays
+- Demo recordings and unreleased material
+- Single releases and promotional items
+- Instrumental versions and special editions
+- Split releases and collaborations
 
-#### Recommended Sources
-1. **Primary**: Wikipedia, AllMusic, official band websites
-2. **Secondary**: Rolling Stone, Pitchfork, music databases
-3. **Avoid**: User-generated content, unreliable blogs, speculation
+For each album, include:
+- Release year (YYYY format)
+- Album type classification
+- Edition information (Deluxe, Remastered, etc.)
+- Track count and duration
+- Notable information about recording/release
 
-#### Data Validation Rules
-- **Years**: Must be in YYYY format (e.g., "1973" not "early 70s")
-- **Genres**: Use standard genre names (e.g., "Progressive Rock" not "prog")
-- **Members**: Include roles (e.g., "David Gilmour (guitar, vocals)")
-- **Origins**: City, Country format (e.g., "London, England")
-
-## Advanced Integration Patterns
-
-### Batch Band Processing
-
-Process multiple bands efficiently:
-
-```python
-# Pseudo-workflow for multiple bands
-bands_to_process = ["Pink Floyd", "Led Zeppelin", "The Beatles"]
-
-for band in bands_to_process:
-    # 1. Generate prompt
-    prompt = get_fetch_band_info_prompt(band_name=band, scope="full")
-    
-    # 2. Use Brave Search (via MCP client)
-    search_results = brave_search(prompt)
-    
-    # 3. Parse and save results
-    metadata = parse_search_results(search_results)
-    save_band_metadata(band, metadata)
+Focus on discography completeness and accurate type classification.
 ```
 
-### Missing Album Detection
+#### Enhanced Search with Structure Context
+```
+Search for {band_name} discography organized by album types:
 
-Enhance searches with existing collection data:
+STUDIO ALBUMS:
+- Find all studio albums with release years
+- Include information about deluxe/special editions
+
+LIVE ALBUMS:
+- Concert recordings and live albums
+- Include venue information and recording dates
+
+COMPILATIONS:
+- Greatest hits collections
+- Anthology and retrospective releases
+
+EPs AND SINGLES:
+- Extended plays and EPs
+- Single releases and promotional items
+
+RARE/SPECIAL RELEASES:
+- Demo recordings and unreleased tracks
+- Instrumental versions
+- Split releases and collaborations
+
+For optimal folder organization, prioritize albums that can be clearly classified by type.
+```
+
+## Integration Workflow with Album Type Classification
+
+### Step 1: Enhanced Band Information Fetching
 
 ```json
 {
@@ -253,41 +268,387 @@ Enhance searches with existing collection data:
     "name": "fetch_band_info",
     "arguments": {
       "band_name": "Pink Floyd",
-      "information_scope": "albums_only",
-      "existing_albums": ["The Wall", "Animals", "Meddle"]
+      "information_scope": "full_with_types",
+      "existing_albums": ["The Wall", "Animals"],
+      "include_type_classification": true,
+      "include_structure_recommendations": true
     }
   }
 }
 ```
 
-This generates targeted searches for missing albums:
+### Step 2: Type-Aware Search Execution
+
+Execute the search with Brave Search, focusing on album type classification:
+
 ```
-Search for Pink Floyd albums NOT in this list: The Wall, Animals, Meddle
-Focus on finding: Dark Side of the Moon, Wish You Were Here, Saucerful of Secrets...
+Search Results Analysis for Pink Floyd:
+
+STUDIO ALBUMS:
+- 1967 - The Piper at the Gates of Dawn (Album)
+- 1968 - A Saucerful of Secrets (Album)
+- 1969 - Ummagumma (Album)
+- 1970 - Atom Heart Mother (Album)
+- 1971 - Meddle (Album)
+- 1973 - The Dark Side of the Moon (Album)
+- 1975 - Wish You Were Here (Album)
+- 1977 - Animals (Album)
+- 1979 - The Wall (Album)
+- 1983 - The Final Cut (Album)
+- 1987 - A Momentary Lapse of Reason (Album)
+- 1994 - The Division Bell (Album)
+
+LIVE ALBUMS:
+- 1969 - Ummagumma (Live) [Disc 2]
+- 1988 - Delicate Sound of Thunder (Live)
+- 1995 - Pulse (Live)
+
+COMPILATION ALBUMS:
+- 1971 - Relics (Compilation)
+- 1981 - A Collection of Great Dance Songs (Compilation)
+- 2001 - Echoes: The Best of Pink Floyd (Compilation)
+
+SOUNDTRACKS/SPECIAL:
+- 1972 - Obscured by Clouds (Soundtrack)
+- 1972 - Live at Pompeii (Live Documentary)
 ```
 
-### Collection Analysis Integration
-
-Combine with collection insights:
+### Step 3: Save Enhanced Metadata with Types
 
 ```json
 {
-  "method": "prompts/get",
+  "method": "tools/call",
   "params": {
-    "name": "collection_insights",
+    "name": "save_band_metadata",
     "arguments": {
-      "insights_scope": "comprehensive",
-      "focus_areas": ["recommendations"]
+      "band_name": "Pink Floyd",
+      "metadata": {
+        "band_name": "Pink Floyd",
+        "formed": "1965",
+        "genres": ["Progressive Rock", "Psychedelic Rock", "Art Rock"],
+        "origin": "London, England",
+        "members": [
+          "David Gilmour (guitar, vocals)",
+          "Roger Waters (bass, vocals)", 
+          "Nick Mason (drums)",
+          "Richard Wright (keyboards)"
+        ],
+        "description": "English rock band formed in London in 1965. They achieved international acclaim with their progressive and psychedelic music.",
+        "albums": [
+          {
+            "album_name": "The Dark Side of the Moon",
+            "year": "1973",
+            "type": "Album",
+            "edition": "",
+            "genres": ["Progressive Rock", "Art Rock"],
+            "tracks_count": 10,
+            "duration": "43min",
+            "missing": false
+          },
+          {
+            "album_name": "Live at Pompeii",
+            "year": "1972",
+            "type": "Live",
+            "edition": "",
+            "genres": ["Progressive Rock", "Live"],
+            "tracks_count": 8,
+            "duration": "65min",
+            "missing": true
+          },
+          {
+            "album_name": "Echoes: The Best of Pink Floyd",
+            "year": "2001",
+            "type": "Compilation",
+            "edition": "",
+            "genres": ["Progressive Rock"],
+            "tracks_count": 26,
+            "duration": "155min",
+            "missing": true
+          },
+          {
+            "album_name": "Early Singles",
+            "year": "1967",
+            "type": "Demo",
+            "edition": "",
+            "genres": ["Psychedelic Rock"],
+            "tracks_count": 4,
+            "duration": "18min",
+            "missing": true
+          }
+        ]
+      }
     }
   }
 }
 ```
 
-Use insights to guide band research:
+## Advanced Search Strategies with Album Types
+
+### Type-Specific Search Queries
+
+#### For Live Albums
 ```
-Based on your collection preferences for Progressive Rock,
-search for information about recommended bands: King Crimson, Genesis, Yes
+Search for {band_name} live albums and concert recordings:
+- Official live album releases
+- Concert recordings with venue and date information
+- Unplugged or acoustic sessions
+- Festival performances and special concerts
+- Bootleg information for reference (official releases only)
+
+Include venue names, recording dates, and performance context.
 ```
+
+#### For Compilation Albums
+```
+Search for {band_name} compilation albums and greatest hits:
+- Official greatest hits collections
+- Anthology and retrospective releases
+- Record label compilations
+- Career-spanning collections
+- Rarities and B-sides collections
+
+Include track selection criteria and coverage period.
+```
+
+#### For Demo and Rare Material
+```
+Search for {band_name} demo recordings and unreleased material:
+- Official demo releases
+- Early recordings and sessions
+- Unreleased tracks and outtakes
+- Promotional releases
+- Special edition bonus material
+
+Focus on officially released material, note historical significance.
+```
+
+### Structure-Aware Search Templates
+
+#### Enhanced Structure Search
+```
+Search for {band_name} complete discography organized by type:
+
+Request information structured as:
+STUDIO ALBUMS (Album/):
+- Year - Album Name (Edition if applicable)
+
+LIVE RECORDINGS (Live/):
+- Year - Live Album Name (Venue/Context)
+
+COMPILATIONS (Compilation/):
+- Year - Compilation Name (Scope/Period)
+
+EPs AND SINGLES (EP/ or Single/):
+- Year - Release Name (Format)
+
+SPECIAL RELEASES (Demo/ or Split/):
+- Year - Release Name (Context)
+
+This structure supports enhanced folder organization.
+```
+
+#### Legacy Structure Search
+```
+Search for {band_name} discography with type indicators:
+
+Format results as:
+- Year - Album Name (Album Type in parentheses)
+- Include edition information where applicable
+- Note any special characteristics or contexts
+
+Example format:
+- 1973 - The Dark Side of the Moon
+- 1988 - Delicate Sound of Thunder (Live)
+- 2001 - Echoes (Compilation)
+- 1967 - Early Singles (Demo)
+
+This format supports legacy folder naming with type hints.
+```
+
+## Error Handling and Data Validation
+
+### Type Classification Validation
+
+When processing search results, validate album types:
+
+```python
+def validate_album_type_from_search(album_data: Dict[str, Any]) -> AlbumType:
+    """
+    Validate and determine album type from search results.
+    
+    Args:
+        album_data: Album information from search results
+        
+    Returns:
+        Validated AlbumType enum value
+    """
+    album_name = album_data.get('name', '').lower()
+    description = album_data.get('description', '').lower()
+    
+    # Check for explicit type indicators
+    type_indicators = {
+        AlbumType.LIVE: ['live', 'concert', 'unplugged', 'acoustic'],
+        AlbumType.COMPILATION: ['greatest hits', 'best of', 'collection', 'anthology'],
+        AlbumType.EP: ['ep', 'extended play'],
+        AlbumType.DEMO: ['demo', 'demos', 'unreleased', 'early recordings'],
+        AlbumType.SINGLE: ['single'],
+        AlbumType.INSTRUMENTAL: ['instrumental'],
+        AlbumType.SPLIT: ['split', 'vs.', 'versus']
+    }
+    
+    for album_type, keywords in type_indicators.items():
+        if any(keyword in album_name or keyword in description for keyword in keywords):
+            return album_type
+    
+    return AlbumType.ALBUM  # Default to Album type
+```
+
+### Search Result Processing with Types
+
+```python
+def process_search_results_with_types(search_results: List[Dict]) -> List[Album]:
+    """
+    Process Brave Search results and extract album information with type classification.
+    
+    Args:
+        search_results: Raw search results from Brave Search
+        
+    Returns:
+        List of Album objects with type classification
+    """
+    albums = []
+    
+    for result in search_results:
+        try:
+            # Extract album information
+            album_info = extract_album_info(result)
+            
+            # Classify album type
+            album_type = validate_album_type_from_search(album_info)
+            
+            # Create Album object
+            album = Album(
+                album_name=album_info['name'],
+                year=album_info.get('year'),
+                type=album_type,
+                edition=album_info.get('edition', ''),
+                genres=album_info.get('genres', []),
+                tracks_count=album_info.get('tracks_count'),
+                duration=album_info.get('duration'),
+                missing=True  # From search, not in local collection
+            )
+            
+            albums.append(album)
+            
+        except Exception as e:
+            logger.warning(f"Error processing search result: {e}")
+            continue
+    
+    return albums
+```
+
+## Integration Best Practices with Album Types
+
+### Search Query Optimization
+
+1. **Type-Specific Keywords**: Include album type keywords in search queries
+2. **Year Range Filtering**: Search by decades for better organization
+3. **Format Specification**: Distinguish between different release formats
+4. **Edition Awareness**: Include information about special editions
+
+### Data Quality Assurance
+
+1. **Type Validation**: Verify album types against known patterns
+2. **Duplicate Detection**: Identify and merge duplicate albums across types
+3. **Edition Handling**: Properly classify different editions of same album
+4. **Missing Album Identification**: Compare search results with local collection
+
+### Collection Organization Integration
+
+1. **Structure Recommendations**: Suggest folder organization based on retrieved types
+2. **Migration Planning**: Help users upgrade to enhanced structures
+3. **Compliance Assessment**: Evaluate how search results align with current structure
+4. **Type Distribution Analysis**: Provide insights on collection balance
+
+## Automated Collection Enhancement
+
+### Smart Collection Building
+
+```python
+def enhance_collection_with_brave_search(band_name: str) -> Dict[str, Any]:
+    """
+    Automatically enhance collection using Brave Search with type awareness.
+    
+    Args:
+        band_name: Name of band to enhance
+        
+    Returns:
+        Enhancement results with type statistics and recommendations
+    """
+    # Get current collection state
+    current_metadata = load_band_metadata(band_name)
+    current_albums = current_metadata.albums if current_metadata else []
+    
+    # Search for complete discography
+    search_results = brave_search_band_discography(band_name)
+    discovered_albums = process_search_results_with_types(search_results)
+    
+    # Identify missing albums by type
+    missing_by_type = identify_missing_albums_by_type(current_albums, discovered_albums)
+    
+    # Generate type-aware recommendations
+    recommendations = generate_type_recommendations(missing_by_type)
+    
+    # Suggest structure improvements
+    structure_suggestions = analyze_structure_for_types(current_albums, discovered_albums)
+    
+    return {
+        "band_name": band_name,
+        "discovered_albums": len(discovered_albums),
+        "missing_by_type": missing_by_type,
+        "recommendations": recommendations,
+        "structure_suggestions": structure_suggestions,
+        "type_distribution": calculate_type_distribution(discovered_albums)
+    }
+```
+
+### Collection Gap Analysis
+
+```python
+def analyze_collection_gaps_with_types(collection_data: Dict) -> Dict[str, Any]:
+    """
+    Analyze collection gaps using album type classification.
+    
+    Identifies missing album types and suggests acquisition priorities.
+    """
+    gap_analysis = {
+        "missing_types_by_band": {},
+        "priority_acquisitions": [],
+        "structure_improvements": [],
+        "type_balance_assessment": {}
+    }
+    
+    for band_name, band_data in collection_data.items():
+        current_types = set(album.type for album in band_data.albums)
+        all_types = set(AlbumType)
+        missing_types = all_types - current_types
+        
+        if missing_types:
+            gap_analysis["missing_types_by_band"][band_name] = list(missing_types)
+            
+            # Prioritize based on band importance and type significance
+            priority_score = calculate_acquisition_priority(band_data, missing_types)
+            if priority_score > 0.7:
+                gap_analysis["priority_acquisitions"].append({
+                    "band_name": band_name,
+                    "missing_types": list(missing_types),
+                    "priority_score": priority_score
+                })
+    
+    return gap_analysis
+```
+
+This enhanced Brave Search integration provides comprehensive support for album type classification and intelligent collection organization, enabling users to build well-structured, complete music collections with proper type classification and folder organization.
 
 ## Error Handling and Troubleshooting
 

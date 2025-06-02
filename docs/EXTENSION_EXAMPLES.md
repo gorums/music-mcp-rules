@@ -1,14 +1,14 @@
-# Extension Examples for Music Collection MCP Server
+# Extension Examples for Music Collection MCP Server with Album Type Classification
 
 ## Overview
 
-The Music Collection MCP Server is designed with extensibility in mind. This document provides practical examples of how to extend the server with custom tools, resources, prompts, and integrations.
+The Music Collection MCP Server is designed with extensibility in mind. This document provides practical examples of how to extend the server with custom tools, resources, prompts, and integrations, focusing on the new album type classification and folder structure analysis features.
 
-## Custom Tool Examples
+## Custom Tool Examples with Album Type Support
 
-### 1. Export Tool - CSV/JSON Export
+### 1. Export Tool - CSV/JSON Export with Album Types
 
-Create a custom tool to export collection data in various formats:
+Create a custom tool to export collection data including album types and structure analysis:
 
 ```python
 # src/tools/export.py
@@ -20,26 +20,32 @@ from datetime import datetime
 
 from ..models.collection import CollectionIndex
 from ..models.band import BandMetadata
+from ..models.album import Album, AlbumType
+from ..models.structure import StructureType
 from ..config import Config
 
 class CollectionExporter:
-    """Export collection data to various formats."""
+    """Export collection data with album type and structure information."""
     
     def __init__(self, config: Config):
         self.config = config
     
-    def export_collection(
+    def export_collection_with_types(
         self,
         format: Literal["csv", "json", "xml"],
         include_analysis: bool = True,
+        include_type_stats: bool = True,
+        include_structure_analysis: bool = True,
         output_path: str = None
     ) -> Dict[str, Any]:
         """
-        Export complete collection data.
+        Export complete collection data including album types and structure analysis.
         
         Args:
             format: Export format (csv, json, xml)
             include_analysis: Include analysis data in export
+            include_type_stats: Include album type distribution statistics
+            include_structure_analysis: Include folder structure analysis
             output_path: Custom output path (optional)
             
         Returns:
@@ -49,31 +55,38 @@ class CollectionExporter:
             # Load collection data
             collection_index = self._load_collection_index()
             
-            # Generate export data
-            export_data = self._prepare_export_data(collection_index, include_analysis)
+            # Generate export data with type information
+            export_data = self._prepare_export_data_with_types(
+                collection_index, 
+                include_analysis,
+                include_type_stats,
+                include_structure_analysis
+            )
             
             # Determine output path
             if not output_path:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_path = f"collection_export_{timestamp}.{format}"
+                output_path = f"collection_export_with_types_{timestamp}.{format}"
             
             # Export based on format
             if format == "csv":
-                self._export_csv(export_data, output_path)
+                self._export_csv_with_types(export_data, output_path)
             elif format == "json":
-                self._export_json(export_data, output_path)
+                self._export_json_with_types(export_data, output_path)
             elif format == "xml":
-                self._export_xml(export_data, output_path)
+                self._export_xml_with_types(export_data, output_path)
             else:
                 raise ValueError(f"Unsupported format: {format}")
             
             return {
                 "success": True,
-                "message": f"Collection exported to {format.upper()}",
+                "message": f"Collection exported to {format.upper()} with album type data",
                 "output_file": output_path,
                 "records_exported": len(export_data),
                 "format": format,
-                "include_analysis": include_analysis
+                "include_analysis": include_analysis,
+                "include_type_stats": include_type_stats,
+                "type_summary": self._generate_type_summary(export_data)
             }
             
         except Exception as e:
@@ -83,8 +96,78 @@ class CollectionExporter:
                 "format": format
             }
     
-    def _export_csv(self, data: List[Dict[str, Any]], output_path: str) -> None:
-        """Export data to CSV format."""
+    def _prepare_export_data_with_types(
+        self, 
+        collection_index: CollectionIndex, 
+        include_analysis: bool,
+        include_type_stats: bool,
+        include_structure_analysis: bool
+    ) -> List[Dict[str, Any]]:
+        """Prepare export data with album type information."""
+        export_data = []
+        
+        for band_entry in collection_index.bands:
+            band_metadata = self._load_band_metadata(band_entry.band_name)
+            
+            band_data = {
+                "band_name": band_entry.band_name,
+                "formed": band_metadata.formed if band_metadata else None,
+                "genres": band_metadata.genres if band_metadata else [],
+                "origin": band_metadata.origin if band_metadata else None,
+                "albums_count": band_entry.albums_count,
+                "local_albums": band_entry.local_albums,
+                "missing_albums": band_entry.missing_albums,
+                "completion_percentage": band_entry.completion_percentage
+            }
+            
+            # Add album type distribution
+            if include_type_stats and band_metadata:
+                type_distribution = self._calculate_type_distribution(band_metadata.albums)
+                band_data.update({
+                    f"type_{album_type.value.lower()}_count": count 
+                    for album_type, count in type_distribution.items()
+                })
+                band_data["type_diversity_score"] = len([c for c in type_distribution.values() if c > 0])
+            
+            # Add structure analysis
+            if include_structure_analysis and band_metadata and band_metadata.folder_structure:
+                structure = band_metadata.folder_structure
+                band_data.update({
+                    "structure_type": structure.structure_type,
+                    "structure_score": structure.structure_score,
+                    "consistency_score": structure.consistency_score,
+                    "compliance_level": structure.consistency,
+                    "albums_with_type_folders": structure.albums_with_type_folders,
+                    "type_folders_found_count": len(structure.type_folders_found),
+                    "structure_recommendations_count": len(structure.recommendations),
+                    "structure_issues_count": len(structure.issues)
+                })
+            
+            # Add analysis data
+            if include_analysis and band_metadata and band_metadata.analyze:
+                band_data.update({
+                    "overall_rating": band_metadata.analyze.rate,
+                    "has_review": bool(band_metadata.analyze.review),
+                    "similar_bands_count": len(band_metadata.analyze.similar_bands or []),
+                    "album_ratings_count": len(band_metadata.analyze.albums or [])
+                })
+            
+            export_data.append(band_data)
+        
+        return export_data
+    
+    def _calculate_type_distribution(self, albums: List[Album]) -> Dict[AlbumType, int]:
+        """Calculate album type distribution for a band."""
+        type_counts = {album_type: 0 for album_type in AlbumType}
+        
+        for album in albums:
+            album_type = AlbumType(album.type) if album.type else AlbumType.ALBUM
+            type_counts[album_type] += 1
+        
+        return type_counts
+    
+    def _export_csv_with_types(self, data: List[Dict[str, Any]], output_path: str) -> None:
+        """Export data to CSV format with type information."""
         if not data:
             return
         
@@ -95,86 +178,91 @@ class CollectionExporter:
             writer.writeheader()
             for row in data:
                 # Flatten complex fields for CSV
-                flattened_row = self._flatten_dict(row)
+                flattened_row = self._flatten_dict_for_types(row)
                 writer.writerow(flattened_row)
     
-    def _export_json(self, data: List[Dict[str, Any]], output_path: str) -> None:
-        """Export data to JSON format."""
+    def _export_json_with_types(self, data: List[Dict[str, Any]], output_path: str) -> None:
+        """Export data to JSON format with type metadata."""
+        export_metadata = {
+            "export_date": datetime.now().isoformat(),
+            "format": "json",
+            "record_count": len(data),
+            "includes_album_types": True,
+            "includes_structure_analysis": True,
+            "album_type_legend": {
+                album_type.value: album_type.value for album_type in AlbumType
+            },
+            "structure_type_legend": {
+                structure_type.value: structure_type.value for structure_type in StructureType
+            }
+        }
+        
         with open(output_path, 'w', encoding='utf-8') as jsonfile:
             json.dump({
-                "export_metadata": {
-                    "export_date": datetime.now().isoformat(),
-                    "format": "json",
-                    "record_count": len(data)
-                },
+                "export_metadata": export_metadata,
                 "bands": data
             }, jsonfile, indent=2, ensure_ascii=False)
-    
-    def _flatten_dict(self, d: Dict[str, Any], prefix: str = "") -> Dict[str, str]:
-        """Flatten nested dictionaries for CSV export."""
-        result = {}
-        for key, value in d.items():
-            new_key = f"{prefix}_{key}" if prefix else key
-            
-            if isinstance(value, dict):
-                result.update(self._flatten_dict(value, new_key))
-            elif isinstance(value, list):
-                result[new_key] = "; ".join(str(item) for item in value)
-            else:
-                result[new_key] = str(value) if value is not None else ""
-        
-        return result
 
 # Register as MCP tool
 @app.tool()
-def export_collection(
+def export_collection_with_types(
     format: Literal["csv", "json", "xml"] = "json",
     include_analysis: bool = True,
+    include_type_stats: bool = True,
+    include_structure_analysis: bool = True,
     output_path: str = None
 ) -> Dict[str, Any]:
     """
-    Export music collection data to various formats.
+    Export music collection data with album type classification and structure analysis.
     
     Args:
         format: Export format (csv, json, xml)
         include_analysis: Include analysis data in export
+        include_type_stats: Include album type distribution statistics
+        include_structure_analysis: Include folder structure analysis data
         output_path: Custom output path for export file
         
     Returns:
-        Export operation result
+        Export operation result with type and structure information
     """
     config = get_config()
     exporter = CollectionExporter(config)
     
-    return exporter.export_collection(format, include_analysis, output_path)
+    return exporter.export_collection_with_types(
+        format, include_analysis, include_type_stats, include_structure_analysis, output_path
+    )
 ```
 
-### 2. Statistics Tool - Advanced Analytics
+### 2. Album Type Statistics Tool - Advanced Analytics
 
 ```python
-# src/tools/statistics.py
+# src/tools/type_statistics.py
 from typing import Dict, Any, List
 from collections import defaultdict
 import statistics
 from datetime import datetime, timedelta
 
-class CollectionStatistics:
-    """Generate advanced statistics for music collection."""
+from ..models.album import AlbumType
+from ..models.structure import StructureType
+from ..config import Config
+
+class AlbumTypeStatistics:
+    """Generate advanced album type and structure statistics."""
     
     def __init__(self, config: Config):
         self.config = config
     
-    def generate_comprehensive_stats(self) -> Dict[str, Any]:
-        """Generate comprehensive collection statistics."""
+    def generate_type_statistics(self) -> Dict[str, Any]:
+        """Generate comprehensive album type statistics."""
         collection_index = self._load_collection_index()
         
         stats = {
             "overview": self._calculate_overview_stats(collection_index),
-            "distribution": self._calculate_distribution_stats(collection_index),
-            "ratings": self._calculate_rating_stats(collection_index),
-            "genres": self._calculate_genre_stats(collection_index),
-            "completion": self._calculate_completion_stats(collection_index),
-            "trends": self._calculate_trend_stats(collection_index)
+            "type_distribution": self._calculate_type_distribution_stats(collection_index),
+            "structure_analysis": self._calculate_structure_stats(collection_index),
+            "type_diversity": self._calculate_type_diversity_stats(collection_index),
+            "compliance_analysis": self._calculate_compliance_stats(collection_index),
+            "recommendations": self._generate_type_recommendations(collection_index)
         }
         
         return {
@@ -183,38 +271,379 @@ class CollectionStatistics:
             "generated_at": datetime.now().isoformat()
         }
     
-    def _calculate_distribution_stats(self, collection_index) -> Dict[str, Any]:
-        """Calculate album distribution statistics."""
-        album_counts = [band.albums_count for band in collection_index.bands]
+    def _calculate_type_distribution_stats(self, collection_index) -> Dict[str, Any]:
+        """Calculate detailed album type distribution statistics."""
+        type_counts = defaultdict(int)
+        band_type_presence = defaultdict(int)
+        type_by_decade = defaultdict(lambda: defaultdict(int))
         
-        if not album_counts:
-            return {"error": "No album data available"}
+        for band_entry in collection_index.bands:
+            band_metadata = self._load_band_metadata(band_entry.band_name)
+            if not band_metadata or not band_metadata.albums:
+                continue
+            
+            band_types = set()
+            
+            for album in band_metadata.albums:
+                album_type = AlbumType(album.type) if album.type else AlbumType.ALBUM
+                type_counts[album_type.value] += 1
+                band_types.add(album_type.value)
+                
+                # Track by decade if year available
+                if album.year and len(album.year) == 4:
+                    decade = f"{album.year[:3]}0s"
+                    type_by_decade[decade][album_type.value] += 1
+            
+            # Track band type presence
+            for band_type in band_types:
+                band_type_presence[band_type] += 1
+        
+        total_albums = sum(type_counts.values())
+        total_bands = len(collection_index.bands)
         
         return {
-            "mean_albums_per_band": statistics.mean(album_counts),
-            "median_albums_per_band": statistics.median(album_counts),
-            "mode_albums_per_band": statistics.mode(album_counts),
-            "std_dev": statistics.stdev(album_counts) if len(album_counts) > 1 else 0,
-            "quartiles": {
-                "q1": sorted(album_counts)[len(album_counts) // 4],
-                "q2": statistics.median(album_counts),
-                "q3": sorted(album_counts)[3 * len(album_counts) // 4]
+            "total_albums_by_type": dict(type_counts),
+            "percentage_by_type": {
+                album_type: (count / total_albums * 100) if total_albums > 0 else 0
+                for album_type, count in type_counts.items()
             },
-            "distribution": {
-                "small_collections": len([c for c in album_counts if c <= 3]),
-                "medium_collections": len([c for c in album_counts if 4 <= c <= 9]),
-                "large_collections": len([c for c in album_counts if c >= 10])
+            "bands_with_type": dict(band_type_presence),
+            "type_penetration": {
+                album_type: (count / total_bands * 100) if total_bands > 0 else 0
+                for album_type, count in band_type_presence.items()
+            },
+            "average_per_band": {
+                album_type: (count / total_bands) if total_bands > 0 else 0
+                for album_type, count in type_counts.items()
+            },
+            "type_by_decade": dict(type_by_decade)
+        }
+    
+    def _calculate_structure_stats(self, collection_index) -> Dict[str, Any]:
+        """Calculate folder structure statistics."""
+        structure_counts = defaultdict(int)
+        compliance_scores = []
+        structure_scores = []
+        
+        for band_entry in collection_index.bands:
+            band_metadata = self._load_band_metadata(band_entry.band_name)
+            if not band_metadata or not band_metadata.folder_structure:
+                continue
+            
+            structure = band_metadata.folder_structure
+            structure_counts[structure.structure_type] += 1
+            
+            if structure.consistency_score is not None:
+                compliance_scores.append(structure.consistency_score)
+            if structure.structure_score is not None:
+                structure_scores.append(structure.structure_score)
+        
+        return {
+            "structure_type_distribution": dict(structure_counts),
+            "compliance_statistics": {
+                "average_score": statistics.mean(compliance_scores) if compliance_scores else 0,
+                "median_score": statistics.median(compliance_scores) if compliance_scores else 0,
+                "min_score": min(compliance_scores) if compliance_scores else 0,
+                "max_score": max(compliance_scores) if compliance_scores else 0,
+                "std_deviation": statistics.stdev(compliance_scores) if len(compliance_scores) > 1 else 0
+            },
+            "structure_quality": {
+                "average_score": statistics.mean(structure_scores) if structure_scores else 0,
+                "median_score": statistics.median(structure_scores) if structure_scores else 0,
+                "excellent_count": len([s for s in structure_scores if s >= 90]),
+                "good_count": len([s for s in structure_scores if 70 <= s < 90]),
+                "poor_count": len([s for s in structure_scores if s < 70])
+            }
+        }
+    
+    def _calculate_type_diversity_stats(self, collection_index) -> Dict[str, Any]:
+        """Calculate type diversity statistics across bands."""
+        diversity_scores = []
+        most_diverse_bands = []
+        missing_type_analysis = defaultdict(list)
+        
+        for band_entry in collection_index.bands:
+            band_metadata = self._load_band_metadata(band_entry.band_name)
+            if not band_metadata or not band_metadata.albums:
+                continue
+            
+            # Calculate type diversity for this band
+            band_types = set()
+            for album in band_metadata.albums:
+                album_type = AlbumType(album.type) if album.type else AlbumType.ALBUM
+                band_types.add(album_type)
+            
+            diversity_score = len(band_types)
+            diversity_scores.append(diversity_score)
+            
+            if diversity_score >= 4:  # Highly diverse bands
+                most_diverse_bands.append({
+                    "band_name": band_entry.band_name,
+                    "type_count": diversity_score,
+                    "types": [t.value for t in band_types]
+                })
+            
+            # Track missing types
+            missing_types = set(AlbumType) - band_types
+            for missing_type in missing_types:
+                missing_type_analysis[missing_type.value].append(band_entry.band_name)
+        
+        return {
+            "diversity_statistics": {
+                "average_types_per_band": statistics.mean(diversity_scores) if diversity_scores else 0,
+                "median_types_per_band": statistics.median(diversity_scores) if diversity_scores else 0,
+                "max_diversity": max(diversity_scores) if diversity_scores else 0,
+                "min_diversity": min(diversity_scores) if diversity_scores else 0
+            },
+            "most_diverse_bands": sorted(most_diverse_bands, key=lambda x: x["type_count"], reverse=True)[:10],
+            "missing_type_opportunities": {
+                album_type: {
+                    "band_count": len(bands),
+                    "percentage": len(bands) / len(collection_index.bands) * 100
+                }
+                for album_type, bands in missing_type_analysis.items()
             }
         }
 
 # Register as MCP tool
 @app.tool()
-def get_collection_statistics() -> Dict[str, Any]:
-    """Generate comprehensive collection statistics and analytics."""
-    config = get_config()
-    stats_calculator = CollectionStatistics(config)
+def analyze_album_type_statistics() -> Dict[str, Any]:
+    """
+    Generate comprehensive album type and structure statistics for the collection.
     
-    return stats_calculator.generate_comprehensive_stats()
+    Returns:
+        Detailed statistics including type distribution, structure analysis, 
+        diversity metrics, and recommendations
+    """
+    config = get_config()
+    analyzer = AlbumTypeStatistics(config)
+    
+    return analyzer.generate_type_statistics()
+```
+
+### 3. Structure Migration Tool - Automated Organization
+
+```python
+# src/tools/structure_migration.py
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+import shutil
+import os
+
+from ..models.album import Album, AlbumType
+from ..models.structure import StructureType
+from ..models.band import BandMetadata
+from ..utils.album_parser import AlbumFolderParser
+from ..config import Config
+
+class StructureMigrationTool:
+    """Tool for migrating folder structures to enhanced organization."""
+    
+    def __init__(self, config: Config):
+        self.config = config
+    
+    def analyze_migration_opportunities(self, band_name: str) -> Dict[str, Any]:
+        """
+        Analyze a band's folder structure for migration opportunities.
+        
+        Args:
+            band_name: Name of the band to analyze
+            
+        Returns:
+            Migration analysis with recommendations and planned operations
+        """
+        try:
+            band_path = Path(self.config.music_root_path) / band_name
+            if not band_path.exists():
+                return {"success": False, "error": "Band folder not found"}
+            
+            # Load current metadata
+            band_metadata = self._load_band_metadata(band_name)
+            if not band_metadata:
+                return {"success": False, "error": "Band metadata not found"}
+            
+            # Analyze current structure
+            current_analysis = self._analyze_current_structure(band_path, band_metadata)
+            
+            # Generate migration plan
+            migration_plan = self._generate_migration_plan(band_path, band_metadata, current_analysis)
+            
+            # Calculate benefits
+            benefits = self._calculate_migration_benefits(current_analysis, migration_plan)
+            
+            return {
+                "success": True,
+                "band_name": band_name,
+                "current_structure": current_analysis,
+                "migration_plan": migration_plan,
+                "estimated_benefits": benefits,
+                "can_migrate": migration_plan["can_migrate"],
+                "risk_assessment": migration_plan["risk_assessment"]
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def execute_migration(
+        self, 
+        band_name: str, 
+        target_structure: StructureType = StructureType.ENHANCED,
+        dry_run: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Execute folder structure migration for a band.
+        
+        Args:
+            band_name: Name of the band to migrate
+            target_structure: Target structure type (enhanced, default)
+            dry_run: If True, only simulate the migration
+            
+        Returns:
+            Migration execution result
+        """
+        try:
+            # Get migration plan
+            analysis = self.analyze_migration_opportunities(band_name)
+            if not analysis["success"] or not analysis["can_migrate"]:
+                return {"success": False, "error": "Migration not possible or advisable"}
+            
+            migration_plan = analysis["migration_plan"]
+            operations = migration_plan["operations"]
+            
+            if dry_run:
+                return {
+                    "success": True,
+                    "dry_run": True,
+                    "planned_operations": operations,
+                    "operations_count": len(operations),
+                    "estimated_improvement": analysis["estimated_benefits"]["compliance_improvement"]
+                }
+            
+            # Execute actual migration
+            results = []
+            successful_operations = 0
+            
+            for operation in operations:
+                result = self._execute_operation(operation)
+                results.append(result)
+                if result["success"]:
+                    successful_operations += 1
+            
+            # Update metadata if migration successful
+            if successful_operations == len(operations):
+                self._update_metadata_after_migration(band_name, target_structure)
+            
+            return {
+                "success": successful_operations == len(operations),
+                "operations_executed": successful_operations,
+                "total_operations": len(operations),
+                "results": results,
+                "target_structure": target_structure.value
+            }
+            
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def _generate_migration_plan(
+        self, 
+        band_path: Path, 
+        band_metadata: BandMetadata, 
+        current_analysis: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Generate detailed migration plan."""
+        operations = []
+        can_migrate = True
+        risk_factors = []
+        
+        # Check if albums need type folder organization
+        if current_analysis["structure_type"] != StructureType.ENHANCED:
+            for album in band_metadata.albums:
+                if album.missing:
+                    continue
+                
+                current_path = band_path / album.folder_path if album.folder_path else band_path / album.album_name
+                album_type = AlbumType(album.type) if album.type else AlbumType.ALBUM
+                
+                # Determine target path
+                if album_type == AlbumType.ALBUM:
+                    type_folder = "Album"
+                else:
+                    type_folder = album_type.value
+                
+                year_prefix = f"{album.year} - " if album.year else ""
+                edition_suffix = f" ({album.edition})" if album.edition else ""
+                new_folder_name = f"{year_prefix}{album.album_name}{edition_suffix}"
+                target_path = band_path / type_folder / new_folder_name
+                
+                if current_path != target_path:
+                    operations.append({
+                        "type": "move_album",
+                        "album_name": album.album_name,
+                        "source_path": str(current_path),
+                        "target_path": str(target_path),
+                        "create_type_folder": type_folder,
+                        "album_type": album_type.value
+                    })
+        
+        # Risk assessment
+        if len(operations) > 20:
+            risk_factors.append("Large number of operations (>20)")
+        
+        total_size_mb = sum(self._get_folder_size(Path(op["source_path"])) for op in operations if Path(op["source_path"]).exists())
+        if total_size_mb > 10000:  # 10GB
+            risk_factors.append(f"Large data volume ({total_size_mb:.1f}MB)")
+        
+        return {
+            "operations": operations,
+            "can_migrate": can_migrate and len(risk_factors) == 0,
+            "risk_assessment": {
+                "risk_level": "high" if len(risk_factors) > 0 else "low",
+                "risk_factors": risk_factors,
+                "total_operations": len(operations),
+                "estimated_time_minutes": len(operations) * 0.5  # Estimate 30s per operation
+            }
+        }
+
+# Register as MCP tool  
+@app.tool()
+def analyze_structure_migration(band_name: str) -> Dict[str, Any]:
+    """
+    Analyze folder structure migration opportunities for a band.
+    
+    Args:
+        band_name: Name of the band to analyze for migration
+        
+    Returns:
+        Migration analysis with recommendations and planned operations
+    """
+    config = get_config()
+    migrator = StructureMigrationTool(config)
+    
+    return migrator.analyze_migration_opportunities(band_name)
+
+@app.tool()
+def execute_structure_migration(
+    band_name: str,
+    target_structure: str = "enhanced",
+    dry_run: bool = True
+) -> Dict[str, Any]:
+    """
+    Execute folder structure migration for a band.
+    
+    Args:
+        band_name: Name of the band to migrate
+        target_structure: Target structure type (enhanced, default)
+        dry_run: If True, only simulate the migration
+        
+    Returns:
+        Migration execution result
+    """
+    config = get_config()
+    migrator = StructureMigrationTool(config)
+    
+    target_type = StructureType(target_structure) if target_structure in [s.value for s in StructureType] else StructureType.ENHANCED
+    
+    return migrator.execute_migration(band_name, target_type, dry_run)
 ```
 
 ## Custom Resource Examples

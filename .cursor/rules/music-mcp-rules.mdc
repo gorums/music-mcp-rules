@@ -4,7 +4,7 @@ globs:
 alwaysApply: true
 ---
 ### 🔄 Project Awareness & Context
-- **Always read `docs/PLANNING.md`** at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
+- **Always read `docs/PLANNING.md`, `docs/METADATA_SCHEMA.md` and `docs/ARCHITECTURE.md`**at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
 - **Check `docs/TASKS.md`** before starting a new task. If the task isn’t listed, add it with a brief description and today's date.
 - **Use consistent naming conventions, file structure, and architecture patterns** as described in `PLANNING.md`.
 - **Avoid corrupt the files** doing the edit

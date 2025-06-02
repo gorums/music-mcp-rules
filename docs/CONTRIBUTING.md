@@ -1,8 +1,8 @@
-# Contributing to Music Collection MCP Server
+# Contributing to Music Collection MCP Server with Album Type Classification
 
 ## Welcome Contributors! 🎵
 
-Thank you for your interest in contributing to the Music Collection MCP Server! This project aims to provide an intelligent, file-system-based music collection management system through the Model Context Protocol. We welcome contributions of all kinds, from bug fixes to new features.
+Thank you for your interest in contributing to the Music Collection MCP Server! This project aims to provide an intelligent, file-system-based music collection management system through the Model Context Protocol, featuring advanced album type classification and folder structure analysis. We welcome contributions of all kinds, from bug fixes to new features.
 
 ## Table of Contents
 
@@ -10,6 +10,8 @@ Thank you for your interest in contributing to the Music Collection MCP Server! 
 - [Development Setup](#development-setup)
 - [Code Style Guidelines](#code-style-guidelines)
 - [Testing Requirements](#testing-requirements)
+- [Album Type Classification Features](#album-type-classification-features)
+- [Folder Structure Analysis Features](#folder-structure-analysis-features)
 - [Contribution Workflow](#contribution-workflow)
 - [Feature Development](#feature-development)
 - [Bug Reports](#bug-reports)
@@ -27,13 +29,16 @@ Before contributing, ensure you have:
 - **Git** for version control
 - A music collection for testing (optional but recommended)
 - Familiarity with MCP (Model Context Protocol) concepts
+- Understanding of music collection organization patterns
 
 ### Understanding the Project
 
 1. **Read the Documentation**: Start with the [PLANNING.md](PLANNING.md) and [ARCHITECTURE.md](ARCHITECTURE.md)
 2. **Review API Reference**: Check [API_REFERENCE.md](API_REFERENCE.md) for implementation details
-3. **Check Existing Issues**: Browse GitHub issues to understand current work
-4. **Test the Server**: Run the server locally to understand functionality
+3. **Study Album Type System**: Review [ALBUM_HANDLING.md](ALBUM_HANDLING.md) for type classification features
+4. **Understand Structure Analysis**: Check [COLLECTION_ORGANIZATION.md](COLLECTION_ORGANIZATION.md) for folder structure features
+5. **Check Existing Issues**: Browse GitHub issues to understand current work
+6. **Test the Server**: Run the server locally to understand functionality
 
 ## Development Setup
 
@@ -69,18 +74,28 @@ cp .env.example .env
 # Build development container
 docker build -f Dockerfile.test -t music-mcp-dev .
 
-# Run development container
-docker run -v $(pwd):/app -v /path/to/music:/music music-mcp-dev bash
+# Run development container with album type features
+docker run -v $(pwd):/app -v /path/to/music:/music \
+  -e "MUSIC_ROOT_PATH=/music" \
+  -e "ENABLE_TYPE_DETECTION=true" \
+  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
+  music-mcp-dev bash
 ```
 
 ### 3. Verify Setup
 
 ```bash
-# Run tests to verify everything works
+# Run tests to verify everything works including new features
 python -m pytest tests/ -v
 
-# Test server startup
-python main.py
+# Test album type detection
+python -m pytest tests/test_album_types.py -v
+
+# Test structure analysis
+python -m pytest tests/test_structure_analysis.py -v
+
+# Test server startup with type features
+ENABLE_TYPE_DETECTION=true ENABLE_STRUCTURE_ANALYSIS=true python main.py
 ```
 
 ## Code Style Guidelines
@@ -95,740 +110,569 @@ We follow **PEP 8** with some project-specific additions:
 - **Imports**: Use `black` for automatic formatting
 - **Type Hints**: Required for all function signatures
 
-#### Example Code Style
+#### Album Type and Structure Code Style
 ```python
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
+from pathlib import Path
 
-class BandMetadata(BaseModel):
+# Album type enumeration
+class AlbumType(str, Enum):
+    """Album type classification enumeration."""
+    ALBUM = "Album"
+    COMPILATION = "Compilation"
+    EP = "EP"
+    LIVE = "Live"
+    SINGLE = "Single"
+    DEMO = "Demo"
+    INSTRUMENTAL = "Instrumental"
+    SPLIT = "Split"
+
+class AlbumTypeDetector:
     """
-    Represents complete metadata for a musical band.
+    Album type detection utility with comprehensive classification.
+    
+    Provides intelligent detection of album types from folder names,
+    metadata, and file system structure patterns.
     
     Args:
-        band_name: Official name of the band
-        formed: Year the band was formed (YYYY format)
-        genres: List of musical genres
+        confidence_threshold: Minimum confidence for type assignment (0.0-1.0)
+        default_type: Fallback type when detection is uncertain
         
     Returns:
-        BandMetadata: Validated band metadata instance
+        AlbumType: Detected album type with confidence scoring
         
     Raises:
-        ValidationError: If required fields are missing or invalid
+        AlbumTypeError: If detection fails due to invalid input
+        
+    Example:
+        >>> detector = AlbumTypeDetector(confidence_threshold=0.8)
+        >>> album_type = detector.detect_from_folder_name("1985 - Live at Wembley")
+        >>> assert album_type == AlbumType.LIVE
     """
-    band_name: str = Field(..., min_length=1, max_length=200)
-    formed: Optional[str] = Field(None, regex=r"^\d{4}$")
-    genres: List[str] = Field(default_factory=list)
-    albums_count: int = Field(0, ge=0)
     
+    def __init__(self, confidence_threshold: float = 0.8):
+        self.confidence_threshold = confidence_threshold
+        self.default_type = AlbumType.ALBUM
+    
+    def detect_album_type_from_folder_structure(
+        self, 
+        folder_path: Path, 
+        album_name: str
+    ) -> AlbumType:
+        """
+        Detect album type from folder structure and naming patterns.
+        
+        Uses multiple detection strategies including keyword matching,
+        parent directory analysis, and structure pattern recognition.
+        """
+        # Reason: Enhanced detection provides higher accuracy than name-only
+        # by considering folder context and organization patterns
+        pass
+
     def update_albums_count(self) -> None:
         """Update albums count based on albums list."""
         self.albums_count = len(self.albums)
-        # Reason: Keep derived field in sync with source data
+        # Reason: Keep derived field in sync with source data for type statistics
 ```
 
-#### Docstring Standards
+#### Docstring Standards for New Features
 
-Use **Google-style docstrings** for all functions:
+Use **Google-style docstrings** for all functions, especially type-related:
 
 ```python
-def scan_music_folders(
-    music_path: str, 
-    force_rescan: bool = False
-) -> ScanResult:
+def analyze_folder_structure_compliance(
+    band_path: Path,
+    albums: List[Album],
+    structure_type: StructureType = StructureType.DEFAULT
+) -> FolderStructure:
     """
-    Scan music collection directory for bands and albums.
+    Analyze folder structure compliance and generate improvement recommendations.
     
-    Discovers band folders and their albums, creating a collection index
-    for fast access. Supports incremental scanning for performance.
+    Evaluates band folder organization against established patterns and
+    calculates compliance scores for various structure types including
+    default, enhanced, legacy, and mixed patterns.
     
     Args:
-        music_path: Absolute path to music collection root
-        force_rescan: Force full rescan even if no changes detected
+        band_path: Absolute path to band's root folder
+        albums: List of albums with type and path information
+        structure_type: Expected or detected structure type
         
     Returns:
-        ScanResult: Object containing scan statistics and discovered bands
+        FolderStructure: Comprehensive analysis including compliance score,
+        recommendations, detected issues, and structure metadata
         
     Raises:
-        ScanError: If music directory is inaccessible
-        ValidationError: If music_path is invalid
+        StructureAnalysisError: If band folder is inaccessible
+        ValidationError: If albums list contains invalid data
         
     Example:
-        >>> result = scan_music_folders("/music", force_rescan=True)
-        >>> print(f"Found {result.bands_count} bands")
+        >>> band_path = Path("/music/Pink Floyd")
+        >>> albums = [Album(name="The Wall", type=AlbumType.ALBUM)]
+        >>> analysis = analyze_folder_structure_compliance(band_path, albums)
+        >>> print(f"Compliance score: {analysis.structure_score}/100")
+        
+    Note:
+        Enhanced structure analysis requires type detection to be enabled.
+        Compliance scoring considers multiple factors including naming
+        consistency, type organization, and metadata completeness.
     """
 ```
 
-### File Organization
+### File Organization for Type Features
 
 #### Module Structure
 ```python
-# src/tools/scanner.py
+# src/models/album.py - Core album models with type support
 """
-Music collection scanner for band and album discovery.
+Enhanced album models with type classification and compliance tracking.
 
-This module provides comprehensive scanning functionality for music collections,
-including incremental updates, error recovery, and performance optimization.
+Contains Album model, AlbumType enum, compliance structures, and validation
+logic for the album type classification system.
 """
 
-# Standard library imports
-import os
-import json
-from pathlib import Path
-from typing import List, Dict, Optional
+# src/utils/type_detector.py - Type detection algorithms
+"""
+Album type detection algorithms and utilities.
 
-# Third-party imports
-from pydantic import BaseModel, Field
+Provides intelligent classification of albums into 8 supported types
+using keyword matching, folder structure analysis, and metadata inspection.
+"""
 
-# Local imports
-from ..models.band import BandMetadata
-from ..models.collection import CollectionIndex
-from ..config import Config
+# src/services/structure_analyzer.py - Structure analysis service
+"""
+Folder structure analysis and compliance validation service.
+
+Analyzes band folder organization patterns, calculates compliance scores,
+and generates recommendations for improving collection organization.
+"""
 ```
 
-#### File Naming Conventions
-- **Modules**: `snake_case.py`
-- **Classes**: `PascalCase`
-- **Functions**: `snake_case`
-- **Constants**: `UPPER_SNAKE_CASE`
-- **Private members**: `_leading_underscore`
+#### File Naming Conventions for Type Features
+- **Models**: `album.py`, `structure.py`, `compliance.py`
+- **Services**: `type_detector.py`, `structure_analyzer.py`, `compliance_validator.py`
+- **Utilities**: `album_parser.py`, `folder_utils.py`, `pattern_matcher.py`
+- **Tests**: `test_album_types.py`, `test_structure_analysis.py`, `test_compliance.py`
 
-### Error Handling
+### Error Handling for Type Features
 
 #### Custom Exception Hierarchy
 ```python
 class MusicMCPError(Exception):
-    """Base exception for Music MCP Server."""
+    """Base exception for all Music MCP Server errors."""
+    
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
         super().__init__(message)
         self.message = message
         self.details = details or {}
 
-class ScanError(MusicMCPError):
-    """Errors during collection scanning."""
+class AlbumTypeError(MusicMCPError):
+    """Errors related to album type detection and classification."""
     pass
 
-class StorageError(MusicMCPError):
-    """Errors during data storage operations."""
+class StructureAnalysisError(MusicMCPError):
+    """Errors during folder structure analysis and compliance validation."""
     pass
-```
 
-#### Error Handling Patterns
-```python
-def save_band_metadata(band_name: str, metadata: BandMetadata) -> SaveResult:
-    """Save band metadata with comprehensive error handling."""
-    try:
-        # Validate input
-        if not band_name.strip():
-            raise ValidationError("Band name cannot be empty")
-            
-        # Attempt operation
-        result = _perform_save(band_name, metadata)
-        
-        return SaveResult(success=True, band_name=band_name)
-        
-    except ValidationError as e:
-        # Handle validation errors
-        return SaveResult(
-            success=False, 
-            error={"code": "VALIDATION_ERROR", "message": str(e)}
-        )
-    except PermissionError as e:
-        # Handle file permission errors  
-        raise StorageError(
-            f"Cannot write metadata for {band_name}",
-            details={"band_name": band_name, "original_error": str(e)}
-        )
-    except Exception as e:
-        # Handle unexpected errors
-        logger.error(f"Unexpected error saving {band_name}: {e}")
-        raise StorageError(f"Failed to save metadata for {band_name}")
+class ComplianceValidationError(MusicMCPError):
+    """Errors during compliance scoring and validation."""
+    pass
 ```
 
 ## Testing Requirements
 
-### Test Structure
+### Test Structure for New Features
 
-Our testing follows a comprehensive strategy:
+#### Album Type Detection Tests
+```bash
+# Run album type detection tests
+python -m pytest tests/test_album_types.py -v
 
-#### Unit Tests
-- **Location**: `tests/test_*.py`
-- **Coverage**: Minimum 85% line coverage
-- **Scope**: Individual functions and classes
+# Test specific detection scenarios
+python -m pytest tests/test_album_types.py::test_live_album_detection -v
+python -m pytest tests/test_album_types.py::test_compilation_detection -v
+```
+
+#### Structure Analysis Tests
+```bash
+# Run structure analysis tests
+python -m pytest tests/test_structure_analysis.py -v
+
+# Test compliance scoring
+python -m pytest tests/test_compliance.py -v
+```
 
 #### Integration Tests
-- **Location**: `tests/integration/`
-- **Scope**: Component interactions and workflows
-- **Requirements**: Docker environment for isolation
+```bash
+# Test full workflow with type features
+python -m pytest tests/test_integration_types.py -v
+```
 
-#### Performance Tests
-- **Location**: `tests/performance/`
-- **Scope**: Large collection handling and benchmarks
-- **Thresholds**: Defined performance requirements
+### Test Requirements for New Features
 
-### Writing Tests
+When contributing type classification or structure analysis features:
 
-#### Unit Test Example
+1. **Unit Tests for Type Detection**: Test individual detection algorithms
+2. **Structure Analysis Tests**: Validate compliance calculations and recommendations
+3. **Integration Tests**: Ensure features work together correctly
+4. **Edge Case Tests**: Handle unusual folder structures and naming patterns
+5. **Performance Tests**: Ensure type detection doesn't significantly impact scan speed
+
+#### Example Test Structure
 ```python
+# tests/test_album_types.py
 import pytest
-from unittest.mock import Mock, patch
+from pathlib import Path
+from src.models.album import Album, AlbumType
+from src.utils.type_detector import AlbumTypeDetector
 
-from src.models.band import BandMetadata, Album
-from src.tools.storage import save_band_metadata
-
-class TestBandMetadata:
-    """Test band metadata model validation and behavior."""
+class TestAlbumTypeDetection:
+    """Comprehensive tests for album type detection features."""
     
-    def test_valid_band_metadata_creation(self):
-        """Test creating valid band metadata."""
-        # Arrange
-        band_data = {
-            "band_name": "Pink Floyd",
-            "formed": "1965",
-            "genres": ["Progressive Rock"],
-            "albums": [
-                {
-                    "album_name": "The Dark Side of the Moon",
-                    "year": "1973",
-                    "tracks_count": 10
-                }
-            ]
-        }
-        
-        # Act
-        band = BandMetadata(**band_data)
-        
-        # Assert
-        assert band.band_name == "Pink Floyd"
-        assert band.formed == "1965"
-        assert len(band.albums) == 1
-        assert band.albums[0].album_name == "The Dark Side of the Moon"
+    def setup_method(self):
+        """Set up test fixtures for type detection."""
+        self.detector = AlbumTypeDetector(confidence_threshold=0.8)
     
-    def test_invalid_year_format_raises_validation_error(self):
-        """Test that invalid year format raises ValidationError."""
-        # Arrange
-        band_data = {
-            "band_name": "Test Band",
-            "formed": "invalid_year"  # Invalid format
-        }
-        
-        # Act & Assert
-        with pytest.raises(ValidationError):
-            BandMetadata(**band_data)
-    
-    @pytest.mark.parametrize("rating,expected_valid", [
-        (1, True),
-        (5, True), 
-        (10, True),
-        (0, False),
-        (11, False),
-        ("8", False)
+    @pytest.mark.parametrize("folder_name,expected_type", [
+        ("1985 - Live at Wembley", AlbumType.LIVE),
+        ("1996 - Greatest Hits", AlbumType.COMPILATION),
+        ("1980 - Love EP", AlbumType.EP),
+        ("1978 - Early Demos", AlbumType.DEMO),
+        ("1973 - Dark Side of the Moon", AlbumType.ALBUM),
+        ("1982 - Single Release", AlbumType.SINGLE),
+        ("1979 - Instrumentals", AlbumType.INSTRUMENTAL),
+        ("2001 - Band A vs. Band B", AlbumType.SPLIT)
     ])
-    def test_rating_validation(self, rating, expected_valid):
-        """Test rating validation with various inputs."""
-        if expected_valid:
-            # Should not raise exception
-            album = AlbumAnalysis(album_name="Test", rate=rating)
-            assert album.rate == rating
-        else:
-            # Should raise ValidationError
-            with pytest.raises(ValidationError):
-                AlbumAnalysis(album_name="Test", rate=rating)
+    def test_type_detection_from_folder_names(self, folder_name: str, expected_type: AlbumType):
+        """Test type detection accuracy across all supported types."""
+        result = self.detector.detect_from_folder_name(folder_name)
+        assert result == expected_type, f"Expected {expected_type}, got {result} for '{folder_name}'"
+    
+    def test_enhanced_structure_detection(self):
+        """Test type detection in enhanced folder structures."""
+        # Test type folder detection
+        test_cases = [
+            (Path("/music/Pink Floyd/Live/1985 - Live at Wembley"), AlbumType.LIVE),
+            (Path("/music/Queen/Album/1975 - A Night at the Opera"), AlbumType.ALBUM),
+            (Path("/music/Beatles/Compilation/1996 - Anthology"), AlbumType.COMPILATION)
+        ]
+        
+        for path, expected_type in test_cases:
+            result = self.detector.detect_from_folder_structure(path, path.name)
+            assert result == expected_type
+    
+    def test_confidence_scoring(self):
+        """Test confidence scoring for type detection."""
+        high_confidence_cases = [
+            "1985 - Live at Wembley Stadium",  # Clear live indicators
+            "1996 - The Very Best of Queen",   # Clear compilation indicators
+        ]
+        
+        for case in high_confidence_cases:
+            confidence = self.detector.get_detection_confidence(case)
+            assert confidence >= 0.8, f"Expected high confidence for '{case}', got {confidence}"
+    
+    def test_edge_cases(self):
+        """Test handling of edge cases and unusual naming patterns."""
+        edge_cases = [
+            ("", AlbumType.ALBUM),  # Empty string defaults to Album
+            ("1985", AlbumType.ALBUM),  # Year only
+            ("Live Wire", AlbumType.ALBUM),  # Contains 'live' but not live album
+            ("Demo Track", AlbumType.ALBUM),  # Contains 'demo' but not demo album
+        ]
+        
+        for folder_name, expected_type in edge_cases:
+            result = self.detector.detect_from_folder_name(folder_name)
+            assert result == expected_type
 ```
 
-#### Integration Test Example
+## Album Type Classification Features
+
+### Contributing to Type Detection
+
+When working on album type classification features:
+
+#### 1. Understanding the Type System
+- Review the 8 supported album types and their characteristics
+- Understand detection keywords and patterns for each type
+- Study existing detection algorithms and confidence scoring
+
+#### 2. Adding New Detection Patterns
 ```python
-@pytest.mark.integration
-class TestScannerIntegration:
-    """Integration tests for music scanner."""
-    
-    @pytest.fixture
-    def temp_music_collection(self, tmp_path):
-        """Create temporary music collection for testing."""
-        music_root = tmp_path / "music"
-        
-        # Create band folders
-        pink_floyd = music_root / "Pink Floyd"
-        pink_floyd.mkdir(parents=True)
-        
-        # Create album folders
-        album = pink_floyd / "The Dark Side of the Moon"
-        album.mkdir()
-        
-        # Create music files
-        (album / "track1.mp3").touch()
-        (album / "track2.mp3").touch()
-        
-        return music_root
-    
-    def test_full_collection_scan(self, temp_music_collection):
-        """Test complete collection scanning workflow."""
-        # Arrange
-        scanner = MusicScanner(Config(music_root_path=str(temp_music_collection)))
-        
-        # Act
-        result = scanner.scan_music_folders(force_rescan=True)
-        
-        # Assert
-        assert result.success is True
-        assert result.bands_scanned == 1
-        assert result.albums_found == 1
-        assert "Pink Floyd" in [band.band_name for band in result.bands]
+# Example: Adding new detection keywords
+class AlbumTypeDetector:
+    TYPE_KEYWORDS = {
+        AlbumType.LIVE: [
+            'live', 'concert', 'unplugged', 'acoustic',
+            'in concert', 'live at', 'live in', 'live from',
+            # Add new patterns here
+            'on stage', 'concert hall', 'festival'
+        ]
+    }
 ```
 
-### Running Tests
+#### 3. Improving Detection Accuracy
+- Test detection against diverse music collections
+- Handle edge cases and ambiguous naming patterns
+- Optimize confidence scoring algorithms
+- Consider multiple detection strategies (name, path, metadata)
 
-#### Local Testing
-```bash
-# Run all tests
-python -m pytest tests/ -v
+#### 4. Performance Considerations
+- Ensure detection algorithms are efficient for large collections
+- Implement caching for repeated detections
+- Minimize file system operations during detection
 
-# Run with coverage
-python -m pytest tests/ --cov=src --cov-report=html
+### Type Classification Best Practices
 
-# Run specific test file
-python -m pytest tests/test_models_band.py -v
+1. **Keyword Matching**: Be specific to avoid false positives
+2. **Context Awareness**: Consider folder structure and parent directories
+3. **Confidence Scoring**: Provide confidence levels for uncertain detections
+4. **Fallback Handling**: Default to Album type when uncertain
+5. **Performance**: Keep detection fast for large collections
 
-# Run performance tests
-python -m pytest tests/performance/ -v --disable-warnings
+## Folder Structure Analysis Features
+
+### Contributing to Structure Analysis
+
+When working on folder structure analysis:
+
+#### 1. Understanding Structure Types
+- **Default**: Flat structure with "YYYY - Album Name" pattern
+- **Enhanced**: Type-based folders with "Type/YYYY - Album Name" pattern
+- **Legacy**: Simple album names without year prefixes
+- **Mixed**: Combination of multiple patterns
+- **Unknown**: Unable to determine structure type
+
+#### 2. Compliance Scoring Factors
+```python
+# Example compliance scoring weights
+COMPLIANCE_FACTORS = {
+    'year_prefix_consistency': 0.30,    # Albums have consistent year prefixes
+    'type_folder_organization': 0.25,   # Albums organized in type folders
+    'edition_format_consistency': 0.20, # Consistent edition formatting
+    'overall_consistency': 0.15,        # Pattern consistency across collection
+    'naming_quality': 0.10              # Clear, descriptive naming
+}
 ```
 
-#### Docker Testing
-```bash
-# Build test container
-docker build -f Dockerfile.test -t music-mcp-tests .
+#### 3. Generating Recommendations
+- Analyze current structure patterns
+- Identify inconsistencies and improvement opportunities
+- Provide specific, actionable recommendations
+- Calculate estimated compliance improvements
 
-# Run all tests in container
-docker run --rm music-mcp-tests python -m pytest . -v
+#### 4. Migration Planning
+- Assess migration complexity and risks
+- Generate step-by-step migration plans
+- Estimate time and effort requirements
+- Validate migration feasibility
 
-# Run with coverage
-docker run --rm music-mcp-tests python -m pytest . -v --cov=src
-```
+### Structure Analysis Best Practices
+
+1. **Pattern Recognition**: Accurately identify organization patterns
+2. **Comprehensive Scoring**: Consider multiple compliance factors
+3. **Actionable Recommendations**: Provide specific improvement suggestions
+4. **Migration Support**: Help users upgrade their organization
+5. **Flexibility**: Support various organization preferences
 
 ## Contribution Workflow
 
-### 1. Issue Selection
+### Development Process for Type Features
 
-#### Finding Issues
-- **Good First Issues**: Look for `good-first-issue` label
-- **Help Wanted**: Check `help-wanted` for needed contributions
-- **Bugs**: `bug` label for confirmed bugs
-- **Features**: `enhancement` label for new features
+1. **Issue Selection**: Choose issues labeled with `album-types` or `structure-analysis`
+2. **Feature Branch**: Create feature branch with descriptive name
+   ```bash
+   git checkout -b feature/improve-live-album-detection
+   git checkout -b feature/enhanced-compliance-scoring
+   ```
+3. **Development**: Implement feature following code style guidelines
+4. **Testing**: Add comprehensive tests for new functionality
+5. **Documentation**: Update relevant documentation files
+6. **Integration Testing**: Test with various music collection structures
 
-#### Before Starting
-1. **Comment on Issue**: Let others know you're working on it
-2. **Understand Requirements**: Ask questions if unclear
-3. **Check Dependencies**: Ensure no blocking issues
-4. **Estimate Scope**: Consider time commitment
+### Testing New Type Features
 
-### 2. Branch Strategy
-
+#### Test Against Diverse Collections
 ```bash
-# Create feature branch from main
-git checkout main
-git pull upstream main
-git checkout -b feature/your-feature-name
+# Test with different folder structures
+export MUSIC_ROOT_PATH="/path/to/test/collection/enhanced"
+python -m pytest tests/test_integration.py
 
-# Create bug fix branch
-git checkout -b bugfix/issue-number-description
+export MUSIC_ROOT_PATH="/path/to/test/collection/legacy"
+python -m pytest tests/test_integration.py
 
-# Create documentation branch
-git checkout -b docs/documentation-topic
+export MUSIC_ROOT_PATH="/path/to/test/collection/mixed"
+python -m pytest tests/test_integration.py
 ```
 
-#### Branch Naming Conventions
-- **Features**: `feature/descriptive-name`
-- **Bug Fixes**: `bugfix/issue-number-description`
-- **Documentation**: `docs/topic-name`
-- **Performance**: `perf/optimization-area`
-- **Tests**: `test/test-area`
-
-### 3. Development Process
-
-#### Regular Commits
+#### Validate Detection Accuracy
 ```bash
-# Make small, focused commits
-git add .
-git commit -m "feat: add album missing detection to scanner
-
-- Implement missing album detection in _scan_band_folder
-- Add missing flag to Album model
-- Update collection index with missing album counts
-- Add tests for missing album scenarios
-
-Resolves #123"
-```
-
-#### Commit Message Format
-```
-type(scope): brief description
-
-Detailed explanation of changes made, why they were necessary,
-and how they address the issue.
-
-- Bullet point for major change 1
-- Bullet point for major change 2
-- Bullet point for major change 3
-
-Resolves #issue-number
-```
-
-**Commit Types**:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `test`: Test additions/changes
-- `refactor`: Code restructuring
-- `perf`: Performance improvements
-- `style`: Formatting changes
-
-### 4. Testing Before Submission
-
-```bash
-# Run full test suite
-python -m pytest tests/ -v
-
-# Check code style
-black src/ tests/
-flake8 src/ tests/
-
-# Type checking
-mypy src/
-
-# Test documentation generation
-python -c "import src.models.band; help(src.models.band.BandMetadata)"
+# Run accuracy tests against known collections
+python scripts/validate_type_detection.py --collection-path /test/collections
+python scripts/analyze_structure_accuracy.py --collection-path /test/collections
 ```
 
 ## Feature Development
 
-### Planning New Features
+### Implementing New Album Types
 
-#### 1. Create Feature Proposal
-Before implementing large features, create an issue with:
+If you want to add support for a new album type:
 
-```markdown
-## Feature Proposal: [Feature Name]
+1. **Propose the Type**: Open an issue discussing the new type
+2. **Update Enums**: Add to AlbumType enumeration
+3. **Add Detection Logic**: Implement detection keywords and patterns
+4. **Update Documentation**: Document the new type and its characteristics
+5. **Add Tests**: Comprehensive tests for the new type
+6. **Update Examples**: Add examples to documentation
 
-### Problem Statement
-Describe the problem this feature solves.
+### Enhancing Structure Analysis
 
-### Proposed Solution
-Explain your proposed approach.
+For structure analysis improvements:
 
-### Implementation Plan
-- [ ] Task 1: Specific implementation step
-- [ ] Task 2: Another implementation step
-- [ ] Task 3: Testing and documentation
+1. **Identify Patterns**: Study common folder organization patterns
+2. **Improve Scoring**: Enhance compliance scoring algorithms
+3. **Add Recommendations**: Implement new recommendation types
+4. **Test Thoroughly**: Validate against diverse collections
+5. **Document Changes**: Update analysis documentation
 
-### API Changes
-Describe any API modifications needed.
+### Performance Optimizations
 
-### Breaking Changes
-List any breaking changes (avoid if possible).
+When optimizing type classification or structure analysis:
 
-### Testing Strategy
-Explain how the feature will be tested.
-```
-
-#### 2. Design Review
-- **Architecture**: Ensure alignment with existing design
-- **Performance**: Consider impact on large collections
-- **Backwards Compatibility**: Minimize breaking changes
-- **Testing**: Plan comprehensive test coverage
-
-### Implementation Guidelines
-
-#### 1. Start with Tests
-```python
-# Write tests first (TDD approach)
-def test_new_feature_basic_functionality():
-    """Test basic functionality of new feature."""
-    # Arrange
-    setup_test_data()
-    
-    # Act
-    result = new_feature_function(test_input)
-    
-    # Assert
-    assert result.success is True
-    assert result.data == expected_data
-```
-
-#### 2. Implement Incrementally
-- **Small Changes**: Make incremental, testable changes
-- **Frequent Commits**: Commit working code frequently
-- **Test Coverage**: Maintain test coverage throughout
-- **Documentation**: Update documentation as you go
-
-#### 3. Integration Points
-Consider how your feature integrates with:
-- **MCP Protocol**: Ensure MCP compliance
-- **Data Models**: Use existing Pydantic models
-- **Storage Layer**: Follow atomic operation patterns
-- **Error Handling**: Use established error patterns
-
-### Feature Documentation
-
-Update relevant documentation:
-- **API Reference**: Add new tools/resources/prompts
-- **Usage Examples**: Provide real-world examples
-- **Architecture**: Update if architectural changes made
-- **CHANGELOG**: Document user-facing changes
+1. **Profile Performance**: Identify bottlenecks using profiling tools
+2. **Implement Caching**: Cache detection results and analysis data
+3. **Optimize Algorithms**: Improve efficiency of detection logic
+4. **Parallel Processing**: Consider parallelization for large collections
+5. **Benchmark Changes**: Measure performance improvements
 
 ## Bug Reports
 
-### Creating Bug Reports
+### Reporting Type Classification Issues
 
-Use the following template for bug reports:
+When reporting bugs related to album type classification:
 
 ```markdown
-## Bug Report
+## Album Type Classification Bug Report
 
-### Description
-Brief description of the bug.
+**Description**: Brief description of the issue
 
-### Steps to Reproduce
-1. Step one
-2. Step two
-3. Step three
+**Expected Type**: What album type should be detected
+**Actual Type**: What type was actually detected
+**Folder Name**: Exact folder name causing the issue
+**Collection Structure**: Describe the folder organization
 
-### Expected Behavior
-What should happen.
-
-### Actual Behavior
-What actually happens.
-
-### Environment
-- OS: [e.g., Windows 10, Ubuntu 20.04]
-- Python Version: [e.g., 3.9.7]
-- MCP Server Version: [e.g., 1.1.0]
-- Collection Size: [e.g., 100 bands, 1000 albums]
-
-### Error Logs
+**Test Collection**: 
 ```
-Paste relevant error logs here
+Band Name/
+├── Album/
+│   └── 1973 - Album Name/
+├── Live/
+│   └── 1985 - Live at Venue/  ← Issue with this folder
 ```
 
-### Additional Context
-Any other relevant information.
+**Environment**:
+- Python Version: 3.x
+- Detection Confidence Threshold: 0.8
+- Structure Type: enhanced/default/legacy
+
+**Additional Context**: Any additional information about the issue
 ```
 
-### Investigating Bugs
+### Reporting Structure Analysis Issues
 
-#### 1. Reproduce Locally
-```bash
-# Create minimal reproduction case
-python -c "
-from src.tools.scanner import scan_music_folders
-result = scan_music_folders('/test/path')
-print(result)
-"
+```markdown
+## Folder Structure Analysis Bug Report
+
+**Description**: Brief description of the structure analysis issue
+
+**Expected Compliance Score**: What score should be calculated
+**Actual Compliance Score**: What score was actually calculated
+**Structure Type**: Default/Enhanced/Legacy/Mixed
+**Issues Found**: List of issues reported by analysis
+
+**Test Collection Structure**:
+```
+Band Name/
+├── 1973 - Album Name/
+├── 1979 - Another Album/
+├── Live at Venue/  ← Structure analysis issue
 ```
 
-#### 2. Debug Information
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Enable debug mode for investigation
-from src.config import Config
-config = Config(debug_mode=True)
-```
-
-#### 3. Fix with Tests
-```python
-def test_bug_fix_regression():
-    """Test that ensures bug doesn't happen again."""
-    # Arrange - recreate conditions that caused bug
-    problematic_input = create_bug_scenario()
-    
-    # Act - perform operation that previously failed
-    result = fixed_function(problematic_input)
-    
-    # Assert - verify bug is fixed
-    assert result.success is True
-    assert result.error is None
+**Analysis Output**: Include relevant analysis output
+**Environment**: Include system and configuration details
 ```
 
 ## Pull Request Process
 
-### 1. Pre-submission Checklist
+### PR Requirements for Type Features
 
-Before submitting a pull request:
+1. **Description**: Clearly describe the type classification or structure analysis changes
+2. **Testing**: Include tests for new detection patterns or analysis features
+3. **Documentation**: Update documentation for new features
+4. **Performance**: Ensure changes don't significantly impact performance
+5. **Backwards Compatibility**: Maintain compatibility with existing collections
 
-- [ ] **Tests Pass**: All tests pass locally
-- [ ] **Code Style**: Code follows style guidelines
-- [ ] **Documentation**: Updated relevant documentation
-- [ ] **Type Hints**: Added type hints to new functions
-- [ ] **Error Handling**: Proper error handling implemented
-- [ ] **Performance**: Considered performance impact
-- [ ] **Backwards Compatibility**: No unnecessary breaking changes
-
-### 2. Pull Request Template
+### PR Template for Type Features
 
 ```markdown
-## Pull Request: [Brief Description]
+## Type Classification/Structure Analysis Changes
 
-### Changes Made
-- Bullet point of change 1
-- Bullet point of change 2
-- Bullet point of change 3
+### Description
+Brief description of the changes to album type detection or structure analysis
 
-### Issue Reference
-Resolves #issue-number
+### Type of Change
+- [ ] New album type detection pattern
+- [ ] Improved detection accuracy
+- [ ] Enhanced structure analysis
+- [ ] Performance optimization
+- [ ] Bug fix
+- [ ] Documentation update
 
 ### Testing
-- [ ] Unit tests added/updated
-- [ ] Integration tests pass
-- [ ] Manual testing completed
+- [ ] Added tests for new detection patterns
+- [ ] Tested against diverse collection structures
+- [ ] Validated detection accuracy improvements
+- [ ] Performance impact assessed
 
 ### Documentation
-- [ ] API documentation updated
-- [ ] Usage examples added
-- [ ] Code comments added
+- [ ] Updated API documentation
+- [ ] Updated user guides
+- [ ] Added examples for new features
 
-### Breaking Changes
-- [ ] No breaking changes
-- [ ] Breaking changes documented
-
-### Review Checklist
+### Checklist
 - [ ] Code follows style guidelines
-- [ ] Tests provide adequate coverage
-- [ ] Documentation is clear and complete
-- [ ] Performance impact considered
+- [ ] Tests pass (including type-specific tests)
+- [ ] Documentation is updated
+- [ ] No performance regressions
+- [ ] Backwards compatibility maintained
 ```
-
-### 3. Review Process
-
-#### Reviewer Guidelines
-- **Constructive Feedback**: Provide helpful, specific feedback
-- **Code Quality**: Check for maintainability and readability
-- **Test Coverage**: Ensure adequate testing
-- **Documentation**: Verify documentation completeness
-- **Performance**: Consider performance implications
-
-#### Addressing Feedback
-```bash
-# Make requested changes
-git add .
-git commit -m "address review feedback: improve error handling"
-
-# Push updates
-git push origin feature/your-feature-name
-```
-
-### 4. Merge Requirements
-
-Pull requests must meet these requirements:
-- **Two Approvals**: At least two maintainer approvals
-- **CI Passing**: All continuous integration checks pass
-- **Conflicts Resolved**: No merge conflicts with main branch
-- **Documentation Updated**: All documentation current
 
 ## Community Guidelines
 
-### Code of Conduct
+### Collaboration on Type Features
 
-We are committed to providing a welcoming and inclusive environment:
+1. **Share Test Collections**: Help others by sharing diverse test cases
+2. **Document Edge Cases**: Report unusual folder structures and naming patterns
+3. **Contribute Detection Patterns**: Share keywords and patterns for better detection
+4. **Review Code**: Focus on accuracy and performance of type classification
+5. **Provide Feedback**: Test new features with your music collection
 
-#### Our Standards
-- **Respectful Communication**: Treat all contributors with respect
-- **Inclusive Language**: Use inclusive language in code and communication
-- **Constructive Feedback**: Provide helpful, actionable feedback
-- **Professional Behavior**: Maintain professional standards
+### Best Practices for Contributors
 
-#### Unacceptable Behavior
-- **Harassment**: Any form of harassment is not tolerated
-- **Discrimination**: Discrimination based on any personal characteristic
-- **Trolling**: Deliberate provocation or disruptive behavior
-- **Spam**: Unsolicited or irrelevant contributions
+1. **Start Small**: Begin with simple improvements to detection accuracy
+2. **Test Thoroughly**: Use diverse music collections for testing
+3. **Document Decisions**: Explain reasoning behind detection patterns and scoring algorithms
+4. **Consider Edge Cases**: Handle unusual collection organizations gracefully
+5. **Maintain Performance**: Ensure type classification remains fast
 
 ### Getting Help
 
-#### Communication Channels
-- **GitHub Issues**: For bug reports and feature requests
-- **GitHub Discussions**: For questions and general discussion
-- **Documentation**: Check existing documentation first
-- **Code Comments**: Read inline documentation
+- **Discord/Chat**: Join our community chat for real-time help
+- **GitHub Discussions**: Use discussions for feature ideas and questions
+- **Issues**: Use issues for specific bugs or feature requests
+- **Documentation**: Check documentation before asking questions
 
-#### Mentorship Program
-We offer mentorship for new contributors:
-- **Pairing Sessions**: Code with experienced contributors
-- **Issue Guidance**: Help selecting appropriate issues
-- **Code Review**: Detailed feedback on contributions
-- **Best Practices**: Learn project conventions and patterns
-
-### Recognition
-
-We recognize contributors through:
-- **Contributor List**: Recognition in project documentation
-- **Release Notes**: Mention in release announcements
-- **GitHub Recognition**: Appropriate labels and mentions
-- **Community Highlights**: Feature outstanding contributions
-
-## Development Tools
-
-### Recommended IDE Setup
-
-#### VS Code Configuration
-```json
-{
-  "python.defaultInterpreterPath": "./venv/bin/python",
-  "python.linting.enabled": true,
-  "python.linting.flake8Enabled": true,
-  "python.formatting.provider": "black",
-  "python.formatting.blackArgs": ["--line-length", "100"],
-  "python.testing.pytestEnabled": true,
-  "python.testing.pytestArgs": ["tests/"]
-}
-```
-
-#### Pre-commit Hooks
-```bash
-# Install pre-commit
-pip install pre-commit
-
-# Install hooks
-pre-commit install
-
-# Configuration in .pre-commit-config.yaml
-repos:
-- repo: https://github.com/psf/black
-  rev: 22.3.0
-  hooks:
-  - id: black
-    args: [--line-length=100]
-- repo: https://github.com/pycqa/flake8
-  rev: 4.0.1
-  hooks:
-  - id: flake8
-```
-
-### Debugging Tools
-
-#### Debug Configuration
-```python
-# debug_config.py
-import logging
-
-# Enable detailed logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# Enable MCP debug mode
-from src.config import Config
-debug_config = Config(
-    debug_mode=True,
-    log_level="DEBUG",
-    performance_monitoring=True
-)
-```
-
-## Thank You! 🎵
-
-Thank you for contributing to the Music Collection MCP Server! Your contributions help make music collection management more intelligent and accessible for everyone.
-
-For questions or additional help, please create an issue or start a discussion on GitHub. We're here to help and excited to see what you'll build! 
+We appreciate your contributions to making the Music Collection MCP Server the best tool for intelligent music collection management! 🎵 
