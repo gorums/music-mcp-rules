@@ -51,7 +51,33 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
         "rate": "integer (1-10, optional)"
       }
     ],
-    "similar_bands": ["array of strings (optional)"]
+    "similar_bands": ["array of strings (optional)"],
+    "albums": [
+      {
+        "album_name": "string (required for matching)",
+        "review": "string (optional)",
+        "rate": "integer (1-10, optional)"
+      }
+    ]
+  },
+  "folder_structure": {
+    "structure_type": "string (default/enhanced/mixed/legacy/unknown)",
+    "consistency": "string (consistent/mostly_consistent/inconsistent/unknown)",
+    "consistency_score": "integer (0-100)",
+    "albums_analyzed": "integer (≥ 0)",
+    "albums_with_year_prefix": "integer (≥ 0)",
+    "albums_without_year_prefix": "integer (≥ 0)",
+    "albums_with_type_folders": "integer (≥ 0)",
+    "detected_patterns": ["array of strings"],
+    "type_folders_found": ["array of strings"],
+    "structure_score": "integer (0-100)",
+    "recommendations": ["array of strings"],
+    "issues": ["array of strings"],
+    "analysis_metadata": {
+      "pattern_counts": "object",
+      "compliance_distribution": "object",
+      "structure_health": "string"
+    }
   }
 }
 ```
@@ -98,6 +124,37 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `review` | string | No | Max 5000 chars | Album review |
 | `rate` | integer | No | 1-10 inclusive | Album rating |
 
+#### Folder Structure Information
+
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `structure_type` | string | No | Enum values | Primary structure type |
+| `consistency` | string | No | Enum values | Consistency level assessment |
+| `consistency_score` | integer | No | 0-100 inclusive | Numerical consistency score |
+| `albums_analyzed` | integer | No | ≥ 0 | Number of albums analyzed |
+| `albums_with_year_prefix` | integer | No | ≥ 0 | Albums following year prefix pattern |
+| `albums_without_year_prefix` | integer | No | ≥ 0 | Albums missing year prefix |
+| `albums_with_type_folders` | integer | No | ≥ 0 | Albums in type-based folders |
+| `detected_patterns` | array | No | String array | List of detected folder patterns |
+| `type_folders_found` | array | No | String array | List of type folders found |
+| `structure_score` | integer | No | 0-100 inclusive | Overall structure organization score |
+| `recommendations` | array | No | String array | Improvement recommendations |
+| `issues` | array | No | String array | Identified structure issues |
+| `analysis_metadata` | object | No | Object | Additional analysis data |
+
+#### Structure Type Values
+- **default**: Standard flat structure with "YYYY - Album Name (Edition?)" pattern
+- **enhanced**: Type-based structure with "Type/YYYY - Album Name (Edition?)" pattern  
+- **mixed**: Combination of both default and enhanced structures
+- **legacy**: Albums without year prefix, just "Album Name" pattern
+- **unknown**: Unable to determine structure type
+
+#### Consistency Level Values
+- **consistent**: All albums follow the same pattern (90-100% consistency)
+- **mostly_consistent**: Most albums follow the same pattern (70-89% consistency)
+- **inconsistent**: Albums use multiple different patterns (below 70% consistency)
+- **unknown**: Unable to determine consistency
+
 ### Validation Rules
 
 #### Genre Validation
@@ -123,6 +180,14 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 - **Pattern**: `\d+min`
 - **Examples**: `"45min"`, `"67min"`, `"128min"`
 - **Invalid**: `"45m"`, `"1h 5min"`, `"45 minutes"`
+
+#### Folder Structure Validation
+- **Structure Type**: Must be one of: default, enhanced, mixed, legacy, unknown
+- **Consistency**: Must be one of: consistent, mostly_consistent, inconsistent, unknown
+- **Scores**: All score fields must be integers between 0-100
+- **Counts**: All count fields must be non-negative integers
+- **Arrays**: Pattern and folder arrays contain strings
+- **Health Values**: excellent, good, fair, poor, critical
 
 ### Example: Complete Band Metadata
 
@@ -183,6 +248,36 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       }
     ],
     "similar_bands": ["Genesis", "Yes", "King Crimson", "Gentle Giant", "Emerson Lake & Palmer"]
+  },
+  "folder_structure": {
+    "structure_type": "default",
+    "consistency": "consistent", 
+    "consistency_score": 92,
+    "albums_analyzed": 13,
+    "albums_with_year_prefix": 13,
+    "albums_without_year_prefix": 0,
+    "albums_with_type_folders": 0,
+    "detected_patterns": ["YYYY - Album Name", "YYYY - Album Name (Edition)"],
+    "type_folders_found": [],
+    "structure_score": 88,
+    "recommendations": [
+      "Folder organization is excellent with consistent year prefixes",
+      "Consider acquiring missing albums: Ummagumma, Animals"
+    ],
+    "issues": [],
+    "analysis_metadata": {
+      "pattern_counts": {
+        "YYYY - Album Name": 11,
+        "YYYY - Album Name (Edition)": 2
+      },
+      "compliance_distribution": {
+        "excellent": 11,
+        "good": 2,
+        "fair": 0,
+        "poor": 0
+      },
+      "structure_health": "excellent"
+    }
   }
 }
 ```

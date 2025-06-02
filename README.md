@@ -4,10 +4,12 @@ A Model Context Protocol (MCP) server that provides intelligent access to your l
 
 ## Features
 
-- **Music Collection Scanning**: Automatically scan and index your music directories
-- **Metadata Management**: Store and retrieve comprehensive band and album information
+- **Intelligent Music Scanning**: Incremental scanning with change detection for large collections
+- **Advanced Metadata Management**: Store and retrieve comprehensive band and album information
+- **Analysis & Reviews**: Band and album ratings, reviews, and similar artist recommendations
+- **Collection Insights**: Generate collection-wide analytics and improvement suggestions
+- **Smart Filtering**: Advanced search with genre, rating, and completion status filters
 - **Missing Album Detection**: Identify gaps in your collection
-- **Intelligent Querying**: Search and filter your collection with advanced criteria
 - **MCP Integration**: Works seamlessly with Claude Desktop, Cline, and other MCP clients
 
 ## Quick Start
@@ -81,22 +83,23 @@ music_root/
 
 Once connected to an MCP client, you'll have access to:
 
-### Tools
-- `scan_music_folders` - Scan and analyze your music collection
-- `get_band_list` - List bands with filtering and search
-- `save_band_metadata` - Store band information
-- `save_band_analyze` - Store band analysis and ratings
-- `save_collection_insight` - Store collection-wide insights
+### Tools (6 tools)
+- `scan_music_folders` - Intelligent scanning with incremental updates
+- `get_band_list_tool` - Advanced filtering, sorting, and pagination
+- `save_band_metadata_tool` - Store comprehensive band information
+- `save_band_analyze_tool` - Store analysis with reviews and ratings
+- `save_collection_insight_tool` - Store collection-wide insights
+- `validate_band_metadata_tool` - Dry-run validation without saving
 
-### Resources
-- `band://info/{band_name}` - Detailed band information
+### Resources (2 resources)
+- `band://info/{band_name}` - Detailed band information in markdown
 - `collection://summary` - Collection overview and statistics
 
-### Prompts
+### Prompts (4 prompts)
 - `fetch_band_info` - Intelligent band information fetching
-- `analyze_band` - Comprehensive band analysis
-- `compare_bands` - Multi-band comparison
-- `collection_insights` - Generate collection insights
+- `analyze_band` - Comprehensive band analysis with ratings
+- `compare_bands` - Multi-band comparison analysis
+- `collection_insights` - Generate collection insights and recommendations
 
 ## Configuration
 
