@@ -294,6 +294,11 @@ def save_band_metadata_tool(
             
             # Create BandMetadata object for validation
             band_metadata = BandMetadata(**metadata)
+            
+            # Update the metadata saved timestamp before saving
+            # Reason: Track when metadata was saved via this tool for has_metadata determination
+            band_metadata.update_metadata_saved_timestamp()
+            
             validation_results["schema_valid"] = True
             validation_results["fields_validated"] = list(metadata.keys())
             validation_results["albums_count"] = len(band_metadata.albums)
@@ -341,7 +346,7 @@ def save_band_metadata_tool(
                 albums_count=band_metadata.albums_count,
                 folder_path=band_name,
                 missing_albums_count=missing_albums_count,
-                has_metadata=True,
+                has_metadata=band_metadata.has_metadata_saved(),  # Use the new method to determine if metadata was saved
                 has_analysis=band_metadata.analyze is not None,
                 last_updated=band_metadata.last_updated
             )
@@ -380,6 +385,7 @@ def save_band_metadata_tool(
                 'metadata_file': storage_result.get('file_path', ''),
                 'backup_created': True,  # Always true due to JSONStorage.save_json(backup=True)
                 'last_updated': storage_result.get('last_updated', ''),
+                'last_metadata_saved': band_metadata.last_metadata_saved,  # Include the new timestamp
                 'file_size_bytes': 0,  # Could be enhanced to get actual file size
                 'analyze_preserved': storage_result.get('analyze_preserved', False),
                 'analyze_action': 'preserved' if storage_result.get('analyze_preserved', False) else ('cleared' if clear_analyze else 'none_to_preserve')
@@ -392,6 +398,7 @@ def save_band_metadata_tool(
                 'completion_percentage': round(
                     ((band_metadata.albums_count - validation_results["missing_albums_count"]) / max(band_metadata.albums_count, 1)) * 100, 1
                 ) if band_metadata.albums_count > 0 else 100.0,
+                'has_metadata': band_metadata.has_metadata_saved(),  # Include has_metadata status
                 'has_analysis': band_metadata.analyze is not None,
                 'genre_count': len(band_metadata.genres),
                 'members_count': len(band_metadata.members)

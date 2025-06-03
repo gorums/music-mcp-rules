@@ -261,6 +261,7 @@ class BandMetadata(BaseModel):
         description: Band description/biography
         albums: List of album metadata
         last_updated: ISO datetime of last metadata update
+        last_metadata_saved: ISO datetime when metadata was last saved via save_band_metadata_tool
         analyze: Optional analysis data with reviews and ratings
         folder_structure: Optional folder structure analysis data
     """
@@ -273,6 +274,7 @@ class BandMetadata(BaseModel):
     description: str = Field(default="", description="Band description/biography")
     albums: List[Album] = Field(default_factory=list, description="Album metadata list")
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
+    last_metadata_saved: Optional[str] = Field(default=None, description="Last metadata save timestamp via save_band_metadata_tool")
     analyze: Optional[BandAnalysis] = Field(default=None, description="Band analysis data")
     folder_structure: Optional['FolderStructure'] = Field(default=None, description="Folder structure analysis data")
 
@@ -344,6 +346,15 @@ class BandMetadata(BaseModel):
     def update_timestamp(self) -> None:
         """Update the last_updated timestamp to current time."""
         self.last_updated = datetime.now().isoformat()
+
+    def update_metadata_saved_timestamp(self) -> None:
+        """Update the last_metadata_saved timestamp to current time."""
+        self.last_metadata_saved = datetime.now().isoformat()
+        self.update_timestamp()  # Also update the general timestamp
+
+    def has_metadata_saved(self) -> bool:
+        """Check if metadata has been saved via save_band_metadata_tool."""
+        return self.last_metadata_saved is not None
 
     def add_album(self, album: Album) -> None:
         """

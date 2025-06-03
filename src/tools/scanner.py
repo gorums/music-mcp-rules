@@ -276,6 +276,17 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             logging.warning(f"Failed to save metadata for {band_name}: {e}")
             # Continue with scan even if save fails
         
+        # Check if metadata exists and was properly saved via save_band_metadata_tool
+        has_metadata = False
+        if metadata_file.exists():
+            try:
+                metadata = _load_band_metadata(metadata_file)
+                if metadata:
+                    has_metadata = metadata.has_metadata_saved()
+            except Exception as e:
+                logging.warning(f"Failed to validate metadata for {band_name}: {e}")
+                has_metadata = False
+        
         # Create result with enhanced information
         result = {
             'band_name': band_name,
@@ -283,7 +294,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             'albums_count': len(albums),
             'albums': albums,
             'total_tracks': total_tracks,
-            'has_metadata': metadata_file.exists(),
+            'has_metadata': has_metadata,  # Now uses the has_metadata_saved() method
             'last_scanned': datetime.now().isoformat(),
             'folder_structure': folder_structure.model_dump() if folder_structure else None,
             'album_types_distribution': _calculate_album_types_distribution(albums),

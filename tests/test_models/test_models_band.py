@@ -341,4 +341,41 @@ class TestBandMetadata:
         
         assert metadata.last_updated != original_timestamp
         # Verify it's a valid ISO timestamp
-        datetime.fromisoformat(metadata.last_updated) 
+        datetime.fromisoformat(metadata.last_updated)
+    
+    def test_has_metadata_saved_default(self):
+        """Test has_metadata_saved returns False by default."""
+        metadata = BandMetadata(band_name="Test Band")
+        
+        assert metadata.has_metadata_saved() is False
+        assert metadata.last_metadata_saved is None
+    
+    def test_update_metadata_saved_timestamp(self):
+        """Test updating the metadata saved timestamp."""
+        metadata = BandMetadata(band_name="Test Band")
+        original_last_updated = metadata.last_updated
+        
+        # Add a small delay to ensure timestamp changes
+        import time
+        time.sleep(0.01)
+        
+        # Update metadata saved timestamp
+        metadata.update_metadata_saved_timestamp()
+        
+        # Should have both timestamps set and different from original
+        assert metadata.last_metadata_saved is not None
+        assert metadata.has_metadata_saved() is True
+        assert metadata.last_updated != original_last_updated
+        
+        # Verify timestamps are valid ISO format
+        datetime.fromisoformat(metadata.last_metadata_saved)
+        datetime.fromisoformat(metadata.last_updated)
+    
+    def test_has_metadata_saved_with_timestamp(self):
+        """Test has_metadata_saved returns True when timestamp is set."""
+        metadata = BandMetadata(band_name="Test Band")
+        
+        # Manually set the timestamp
+        metadata.last_metadata_saved = datetime.now().isoformat()
+        
+        assert metadata.has_metadata_saved() is True 

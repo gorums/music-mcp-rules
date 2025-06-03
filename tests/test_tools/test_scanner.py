@@ -280,7 +280,7 @@ class TestMusicDirectoryScanner:
         assert result['band_name'] == "The Beatles"
         assert result['albums_count'] == 2
         assert result['total_tracks'] == 3  # 2 + 1
-        assert result['has_metadata'] is True
+        assert result['has_metadata'] is False  # Metadata file exists but wasn't saved via save_band_metadata_tool
         assert len(result['albums']) == 2
 
     def test_scan_band_folder_no_albums(self, temp_music_dir):
@@ -293,7 +293,7 @@ class TestMusicDirectoryScanner:
         assert result['band_name'] == "Empty Band"
         assert result['albums_count'] == 0
         assert result['total_tracks'] == 0
-        assert result['has_metadata'] is True
+        assert result['has_metadata'] is False  # No metadata file exists
         assert 'folder_structure' in result
         assert result['folder_structure'] is not None
 
@@ -449,7 +449,7 @@ class TestMusicDirectoryScanner:
             'folder_path': 'Test Band',
             'albums_count': 2,
             'total_tracks': 10,
-            'has_metadata': True,
+            'has_metadata': False,  # Scanner determines this based on last_metadata_saved field
             'last_scanned': '2024-01-01T12:00:00'
         }
         
@@ -458,7 +458,7 @@ class TestMusicDirectoryScanner:
         assert isinstance(entry, BandIndexEntry)
         assert entry.name == 'Test Band'
         assert entry.albums_count == 2
-        assert entry.has_metadata is True
+        assert entry.has_metadata is False  # Should match band_result
 
     def test_create_band_index_entry_preserves_metadata(self, temp_music_dir):
         """Test that creating band index entry preserves metadata album counts and analysis flag."""
@@ -468,7 +468,7 @@ class TestMusicDirectoryScanner:
             'folder_path': 'The Beatles',
             'albums_count': 2,  # Physical albums only
             'total_tracks': 3,
-            'has_metadata': True,
+            'has_metadata': False,  # Metadata file exists but wasn't saved via save_band_metadata_tool
             'last_scanned': '2024-01-01T12:00:00'
         }
         
@@ -490,7 +490,7 @@ class TestMusicDirectoryScanner:
         # Should use metadata album count (3) not physical count (2)
         assert entry.albums_count == 3
         assert entry.missing_albums_count == 1  # Revolver is missing
-        assert entry.has_metadata is True
+        assert entry.has_metadata is False  # Should match band_result from scanner
         # Should preserve has_analysis flag from existing entry
         assert entry.has_analysis is True
 
@@ -614,4 +614,27 @@ class TestMusicDirectoryScanner:
         # Now correctly uses metadata album count (3) instead of physical count (2)
         assert beatles_entry.albums_count == 3  
         assert beatles_entry.missing_albums_count == 1  # Revolver is missing
-        assert beatles_entry.has_metadata is True 
+        assert beatles_entry.has_metadata is False  # Metadata file exists but wasn't saved via save_band_metadata_tool
+    
+    def test_has_metadata_saved_behavior(self, temp_music_dir):
+        """Test that has_metadata correctly reflects whether metadata was saved via save_band_metadata_tool."""
+        from src.models.band import BandMetadata
+        from src.tools.scanner import _scan_band_folder
+        
+        # Test 1: Band with metadata file created directly (not via tool)
+        beatles_folder = temp_music_dir / "The Beatles"
+        result = _scan_band_folder(beatles_folder, temp_music_dir)
+        assert result['has_metadata'] is False  # File exists but no last_metadata_saved
+        
+        # Test 2: Create metadata via save_band_metadata_tool simulation
+        metadata = BandMetadata(band_name="The Beatles")
+        metadata.update_metadata_saved_timestamp()  # Simulate tool usage
+        
+        # Save the updated metadata
+        metadata_file = beatles_folder / ".band_metadata.json"
+        with open(metadata_file, 'w') as f:
+            f.write(metadata.to_json())
+        
+        # Now scan should detect has_metadata as True
+        result = _scan_band_folder(beatles_folder, temp_music_dir)
+        assert result['has_metadata'] is True  # Now has last_metadata_saved timestamp 
