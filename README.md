@@ -109,20 +109,37 @@ Set these environment variables:
 - `CACHE_DURATION_DAYS` - Cache expiration in days (default: 30)
 - `LOG_LEVEL` - Logging level (default: INFO)
 
-## Documentation
+## 📚 Documentation
 
-### User Guides
-- [Installation Guide](docs/INSTALLATION.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
-- [Usage Examples](docs/USAGE_EXAMPLES.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [FAQ](docs/FAQ.md)
+Our documentation is organized into two main sections:
 
-### Developer Documentation
-- [API Reference](docs/API_REFERENCE.md)
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Contributing Guidelines](docs/CONTRIBUTING.md)
-- [Metadata Schema](docs/METADATA_SCHEMA.md)
+## 📚 Documentation Sections
+
+### Getting Started
+- [Installation Guide](docs/user/INSTALLATION.md) - Step-by-step installation instructions
+- [Configuration Guide](docs/user/CONFIGURATION.md) - How to configure the server for your music collection
+- [Quick Start](docs/user/QUICK_START.md) - Get up and running in minutes
+
+### Using the Server
+- [Usage Examples](docs/user/USAGE_EXAMPLES.md) - Real-world examples and common use cases
+- [Collection Organization](docs/user/COLLECTION_ORGANIZATION.md) - How to organize your music collection for best results
+- [Album Handling](docs/user/ALBUM_HANDLING.md) - Understanding album types and metadata
+
+### Getting Help
+- [FAQ](docs/user/FAQ.md) - Frequently asked questions and answers  
+- [Troubleshooting](docs/user/TROUBLESHOOTING.md) - Solutions to common problems
+- [Rating System Guide](docs/user/RATING_SYSTEM.md) - Understanding the rating and analysis system
+
+
+### 🛠️ Developer Documentation
+For developers who want to understand, modify, or contribute to the project:
+- [Architecture Overview](docs/developer/ARCHITECTURE.md) - System design and patterns
+- [API Reference](docs/developer/API_REFERENCE.md) - Complete API documentation
+- [Contributing Guidelines](docs/developer/CONTRIBUTING.md) - How to contribute
+- [Testing Guide](docs/developer/TESTING.md) - Running and writing tests
+- [Development Tasks](docs/developer/TASKS.md) - Current development priorities
+- [Development Planning](docs/developer/PLANNING.md) - Current development planning
+
 
 ## Testing
 
