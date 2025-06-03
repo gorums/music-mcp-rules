@@ -111,7 +111,7 @@ Set these environment variables:
 
 ## 📚 Documentation
 
-Our documentation is organized into two main sections:
+Our documentation is organized into three main sections:
 
 ## 📚 Documentation Sections
 
