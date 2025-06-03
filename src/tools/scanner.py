@@ -377,7 +377,7 @@ def _discover_band_folders(music_root: Path) -> List[Path]:
 def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     """
     Scan a single band folder for album information with enhanced metadata detection.
-    Also updates or creates .band_metadata.json with folder structure information.
+    Also updates or creates .band_metadata.json with folder structure information and local albums.
     
     Args:
         band_folder: Path to the band folder
@@ -443,16 +443,21 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
         
         # Update folder structure in metadata
         metadata.folder_structure = folder_structure
+        
+        # Synchronize metadata albums with local albums found
+        metadata = _synchronize_metadata_with_local_albums(metadata, albums, band_name)
+        
+        # Update timestamp
         metadata.update_timestamp()
         
-        # Save updated metadata with folder structure
+        # Save updated metadata with folder structure and albums
         try:
             from src.tools.storage import JSONStorage
             metadata_dict = metadata.model_dump()
             JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
-            logging.debug(f"Updated folder structure in metadata for {band_name}")
+            logging.debug(f"Updated metadata with folder structure and local albums for {band_name}")
         except Exception as e:
-            logging.warning(f"Failed to save metadata with folder structure for {band_name}: {e}")
+            logging.warning(f"Failed to save metadata for {band_name}: {e}")
             # Continue with scan even if save fails
         
         # Create result with enhanced information
@@ -462,7 +467,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             'albums_count': len(albums),
             'albums': albums,
             'total_tracks': total_tracks,
-            'has_metadata': metadata_file.album_count > 0,
+            'has_metadata': metadata_file.exists(),
             'last_scanned': datetime.now().isoformat(),
             'folder_structure': folder_structure.model_dump() if folder_structure else None,
             'album_types_distribution': _calculate_album_types_distribution(albums),
@@ -474,6 +479,131 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     except Exception as e:
         logging.error(f"Error scanning band folder {band_name}: {e}")
         return None
+
+
+def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albums: List[Dict], band_name: str) -> 'BandMetadata':
+    """
+    Synchronize metadata albums list with actual local albums found during scanning.
+    
+    This function:
+    - Updates existing albums with current local info (track counts, missing status)
+    - Adds new albums found locally that aren't in metadata
+    - Marks albums as missing if they're in metadata but not found locally
+    - Preserves existing metadata like year, genres, duration for known albums
+    
+    Args:
+        metadata: BandMetadata object to update
+        local_albums: List of album dictionaries found during local scanning
+        band_name: Name of the band for logging
+        
+    Returns:
+        Updated BandMetadata object
+    """
+    from src.models.band import Album, AlbumType
+    
+    logging.debug(f"Synchronizing metadata with {len(local_albums)} local albums for {band_name}")
+    
+    # Create a lookup of local albums by name (case-insensitive)
+    local_albums_lookup = {album['album_name'].lower(): album for album in local_albums}
+    
+    # Track which local albums we've processed
+    processed_local_albums = set()
+    
+    # Update existing albums in metadata
+    updated_albums = []
+    for existing_album in metadata.albums:
+        album_name_lower = existing_album.album_name.lower()
+        
+        if album_name_lower in local_albums_lookup:
+            # Album exists locally - update with current info
+            local_album = local_albums_lookup[album_name_lower]
+            processed_local_albums.add(album_name_lower)
+            
+            # Update the existing album with local info while preserving metadata
+            existing_album.missing = False
+            existing_album.track_count = local_album['track_count']
+            existing_album.folder_path = local_album['folder_path']
+            
+            # Update type if it was detected from folder structure
+            if local_album.get('type'):
+                try:
+                    existing_album.type = AlbumType(local_album['type'])
+                except ValueError:
+                    # Keep existing type if new type is invalid
+                    pass
+            
+            # Update edition if detected
+            if local_album.get('edition'):
+                existing_album.edition = local_album['edition']
+            
+            # Update year if detected and not set
+            if local_album.get('year') and not existing_album.year:
+                existing_album.year = local_album['year']
+            
+            # Update folder compliance if available
+            if local_album.get('folder_compliance'):
+                from src.models.band import FolderCompliance
+                try:
+                    existing_album.folder_compliance = FolderCompliance(**local_album['folder_compliance'])
+                except Exception:
+                    # Skip if compliance data is invalid
+                    pass
+            
+            updated_albums.append(existing_album)
+            logging.debug(f"Updated existing album: {existing_album.album_name}")
+            
+        else:
+            # Album not found locally - mark as missing
+            existing_album.missing = True
+            existing_album.track_count = 0  # No tracks since it's missing
+            updated_albums.append(existing_album)
+            logging.debug(f"Marked album as missing: {existing_album.album_name}")
+    
+    # Add new albums found locally that aren't in metadata
+    for local_album in local_albums:
+        album_name_lower = local_album['album_name'].lower()
+        
+        if album_name_lower not in processed_local_albums:
+            # This is a new album not in metadata
+            try:
+                album_type = AlbumType(local_album.get('type', AlbumType.ALBUM.value))
+            except ValueError:
+                album_type = AlbumType.ALBUM
+            
+            # Create new album entry
+            new_album = Album(
+                album_name=local_album['album_name'],
+                year=local_album.get('year', ''),
+                type=album_type,
+                edition=local_album.get('edition', ''),
+                track_count=local_album['track_count'],
+                missing=False,
+                duration=local_album.get('duration', ''),
+                genres=local_album.get('genres', []),
+                folder_path=local_album['folder_path']
+            )
+            
+            # Add folder compliance if available
+            if local_album.get('folder_compliance'):
+                try:
+                    from src.models.band import FolderCompliance
+                    new_album.folder_compliance = FolderCompliance(**local_album['folder_compliance'])
+                except Exception:
+                    # Skip if compliance data is invalid
+                    pass
+            
+            updated_albums.append(new_album)
+            logging.debug(f"Added new local album: {new_album.album_name}")
+    
+    # Update metadata with synchronized albums
+    metadata.albums = updated_albums
+    metadata.albums_count = len(updated_albums)
+    
+    logging.debug(f"Synchronized metadata: {len(updated_albums)} total albums, "
+                 f"{len([a for a in updated_albums if not a.missing])} local, "
+                 f"{len([a for a in updated_albums if a.missing])} missing")
+    
+    return metadata
 
 
 def _discover_album_folders(band_folder: Path) -> List[Path]:
