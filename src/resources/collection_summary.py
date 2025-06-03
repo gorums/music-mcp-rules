@@ -226,10 +226,6 @@ def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
                         album_type = album.type.value if hasattr(album.type, 'value') else str(album.type)
                         album_types[album_type] = album_types.get(album_type, 0) + 1
                         
-                        # Collect compliance scores
-                        if album.folder_compliance:
-                            compliance_scores.append(album.folder_compliance.compliance_score)
-                        
                         # Count editions
                         if album.edition:
                             editions_count += 1
@@ -260,44 +256,6 @@ def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
             types_table.append(f"| {album_type} | {count:,} | {percentage:.1f}% |")
         
         section.extend(types_table)
-        section.append("")
-    
-    # Compliance statistics
-    if compliance_scores:
-        section.append("### 📁 Collection Compliance Analysis")
-        section.append("")
-        
-        avg_compliance = sum(compliance_scores) / len(compliance_scores)
-        excellent_count = sum(1 for score in compliance_scores if score >= 90)
-        good_count = sum(1 for score in compliance_scores if score >= 75 and score < 90)
-        fair_count = sum(1 for score in compliance_scores if score >= 50 and score < 75)
-        poor_count = sum(1 for score in compliance_scores if score >= 25 and score < 50)
-        critical_count = sum(1 for score in compliance_scores if score < 25)
-        
-        # Overall compliance level
-        if avg_compliance >= 90:
-            overall_level = "Excellent ✅"
-        elif avg_compliance >= 75:
-            overall_level = "Good 🟢"
-        elif avg_compliance >= 50:
-            overall_level = "Fair 🟡"
-        elif avg_compliance >= 25:
-            overall_level = "Poor 🟠"
-        else:
-            overall_level = "Critical 🔴"
-        
-        compliance_table = [
-            "| Metric | Value | Status |",
-            "|--------|-------|--------|",
-            f"| Average Score | {avg_compliance:.1f}/100 | {overall_level} |",
-            f"| Excellent (90-100) | {excellent_count:,} | {(excellent_count/len(compliance_scores)*100):.1f}% |",
-            f"| Good (75-89) | {good_count:,} | {(good_count/len(compliance_scores)*100):.1f}% |",
-            f"| Fair (50-74) | {fair_count:,} | {(fair_count/len(compliance_scores)*100):.1f}% |",
-            f"| Poor (25-49) | {poor_count:,} | {(poor_count/len(compliance_scores)*100):.1f}% |",
-            f"| Critical (<25) | {critical_count:,} | {(critical_count/len(compliance_scores)*100):.1f}% |"
-        ]
-        
-        section.extend(compliance_table)
         section.append("")
     
     # Structure types distribution

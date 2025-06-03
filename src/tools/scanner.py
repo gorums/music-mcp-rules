@@ -29,191 +29,26 @@ EXCLUDED_FOLDERS = {
 }
 
 
-def scan_music_folders(force_full_scan: bool = False) -> Dict:
+def scan_music_folders() -> Dict:
     """
-    Scan the music directory structure with optional full or incremental mode.
-    
-    Args:
-        force_full_scan: If True, performs complete rescan. If False, does incremental scan.
-    
-    Returns:
-        Dict containing scan results
-    """
-    if force_full_scan:
-        return _scan_music_folders_full()
-    else:
-        return _scan_music_folders_incremental()
-
-
-def _scan_music_folders_incremental() -> Dict:
-    """
-    Perform an incremental scan of the music directory structure.
-    
-    This function optimizes scanning by only processing changes:
-    - Adds newly discovered band folders
-    - Removes bands that no longer exist in filesystem  
-    - Updates existing bands only if folder modification time indicates changes
-    - Preserves all existing metadata and analysis data
-    - Only recalculates stats based on actual changes
-    
-    Returns:
-        Dict containing scan results with changes detected and statistics
-        
-    Raises:
-        ValueError: If music root path is invalid
-        OSError: If there are file system access issues
-    """
-    try:
-        # Validate music root path
-        music_root = Path(config.MUSIC_ROOT_PATH)
-        if not music_root.exists():
-            raise ValueError(f"Music root path does not exist: {music_root}")
-        if not music_root.is_dir():
-            raise ValueError(f"Music root path is not a directory: {music_root}")
-            
-        logging.info(f"Starting incremental music collection scan at: {music_root}")
-        
-        # Initialize scan results for tracking changes
-        scan_results = {
-            'bands_added': 0,
-            'bands_removed': 0,
-            'bands_updated': 0,
-            'albums_added': 0,
-            'albums_removed': 0,
-            'total_tracks_change': 0,
-            'scan_errors': [],
-            'scan_timestamp': datetime.now().isoformat(),
-            'changes_detected': []
-        }
-        
-        # Load existing collection index
-        collection_index = _load_or_create_collection_index(music_root)
-        initial_stats = collection_index.get_summary_stats()
-        
-        # Get current filesystem state
-        current_band_folders = _discover_band_folders(music_root)
-        current_band_names = {folder.name for folder in current_band_folders}
-        
-        # Get existing bands from index
-        existing_band_names = {band.name for band in collection_index.bands}
-        
-        # Detect removed bands
-        removed_bands = existing_band_names - current_band_names
-        for band_name in removed_bands:
-            if collection_index.remove_band(band_name):
-                scan_results['bands_removed'] += 1
-                scan_results['changes_detected'].append(f"Removed band: {band_name}")
-                logging.info(f"Removed band from index: {band_name}")
-        
-        # Detect new and potentially modified bands
-        for band_folder in current_band_folders:
-            band_name = band_folder.name
-            existing_entry = collection_index.get_band(band_name)
-            
-            if existing_entry is None:
-                # New band - perform full scan
-                try:
-                    band_result = _scan_band_folder(band_folder, music_root)
-                    if band_result:
-                        band_entry = _create_band_index_entry(band_result, music_root)
-                        collection_index.add_band(band_entry)
-                        
-                        scan_results['bands_added'] += 1
-                        scan_results['albums_added'] += band_result['albums_count']
-                        scan_results['total_tracks_change'] += band_result['total_tracks']
-                        scan_results['changes_detected'].append(
-                            f"Added new band: {band_name} ({band_result['albums_count']} albums, {band_result['total_tracks']} tracks)"
-                        )
-                        logging.info(f"Added new band: {band_name}")
-                        
-                except Exception as e:
-                    error_msg = f"Error scanning new band folder {band_folder}: {str(e)}"
-                    logging.warning(error_msg)
-                    scan_results['scan_errors'].append(error_msg)
-            else:
-                # Existing band - check if update needed
-                update_needed = _check_if_band_update_needed(band_folder, existing_entry)
-                
-                if update_needed:
-                    try:
-                        # Reason: Only rescan if folder changes detected to preserve metadata and improve performance
-                        band_result = _scan_band_folder(band_folder, music_root)
-                        if band_result:
-                            # Preserve existing metadata when updating
-                            updated_entry = _create_band_index_entry(band_result, music_root, existing_entry)
-                            
-                            # Calculate changes
-                            albums_diff = updated_entry.albums_count - existing_entry.albums_count
-                            tracks_diff = band_result['total_tracks'] - _get_cached_track_count(existing_entry, music_root)
-                            
-                            collection_index.add_band(updated_entry)
-                            
-                            scan_results['bands_updated'] += 1
-                            if albums_diff != 0:
-                                scan_results['albums_added'] += max(0, albums_diff)
-                                scan_results['albums_removed'] += max(0, -albums_diff)
-                            scan_results['total_tracks_change'] += tracks_diff
-                            
-                            scan_results['changes_detected'].append(
-                                f"Updated band: {band_name} (album change: {albums_diff:+d}, track change: {tracks_diff:+d})"
-                            )
-                            logging.info(f"Updated band: {band_name}")
-                            
-                    except Exception as e:
-                        error_msg = f"Error updating band folder {band_folder}: {str(e)}"
-                        logging.warning(error_msg)
-                        scan_results['scan_errors'].append(error_msg)
-        
-        # Save updated collection index only if changes were made
-        changes_made = (scan_results['bands_added'] + scan_results['bands_removed'] + scan_results['bands_updated']) > 0
-        if changes_made:
-            _save_collection_index(collection_index, music_root)
-            
-        # Calculate final statistics change
-        final_stats = collection_index.get_summary_stats()
-        stats_change = {
-            'total_bands_change': final_stats['total_bands'] - initial_stats['total_bands'],
-            'total_albums_change': final_stats['total_albums'] - initial_stats['total_albums'],
-            'missing_albums_change': final_stats['total_missing_albums'] - initial_stats['total_missing_albums']
-        }
-        
-        scan_results.update(stats_change)
-        
-        logging.info(f"Incremental scan completed: {scan_results['bands_added']} added, "
-                    f"{scan_results['bands_removed']} removed, {scan_results['bands_updated']} updated")
-        
-        return {
-            'status': 'success',
-            'results': scan_results,
-            'collection_path': str(music_root),
-            'incremental_scan': True,
-            'changes_made': changes_made
-        }
-        
-    except Exception as e:
-        error_msg = f"Incremental music collection scan failed: {str(e)}"
-        logging.error(error_msg)
-        return {
-            'status': 'error',
-            'error': error_msg,
-            'collection_path': str(config.MUSIC_ROOT_PATH) if config.MUSIC_ROOT_PATH else 'Not set',
-            'incremental_scan': True
-        }
-
-
-def _scan_music_folders_full() -> Dict:
-    """
-    Perform a complete scan of the music directory structure (legacy behavior).
+    Scan the music directory structure to discover bands and albums, detecting all changes.
     
     This function performs a comprehensive scan of the music collection:
     - Discovers all band folders in the music directory
+    - Detects new bands that have been added to the collection
+    - Identifies bands that have been removed from the collection
+    - Discovers changes in album structure (new albums, removed albums, renamed albums)
     - Finds album subfolders within each band folder
     - Counts music tracks in each album folder
     - Detects missing albums (in metadata but not in folders)
     - Updates the collection index with current state
     
     Returns:
-        Dict containing scan results with bands, albums, and statistics
+        Dict containing scan results with bands, albums, and statistics including:
+        - status: 'success' or 'error'
+        - results: Dict with scan statistics and detailed change information
+        - collection_path: Path to the scanned music collection
+        - changes_made: True if any changes were detected and saved
         
     Raises:
         ValueError: If music root path is invalid
@@ -227,37 +62,66 @@ def _scan_music_folders_full() -> Dict:
         if not music_root.is_dir():
             raise ValueError(f"Music root path is not a directory: {music_root}")
             
-        logging.info(f"Starting full music collection scan at: {music_root}")
+        logging.info(f"Starting comprehensive music collection scan at: {music_root}")
         
-        # Initialize scan results
+        # Load existing collection index to detect changes
+        collection_index = _load_or_create_collection_index(music_root)
+        initial_stats = collection_index.get_summary_stats()
+        
+        # Get current filesystem state
+        current_band_folders = _discover_band_folders(music_root)
+        current_band_names = {folder.name for folder in current_band_folders}
+        existing_band_names = {band.name for band in collection_index.bands}
+        
+        # Initialize scan results with change tracking
         scan_results = {
-            'bands_discovered': 0,
+            'bands_discovered': len(current_band_folders),
+            'bands_added': len(current_band_names - existing_band_names),
+            'bands_removed': len(existing_band_names - current_band_names),
+            'bands_updated': 0,
             'albums_discovered': 0,
             'total_tracks': 0,
             'missing_albums': 0,
             'scan_errors': [],
             'scan_timestamp': datetime.now().isoformat(),
+            'changes_detected': [],
             'bands': []
         }
         
-        # Load existing collection index or create new one
-        collection_index = _load_or_create_collection_index(music_root)
+        # Remove bands that no longer exist
+        removed_bands = existing_band_names - current_band_names
+        for band_name in removed_bands:
+            if collection_index.remove_band(band_name):
+                scan_results['changes_detected'].append(f"Removed band: {band_name}")
+                logging.info(f"Removed band from index: {band_name}")
         
-        # Scan for band folders
-        band_folders = _discover_band_folders(music_root)
-        logging.info(f"Found {len(band_folders)} potential band folders")
+        # Scan all current band folders
+        logging.info(f"Scanning {len(current_band_folders)} band folders")
         
-        for band_folder in band_folders:
+        for band_folder in current_band_folders:
             try:
                 band_result = _scan_band_folder(band_folder, music_root)
                 if band_result:
                     scan_results['bands'].append(band_result)
-                    scan_results['bands_discovered'] += 1
                     scan_results['albums_discovered'] += band_result['albums_count']
                     scan_results['total_tracks'] += band_result['total_tracks']
                     
-                    # Update collection index - preserve existing entry data
+                    # Check if this is a new or updated band
                     existing_entry = collection_index.get_band(band_result['band_name'])
+                    if existing_entry is None:
+                        scan_results['changes_detected'].append(
+                            f"Added new band: {band_result['band_name']} ({band_result['albums_count']} albums)"
+                        )
+                    else:
+                        # Check for album count changes
+                        if existing_entry.albums_count != band_result['albums_count']:
+                            album_diff = band_result['albums_count'] - existing_entry.albums_count
+                            scan_results['bands_updated'] += 1
+                            scan_results['changes_detected'].append(
+                                f"Updated band: {band_result['band_name']} (album change: {album_diff:+d})"
+                            )
+                    
+                    # Update collection index - preserve existing entry data
                     band_entry = _create_band_index_entry(band_result, music_root, existing_entry)
                     collection_index.add_band(band_entry)
                     
@@ -266,21 +130,28 @@ def _scan_music_folders_full() -> Dict:
                 logging.warning(error_msg)
                 scan_results['scan_errors'].append(error_msg)
         
-        # Calculate missing albums from collection stats (already calculated in _create_band_index_entry)
+        # Calculate missing albums from collection stats
         scan_results['missing_albums'] = sum(band.missing_albums_count for band in collection_index.bands)
+        
+        # Determine if changes were made
+        changes_made = (scan_results['bands_added'] + scan_results['bands_removed'] + scan_results['bands_updated']) > 0
         
         # Save updated collection index
         _save_collection_index(collection_index, music_root)
         
-        logging.info(f"Full scan completed: {scan_results['bands_discovered']} bands, "
-                    f"{scan_results['albums_discovered']} albums, "
+        # Calculate final statistics
+        final_stats = collection_index.get_summary_stats()
+        
+        logging.info(f"Comprehensive scan completed: {scan_results['bands_discovered']} total bands, "
+                    f"{scan_results['bands_added']} added, {scan_results['bands_removed']} removed, "
+                    f"{scan_results['bands_updated']} updated, {scan_results['albums_discovered']} albums, "
                     f"{scan_results['total_tracks']} tracks")
         
         return {
             'status': 'success',
             'results': scan_results,
             'collection_path': str(music_root),
-            'incremental_scan': False
+            'changes_made': changes_made
         }
         
     except Exception as e:
@@ -289,63 +160,8 @@ def _scan_music_folders_full() -> Dict:
         return {
             'status': 'error',
             'error': error_msg,
-            'collection_path': str(config.MUSIC_ROOT_PATH) if config.MUSIC_ROOT_PATH else 'Not set',
-            'incremental_scan': False
+            'collection_path': str(config.MUSIC_ROOT_PATH) if config.MUSIC_ROOT_PATH else 'Not set'
         }
-
-
-def _check_if_band_update_needed(band_folder: Path, existing_entry: BandIndexEntry) -> bool:
-    """
-    Check if a band folder needs to be rescanned based on modification times.
-    
-    Args:
-        band_folder: Path to the band folder
-        existing_entry: Existing band entry from collection index
-        
-    Returns:
-        True if band should be rescanned, False otherwise
-    """
-    try:
-        # Get folder modification time
-        folder_mtime = datetime.fromtimestamp(band_folder.stat().st_mtime)
-        
-        # Parse existing entry last_updated
-        try:
-            last_updated = datetime.fromisoformat(existing_entry.last_updated.replace('Z', '+00:00'))
-            # Remove timezone info for comparison if present
-            if last_updated.tzinfo:
-                last_updated = last_updated.replace(tzinfo=None)
-        except (ValueError, AttributeError):
-            # If we can't parse the date, assume update is needed
-            return True
-        
-        # Update needed if folder was modified after last scan
-        # Add 1 second buffer to account for filesystem timestamp precision
-        return folder_mtime > (last_updated + timedelta(seconds=1))
-        
-    except Exception as e:
-        logging.warning(f"Error checking modification time for {band_folder}: {e}")
-        # If we can't determine modification time, assume update is needed
-        return True
-
-
-def _get_cached_track_count(band_entry: BandIndexEntry, music_root: Path) -> int:
-    """
-    Get cached track count for a band to calculate changes.
-    
-    Args:
-        band_entry: Band entry from collection index
-        music_root: Path to music collection root
-        
-    Returns:
-        Previously cached track count, or 0 if not available
-    """
-    try:
-        # Try to get track count from a cached scan result or estimate
-        # For simplicity, we'll estimate based on albums (average 12 tracks per album)
-        return band_entry.albums_count * 12
-    except Exception:
-        return 0
 
 
 def _discover_band_folders(music_root: Path) -> List[Path]:
@@ -540,15 +356,6 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
             if local_album.get('year') and not existing_album.year:
                 existing_album.year = local_album['year']
             
-            # Update folder compliance if available
-            if local_album.get('folder_compliance'):
-                from src.models.band import FolderCompliance
-                try:
-                    existing_album.folder_compliance = FolderCompliance(**local_album['folder_compliance'])
-                except Exception:
-                    # Skip if compliance data is invalid
-                    pass
-            
             updated_albums.append(existing_album)
             logging.debug(f"Updated existing album: {existing_album.album_name}")
             
@@ -582,15 +389,6 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
                 genres=local_album.get('genres', []),
                 folder_path=local_album['folder_path']
             )
-            
-            # Add folder compliance if available
-            if local_album.get('folder_compliance'):
-                try:
-                    from src.models.band import FolderCompliance
-                    new_album.folder_compliance = FolderCompliance(**local_album['folder_compliance'])
-                except Exception:
-                    # Skip if compliance data is invalid
-                    pass
             
             updated_albums.append(new_album)
             logging.debug(f"Added new local album: {new_album.album_name}")
@@ -645,10 +443,6 @@ def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolde
     album_folders = []
     
     try:
-        # Get structure analysis for the band
-        structure_analysis = album_parser.detect_folder_structure_type(str(band_folder))
-        is_enhanced_structure = structure_analysis.get('structure_type') == 'enhanced'
-        
         for item in band_folder.iterdir():
             if (item.is_dir() and 
                 not item.name.startswith('.') and 
@@ -658,8 +452,9 @@ def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolde
                 # Check if this is a type folder (Album/, Live/, Demo/, etc.)
                 type_folder_info = album_parser._detect_type_folder(item.name)
                 
-                if type_folder_info['is_type_folder'] and is_enhanced_structure:
-                    # This is a type folder, scan its contents
+                if type_folder_info['is_type_folder']:
+                    # This is a type folder, scan its contents regardless of structure type
+                    # (needed for mixed structures that have both type folders and direct albums)
                     try:
                         for album_item in item.iterdir():
                             if (album_item.is_dir() and 
@@ -674,7 +469,7 @@ def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolde
                     except (PermissionError, OSError) as e:
                         logging.warning(f"Error accessing type folder {item}: {e}")
                 else:
-                    # Regular album folder (default or mixed structure)
+                    # Regular album folder (default, mixed, or non-type folder)
                     album_folders.append({
                         'path': item,
                         'type_folder': '',
@@ -695,7 +490,7 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
     Args:
         album_folder_info: Dictionary with album folder path and metadata
         album_parser: AlbumFolderParser instance for parsing folder names
-        compliance_validator: ComplianceValidator for compliance analysis
+        compliance_validator: ComplianceValidator for compliance analysis (unused)
         
     Returns:
         Dictionary with enhanced album information or None if invalid
@@ -720,22 +515,11 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
             # Detect type from folder name if not determined by type folder
             album_type = album_parser.detect_album_type_from_folder(album_name, album_folder_info['type_folder'])
         
-        # Create Album object for compliance validation
-        album_obj = Album(
-            album_name=parsed_info.get('album_name', album_name),
-            year=parsed_info.get('year', ''),
-            type=album_type,
-            edition=parsed_info.get('edition', ''),
-            track_count=tracks_count,
-            missing=False,
-            folder_path=album_name
-        )
-        
-        # Calculate folder compliance
-        folder_compliance = compliance_validator.validate_album_compliance(
-            album=album_obj,
-            band_structure_type="enhanced" if album_folder_info['in_type_folder'] else "default"
-        )
+        # Determine folder path - include type folder for enhanced structure
+        if album_folder_info['in_type_folder'] and album_folder_info['type_folder']:
+            folder_path = f"{album_folder_info['type_folder']}/{album_name}"
+        else:
+            folder_path = album_name
         
         return {
             'album_name': parsed_info.get('album_name', album_name),
@@ -746,8 +530,7 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
             'missing': False,  # Found in folder, so not missing
             'duration': '',    # Will be filled by metadata tools
             'genres': [],      # Will be filled by metadata tools
-            'folder_path': album_name,
-            'folder_compliance': folder_compliance.model_dump() if folder_compliance else None
+            'folder_path': folder_path
         }
         
     except Exception as e:
@@ -783,26 +566,8 @@ def _calculate_compliance_summary(albums: List[Dict]) -> Dict[str, Any]:
     Returns:
         Dictionary with compliance summary statistics
     """
-    if not albums:
-        return {'average_score': 0, 'compliant_albums': 0, 'total_albums': 0}
-    
-    total_score = 0
-    compliant_count = 0
-    
-    for album in albums:
-        compliance = album.get('folder_compliance')
-        if compliance:
-            score = compliance.get('compliance_score', 0)
-            total_score += score
-            if score >= 75:  # Compliance threshold
-                compliant_count += 1
-    
-    return {
-        'average_score': total_score / len(albums) if albums else 0,
-        'compliant_albums': compliant_count,
-        'total_albums': len(albums),
-        'compliance_percentage': (compliant_count / len(albums) * 100) if albums else 0
-    }
+    # Compliance summary is no longer available since folder_compliance field has been removed
+    return {'average_score': 0, 'compliant_albums': 0, 'total_albums': len(albums), 'compliance_percentage': 0}
 
 
 def _count_music_files(folder: Path) -> int:

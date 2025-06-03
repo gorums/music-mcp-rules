@@ -22,7 +22,8 @@ from src.tools.storage import (
     get_band_list,
     load_band_metadata,
     AtomicFileWriter,
-    file_lock
+    file_lock,
+    JSONStorage
 )
 from src.tools.scanner import scan_music_folders
 from src.models import BandMetadata, Album, BandAnalysis, AlbumAnalysis
@@ -221,7 +222,7 @@ class TestStressConcurrentOperations(unittest.TestCase):
                 # Patch config for this worker
                 with patch('src.tools.scanner.config') as mock_config:
                     mock_config.MUSIC_ROOT_PATH = self.temp_dir
-                    result = scan_music_folders(force_full_scan=True)
+                    result = scan_music_folders()
                 
                 scan_time = time.time() - start_time
                 results.put((worker_id, result, scan_time))
@@ -275,9 +276,8 @@ class TestStressConcurrentOperations(unittest.TestCase):
                         "data": f"test_data_{writer_id}_{i}"
                     }
                     
-                    # Use AtomicFileWriter properly
-                    with AtomicFileWriter(test_file) as f:
-                        json.dump(test_data, f, indent=2)
+                    # Use JSONStorage.save_json which includes proper file locking
+                    JSONStorage.save_json(test_file, test_data, backup=False)
                     
                     results.put((writer_id, i, 'success'))
                     time.sleep(0.001)  # Small delay to increase contention
@@ -396,7 +396,7 @@ class TestStressConcurrentOperations(unittest.TestCase):
                     start_time = time.time()
                     with patch('src.tools.scanner.config') as mock_config:
                         mock_config.MUSIC_ROOT_PATH = self.temp_dir
-                        scan_music_folders(force_full_scan=True)
+                        result = scan_music_folders()
                     scan_time = time.time() - start_time
                     results['scans'].append(('success', scan_time))
                     time.sleep(0.05)

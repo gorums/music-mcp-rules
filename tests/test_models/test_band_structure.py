@@ -160,7 +160,7 @@ class TestBandStructureDetector:
         assert result.structure_type == StructureType.UNKNOWN
         assert result.consistency == StructureConsistency.UNKNOWN
         assert "Band folder not found or inaccessible" in result.issues
-        assert result.analysis_metadata.get("error") == "path_not_found"
+        # Note: analysis_metadata field was removed from FolderStructure model
     
     def test_detect_default_structure(self):
         """Test detection of default structure."""

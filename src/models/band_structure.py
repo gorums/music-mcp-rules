@@ -66,7 +66,6 @@ class FolderStructure(BaseModel):
         structure_score: Overall structure organization score (0-100)
         recommendations: List of specific improvement recommendations
         issues: List of identified structure issues
-        analysis_metadata: Additional analysis information
     """
     structure_type: StructureType = Field(default=StructureType.UNKNOWN, description="Primary structure type")
     consistency: StructureConsistency = Field(default=StructureConsistency.UNKNOWN, description="Structure consistency level")
@@ -80,19 +79,13 @@ class FolderStructure(BaseModel):
     structure_score: int = Field(default=0, ge=0, le=100, description="Overall structure score")
     recommendations: List[str] = Field(default_factory=list, description="Improvement recommendations")
     issues: List[str] = Field(default_factory=list, description="Identified structure issues")
-    analysis_metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional analysis data")
 
     def get_primary_pattern(self) -> str:
         """Get the most common pattern used by this band."""
         if not self.detected_patterns:
             return "unknown"
         
-        # Count pattern occurrences from analysis metadata
-        pattern_counts = self.analysis_metadata.get('pattern_counts', {})
-        if pattern_counts:
-            return max(pattern_counts.keys(), key=lambda k: pattern_counts[k])
-        
-        # Fallback to first pattern
+        # Return first pattern since we no longer have analysis_metadata
         return self.detected_patterns[0] if self.detected_patterns else "unknown"
     
     def get_organization_health(self) -> str:
@@ -145,8 +138,7 @@ class BandStructureDetector:
             return FolderStructure(
                 structure_type=StructureType.UNKNOWN,
                 consistency=StructureConsistency.UNKNOWN,
-                issues=["Band folder not found or inaccessible"],
-                analysis_metadata={"error": "path_not_found"}
+                issues=["Band folder not found or inaccessible"]
             )
         
         # Get raw structure analysis from existing parser
@@ -179,14 +171,7 @@ class BandStructureDetector:
             type_folders_found=album_analysis['type_folders'],
             structure_score=structure_metrics['overall_score'],
             recommendations=recommendations,
-            issues=issues,
-            analysis_metadata={
-                'pattern_counts': album_analysis['pattern_counts'],
-                'type_folder_analysis': album_analysis['type_folder_details'],
-                'compliance_distribution': structure_metrics['compliance_distribution'],
-                'structure_health': structure_metrics['health_indicators'],
-                'raw_analysis': raw_analysis
-            }
+            issues=issues
         )
     
     def _analyze_albums_in_detail(self, band_path: Path) -> Dict[str, Any]:

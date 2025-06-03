@@ -337,42 +337,6 @@ def _generate_statistics_section(metadata: BandMetadata) -> str:
         
         section.extend(distribution_table)
     
-    # Add compliance statistics if available
-    compliance_scores = []
-    for album in metadata.albums:
-        if album.folder_compliance:
-            compliance_scores.append(album.folder_compliance.compliance_score)
-    
-    if compliance_scores:
-        section.append("")
-        section.append("### 📁 Folder Compliance")
-        
-        avg_score = sum(compliance_scores) / len(compliance_scores)
-        compliant_count = sum(1 for score in compliance_scores if score >= 75)
-        
-        # Determine overall compliance level
-        if avg_score >= 90:
-            overall_level = "Excellent ✅"
-        elif avg_score >= 75:
-            overall_level = "Good 🟢"
-        elif avg_score >= 50:
-            overall_level = "Fair 🟡"
-        elif avg_score >= 25:
-            overall_level = "Poor 🟠"
-        else:
-            overall_level = "Critical 🔴"
-        
-        compliance_table = [
-            "| Metric | Value |",
-            "|--------|-------|",
-            f"| Average Score | {avg_score:.1f}/100 |",
-            f"| Overall Level | {overall_level} |",
-            f"| Compliant Albums | {compliant_count}/{len(compliance_scores)} |",
-            f"| Compliance Rate | {(compliant_count/len(compliance_scores)*100):.1f}% |"
-        ]
-        
-        section.extend(compliance_table)
-    
     # Add folder structure information if available
     if metadata.folder_structure:
         section.append("")
@@ -514,26 +478,6 @@ def _format_album_info_enhanced(album: Album, analysis=None) -> str:
         title += f" ({album.edition})"
     
     album_line = f"**{title}**{header_suffix}"
-    
-    # Add compliance status if available
-    if album.folder_compliance:
-        compliance_level = album.folder_compliance.get_compliance_level()
-        score = album.folder_compliance.compliance_score
-        
-        compliance_icons = {
-            "excellent": "✅",
-            "good": "🟢", 
-            "fair": "🟡",
-            "poor": "🟠",
-            "critical": "🔴"
-        }
-        
-        icon = compliance_icons.get(compliance_level, "❓")
-        album_line += f"\n  {icon} **Compliance:** {compliance_level.title()} ({score}/100)"
-        
-        if album.folder_compliance.issues:
-            issues_count = len(album.folder_compliance.issues)
-            album_line += f" • {issues_count} issue{'s' if issues_count != 1 else ''}"
     
     # Add folder path information
     if album.folder_path:

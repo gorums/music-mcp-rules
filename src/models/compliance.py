@@ -162,7 +162,7 @@ class ComplianceValidator:
         # Determine compliance fields
         has_year_prefix = bool(parsed.get('year'))
         has_edition_suffix = bool(parsed.get('edition'))
-        using_type_folders = 'enhanced' in parsed.get('pattern_type', '')
+        using_type_folders = band_structure_type == "enhanced"
         
         # Calculate recommended path
         recommended_path = self._generate_recommended_path(album, band_structure_type)
@@ -216,8 +216,7 @@ class ComplianceValidator:
             compliance = self.validate_album_compliance(album, band_structure_type)
             album_compliances.append(compliance)
             
-            # Update album with compliance info
-            album.update_compliance(compliance)
+            # Note: compliance is no longer stored on Album model
             
             # Collect issues
             for issue_text in compliance.issues:

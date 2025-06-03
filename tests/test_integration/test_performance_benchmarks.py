@@ -97,9 +97,9 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         # Create large collection
         self._create_large_collection(num_bands=1000, albums_per_band=10)
         
-        # Measure scanning time - use force_full_scan for predictable results
+        # Measure scanning time - use comprehensive scan for predictable results
         start_time = time.time()
-        result = scan_music_folders(force_full_scan=True)
+        result = scan_music_folders()
         scan_time = time.time() - start_time
         
         # Verify results
@@ -126,7 +126,7 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         self._create_metadata_for_large_collection(num_bands=num_bands, albums_per_band=8)
         
         # First scan to create collection index - this is essential
-        scan_result = scan_music_folders(force_full_scan=True)
+        scan_result = scan_music_folders()
         self.assertEqual(scan_result['status'], 'success')
         
         # Verify we have bands to work with
@@ -224,7 +224,7 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         self._create_metadata_for_large_collection(num_bands=800, albums_per_band=12)
         
         # Scan to create collection index
-        scan_music_folders(force_full_scan=True)
+        scan_music_folders()
         
         # Test various search scenarios
         search_scenarios = [

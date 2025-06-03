@@ -90,7 +90,6 @@ class Album(BaseModel):
         duration: Album duration in format "67min"
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
-        folder_compliance: Folder organization compliance information
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -101,7 +100,6 @@ class Album(BaseModel):
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
-    folder_compliance: Optional[FolderCompliance] = Field(default=None, description="Folder compliance information")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -201,10 +199,6 @@ class Album(BaseModel):
         # Only auto-detect edition if not already set and we have folder path
         if not self.edition and self.folder_path:
             self.edition = self.detect_edition_from_folder()
-
-    def update_compliance(self, compliance: FolderCompliance) -> None:
-        """Update folder compliance information for this album."""
-        self.folder_compliance = compliance
 
 
 class AlbumAnalysis(BaseModel):
