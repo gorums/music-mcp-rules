@@ -377,6 +377,7 @@ def _discover_band_folders(music_root: Path) -> List[Path]:
 def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     """
     Scan a single band folder for album information with enhanced metadata detection.
+    Also updates or creates .band_metadata.json with folder structure information.
     
     Args:
         band_folder: Path to the band folder
@@ -410,14 +411,49 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
         # Detect band folder structure
         folder_structure = structure_detector.detect_band_structure(str(band_folder))
         
-        # Load existing metadata if available
+        # Load existing metadata if available, or create minimal structure
         metadata_file = band_folder / '.band_metadata.json'
-        existing_metadata = None
+        metadata = None
+        
         if metadata_file.exists():
             try:
-                existing_metadata = _load_band_metadata(metadata_file)
+                # Load existing metadata
+                from src.tools.storage import JSONStorage
+                metadata_dict = JSONStorage.load_json(metadata_file)
+                from src.models.band import BandMetadata
+                metadata = BandMetadata(**metadata_dict)
+                logging.debug(f"Loaded existing metadata for {band_name}")
             except Exception as e:
-                logging.warning(f"Failed to load metadata for {band_name}: {e}")
+                logging.warning(f"Failed to load existing metadata for {band_name}: {e}")
+                # Will create new metadata below
+        
+        # Create new metadata if none exists or loading failed
+        if metadata is None:
+            from src.models.band import BandMetadata
+            metadata = BandMetadata(
+                band_name=band_name,
+                formed="",
+                genres=[],
+                origin="",
+                members=[],
+                description="",
+                albums=[]
+            )
+            logging.debug(f"Created new metadata structure for {band_name}")
+        
+        # Update folder structure in metadata
+        metadata.folder_structure = folder_structure
+        metadata.update_timestamp()
+        
+        # Save updated metadata with folder structure
+        try:
+            from src.tools.storage import JSONStorage
+            metadata_dict = metadata.model_dump()
+            JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
+            logging.debug(f"Updated folder structure in metadata for {band_name}")
+        except Exception as e:
+            logging.warning(f"Failed to save metadata with folder structure for {band_name}: {e}")
+            # Continue with scan even if save fails
         
         # Create result with enhanced information
         result = {
@@ -426,7 +462,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
             'albums_count': len(albums),
             'albums': albums,
             'total_tracks': total_tracks,
-            'has_metadata': metadata_file.exists(),
+            'has_metadata': metadata_file.album_count > 0,
             'last_scanned': datetime.now().isoformat(),
             'folder_structure': folder_structure.model_dump() if folder_structure else None,
             'album_types_distribution': _calculate_album_types_distribution(albums),
