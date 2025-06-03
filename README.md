@@ -134,12 +134,11 @@ Our documentation is organized into three main sections:
 ### 🛠️ Developer Documentation
 For developers who want to understand, modify, or contribute to the project:
 - [Architecture Overview](docs/developer/ARCHITECTURE.md) - System design and patterns
+- [Metadata Schema](docs/developer/METADATA_SCHEMA.md) - The metadata schema
 - [API Reference](docs/developer/API_REFERENCE.md) - Complete API documentation
 - [Contributing Guidelines](docs/developer/CONTRIBUTING.md) - How to contribute
+- [Code Style](docs/developer/CODE_STYLE.md) - Complete code style
 - [Testing Guide](docs/developer/TESTING.md) - Running and writing tests
-- [Development Tasks](docs/developer/TASKS.md) - Current development priorities
-- [Development Planning](docs/developer/PLANNING.md) - Current development planning
-
 
 ## Testing
 
