@@ -256,6 +256,9 @@ def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze:
         # If we should preserve analyze data and it exists, use it
         if preserve_analyze and existing_analyze is not None:
             metadata.analyze = existing_analyze
+        elif not preserve_analyze:
+            # Explicitly clear analyze data when not preserving
+            metadata.analyze = None
         
         # Update timestamp
         metadata.update_timestamp()

@@ -55,7 +55,7 @@ pip install -r requirements.txt
 pip install pytest pytest-cov pytest-mock
 
 # Run tests
-python -m pytest . -v
+py -m pytest tests/ -v
 ```
 
 ## 📋 Test Categories

@@ -135,21 +135,27 @@ class TestBandStructureDetector:
         band_path.mkdir(parents=True, exist_ok=True)
         
         for album_name, album_config in albums.items():
+            # Sanitize album name for Windows compatibility
+            sanitized_album_name = album_name.strip()
+            if not sanitized_album_name:
+                sanitized_album_name = "Unknown_Album"
+            
             if isinstance(album_config, dict) and 'type_folder' in album_config:
                 # Enhanced structure with type folders
                 type_folder = band_path / album_config['type_folder']
                 type_folder.mkdir(exist_ok=True)
-                album_path = type_folder / album_name
+                album_path = type_folder / sanitized_album_name
             else:
                 # Default structure
-                album_path = band_path / album_name
+                album_path = band_path / sanitized_album_name
             
             album_path.mkdir(parents=True, exist_ok=True)
             
             # Create some dummy music files
             track_count = album_config.get('tracks', 10) if isinstance(album_config, dict) else 10
             for i in range(track_count):
-                (album_path / f"track_{i+1:02d}.mp3").touch()
+                track_file = album_path / f"track_{i+1:02d}.mp3"
+                track_file.touch()
         
         return band_path
     

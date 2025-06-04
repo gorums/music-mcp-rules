@@ -617,8 +617,8 @@ def _load_or_create_collection_index(music_root: Path) -> CollectionIndex:
     if index_file.exists():
         try:
             with open(index_file, 'r', encoding='utf-8') as f:
-                json_data = f.read()
-            return CollectionIndex.from_json(json_data)
+                data = json.load(f)
+            return CollectionIndex(**data)
         except Exception as e:
             logging.warning(f"Failed to load collection index, creating new one: {e}")
     
@@ -643,7 +643,7 @@ def _save_collection_index(collection_index: CollectionIndex, music_root: Path) 
             
         # Save new index
         with open(index_file, 'w', encoding='utf-8') as f:
-            f.write(collection_index.to_json())
+            f.write(collection_index.model_dump_json(indent=2))
             
         logging.debug(f"Collection index saved to {index_file}")
         
@@ -724,8 +724,8 @@ def _load_band_metadata(metadata_file: Path) -> Optional[BandMetadata]:
     """
     try:
         with open(metadata_file, 'r', encoding='utf-8') as f:
-            json_data = f.read()
-        return BandMetadata.from_json(json_data)
+            data = json.load(f)
+        return BandMetadata(**data)
     except Exception as e:
         logging.warning(f"Failed to load band metadata from {metadata_file}: {e}")
         return None
