@@ -14,7 +14,68 @@ A Model Context Protocol (MCP) server that provides intelligent access to your l
 
 ## Quick Start
 
-### Using Docker (Recommended)
+### Using Python (Recommended)
+
+1. **Install dependencies:**
+```bash
+# Windows
+py -m pip install -r requirements.txt
+
+# Linux/macOS
+pip install -r requirements.txt
+```
+
+2. **Set environment variables:**
+```bash
+# Windows (PowerShell)
+$env:MUSIC_ROOT_PATH = "C:\Path\To\Your\Music\Collection"
+
+# Linux/macOS
+export MUSIC_ROOT_PATH="/path/to/your/music"
+```
+
+3. **Run the server:**
+```bash
+# Windows
+py main.py
+
+# Linux/macOS
+python main.py
+```
+
+4. **Configure your MCP client:**
+
+**For Windows:**
+```json
+{
+  "mcpServers": {
+    "music-collection": {
+      "command": "py",
+      "args": ["D:/Projects/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "D:/Path/To/Your/Music/Collection"
+      }
+    }
+  }
+}
+```
+
+**For Linux/macOS:**
+```json
+{
+  "mcpServers": {
+    "music-collection": {
+      "command": "python",
+      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "/path/to/your/music/collection"
+      }
+    }
+  }
+}
+```
+
+### Using Docker (Alternative)
 
 1. **Build the container:**
 ```bash
@@ -44,23 +105,6 @@ docker run -d --name music-mcp-container \
     }
   }
 }
-```
-
-### Python Installation
-
-1. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
-
-2. **Set environment variables:**
-```bash
-export MUSIC_ROOT_PATH="/path/to/your/music"
-```
-
-3. **Run the server:**
-```bash
-python main.py
 ```
 
 ## Music Collection Structure

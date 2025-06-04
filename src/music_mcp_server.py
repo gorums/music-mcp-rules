@@ -13,19 +13,19 @@ from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
-# Import tool implementations - using package imports
-from src.tools.scanner import scan_music_folders as scanner_scan_music_folders
-from src.tools.storage import get_band_list, save_band_metadata, save_band_analyze, save_collection_insight
+# Import tool implementations - using absolute imports
+from tools.scanner import scan_music_folders as scanner_scan_music_folders
+from tools.storage import get_band_list, save_band_metadata, save_band_analyze, save_collection_insight
 
-# Import resource implementations - using package imports
-from src.resources.band_info import get_band_info_markdown
-from src.resources.collection_summary import get_collection_summary
+# Import resource implementations - using absolute imports
+from resources.band_info import get_band_info_markdown
+from resources.collection_summary import get_collection_summary
 
-# Import prompt implementations - using package imports
-from src.prompts.fetch_band_info import get_fetch_band_info_prompt
-from src.prompts.analyze_band import get_analyze_band_prompt
-from src.prompts.compare_bands import get_compare_bands_prompt
-from src.prompts.collection_insights import get_collection_insights_prompt
+# Import prompt implementations - using absolute imports
+from prompts.fetch_band_info import get_fetch_band_info_prompt
+from prompts.analyze_band import get_analyze_band_prompt
+from prompts.compare_bands import get_compare_bands_prompt
+from prompts.collection_insights import get_collection_insights_prompt
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -275,9 +275,9 @@ def save_band_metadata_tool(
     """
     try:
         # Import required models and functions
-        from src.models.band import BandMetadata
-        from src.tools.storage import update_collection_index, load_collection_index
-        from src.models.collection import BandIndexEntry
+        from models.band import BandMetadata
+        from tools.storage import update_collection_index, load_collection_index
+        from models.collection import BandIndexEntry
         
         # Step 1: Data validation against enhanced schema
         validation_results = {
@@ -332,7 +332,7 @@ def save_band_metadata_tool(
             # Load existing collection index or create new
             collection_index = load_collection_index()
             if collection_index is None:
-                from src.models.collection import CollectionIndex
+                from models.collection import CollectionIndex
                 collection_index = CollectionIndex()
             
             # Create or update band entry
@@ -512,8 +512,8 @@ def save_band_analyze_tool(
     """
     try:
         # Import required models
-        from src.models.band import BandAnalysis, AlbumAnalysis
-        from src.tools.storage import update_collection_index, load_collection_index
+        from models.band import BandAnalysis, AlbumAnalysis
+        from tools.storage import update_collection_index, load_collection_index
         
         # Prepare comprehensive response structure
         response = {
@@ -698,7 +698,7 @@ def save_band_analyze_tool(
                 for band_entry in index.bands:
                     if band_entry.name == band_name:
                         # Load current metadata to get accurate album counts
-                        from src.tools.storage import load_band_metadata
+                        from tools.storage import load_band_metadata
                         current_metadata = load_band_metadata(band_name)
                         if current_metadata:
                             # Calculate proper album counts from metadata
@@ -857,8 +857,8 @@ def save_collection_insight_tool(
     """
     try:
         # Import required models
-        from src.models.collection import CollectionInsight
-        from src.tools.storage import save_collection_insight as storage_save_collection_insight
+        from models.collection import CollectionInsight
+        from tools.storage import save_collection_insight as storage_save_collection_insight
         
         # Prepare comprehensive response structure
         response = {
@@ -1087,7 +1087,7 @@ def validate_band_metadata_tool(
     """
     try:
         # Import required models
-        from src.models.band import BandMetadata
+        from models.band import BandMetadata
         
         # Prepare validation results
         validation_results = {

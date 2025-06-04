@@ -8,14 +8,20 @@ file locking, backup/recovery, and metadata synchronization.
 import json
 import os
 import shutil
-import fcntl
 import time
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from contextlib import contextmanager
 from datetime import datetime
 
-from ..models import (
+# Try to import fcntl for Unix-like systems, handle Windows gracefully
+try:
+    import fcntl
+    HAS_FCNTL = True
+except ImportError:
+    HAS_FCNTL = False
+
+from models import (
     BandMetadata, 
     BandAnalysis, 
     CollectionIndex, 
@@ -23,7 +29,7 @@ from ..models import (
     BandIndexEntry,
     AlbumAnalysis
 )
-from ..config import Config
+from config import Config
 
 
 class StorageError(Exception):
@@ -110,8 +116,9 @@ def file_lock(file_path: Path, timeout: int = 10):
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
-                if os.name != 'nt':  # Unix-like systems
+                if HAS_FCNTL:  # Unix-like systems
                     fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                # On Windows, we just use the lock file existence as a simple lock
                 break
             except (IOError, OSError):
                 time.sleep(0.1)
@@ -123,7 +130,7 @@ def file_lock(file_path: Path, timeout: int = 10):
     finally:
         # Release lock and cleanup
         try:
-            if os.name != 'nt':  # Unix-like systems
+            if HAS_FCNTL:  # Unix-like systems
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
             lock_file.close()
             if lock_path.exists():

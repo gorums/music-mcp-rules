@@ -14,8 +14,8 @@ from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
-from ..models import BandMetadata, CollectionIndex, BandIndexEntry
-from ..config import Config
+from models import BandMetadata, CollectionIndex, BandIndexEntry
+from config import Config
 
 
 class CacheStatus(Enum):

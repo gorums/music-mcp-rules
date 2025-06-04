@@ -6,7 +6,7 @@ analysis data, and collection insights using the storage module.
 """
 
 from typing import Dict, Any
-from ..models import BandMetadata, BandAnalysis, CollectionInsight
+from models import BandMetadata, BandAnalysis, CollectionInsight
 from .storage import save_band_metadata as _save_band_metadata
 from .storage import save_band_analyze as _save_band_analyze
 from .storage import save_collection_insight as _save_collection_insight

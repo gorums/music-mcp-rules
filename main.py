@@ -7,7 +7,6 @@ This script sets up the proper Python path and starts the MCP server.
 
 import sys
 import os
-import runpy
 from pathlib import Path
 
 # Add the src directory to the Python path
@@ -18,11 +17,9 @@ sys.path.insert(0, str(src_path))
 def main():
     """Main entry point."""
     try:
-        # Change working directory to src to help with relative imports
-        os.chdir(src_path)
-        
-        # Run the module as a script, which handles relative imports better
-        runpy.run_module("music_mcp_server", run_name="__main__")
+        # Import and run the MCP server directly
+        from music_mcp_server import main as server_main
+        server_main()
         
     except KeyboardInterrupt:
         print("\n⏹️  Server stopped by user")
