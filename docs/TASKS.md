@@ -1157,11 +1157,8 @@ This structured approach allows for incremental implementation where each task b
   - [ ] Update `get_missing_albums()` method to return `albums_missing` array
   - [ ] Maintain backward compatibility for reading existing JSON files
 
-- [ ] **Schema Migration and Validation**
-  - [ ] Create migration utilities to convert existing `.band_metadata.json` files
-  - [ ] Implement automatic migration logic during data loading
+- [ ] **Schema Validation**
   - [ ] Add schema validation for new structure
-  - [ ] Create backup mechanism before migration
   - [ ] Update JSON serialization/deserialization for new schema
   - [ ] Add validation to ensure no album exists in both arrays
 
