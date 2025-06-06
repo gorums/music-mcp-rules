@@ -983,8 +983,7 @@ Album: Album Name
 Slash/
 ├── 2010 - Slash/
 ├── 2012 - Apocalyptic Love (Deluxe Edition)/
-├── 2014 - World on Fire/
-└── 2019 - Live at the Roxy (Live)/
+└── 2014 - World on Fire/
 ```
 
 **After Migration (Enhanced Structure)**:
@@ -1143,6 +1142,296 @@ This structured approach allows for incremental implementation where each task b
 - **Technical Reference**: Detailed schema and API documentation for developers
 - **Migration Support**: Comprehensive guidance for upgrading existing collections
 - **Feature Discovery**: Users can easily understand and utilize new classification features
+
+## Phase 7: Albums and Missing Albums Schema Separation
+
+### Task 7.1: Band Schema Restructuring for Separated Albums - PRIORITY HIGH
+- [ ] **Update Band Metadata Schema**
+  - [ ] Modify `BandMetadata` model in `src/models/band.py` to have separate arrays:
+    - [ ] `albums: List[Album]` - for albums found locally in folder structure  
+    - [ ] `albums_missing: List[Album]` - for albums not found locally but known from metadata
+  - [ ] Remove the `missing: bool` field from `Album` model (no longer needed)
+  - [ ] Update `albums_count` property to return `len(albums) + len(albums_missing)`
+  - [ ] Add `local_albums_count` property to return `len(albums)`  
+  - [ ] Add `missing_albums_count` property to return `len(albums_missing)`
+  - [ ] Update `get_missing_albums()` method to return `albums_missing` array
+  - [ ] Maintain backward compatibility for reading existing JSON files
+
+- [ ] **Schema Migration and Validation**
+  - [ ] Create migration utilities to convert existing `.band_metadata.json` files
+  - [ ] Implement automatic migration logic during data loading
+  - [ ] Add schema validation for new structure
+  - [ ] Create backup mechanism before migration
+  - [ ] Update JSON serialization/deserialization for new schema
+  - [ ] Add validation to ensure no album exists in both arrays
+
+- [ ] **Collection Index Updates**
+  - [ ] Update `BandIndexEntry` in `src/models/collection.py` to track local vs missing counts
+  - [ ] Add `local_albums_count` field to collection index
+  - [ ] Keep existing `albums_count` (total) and `missing_albums_count` fields  
+  - [ ] Update collection statistics to show local vs missing distribution
+  - [ ] Maintain collection index backward compatibility
+
+**Implementation Priority**: CRITICAL - This foundational change affects all other components and must be completed first.
+
+**Schema Change Example**:
+
+**Current Schema (with missing flag)**:
+```json
+{
+  "albums": [
+    {"album_name": "Paranoid", "year": "1970", "missing": false},
+    {"album_name": "Master of Reality", "year": "1971", "missing": true}
+  ]
+}
+```
+
+**New Schema (separated arrays)**:
+```json
+{
+  "albums": [
+    {"album_name": "Paranoid", "year": "1970"}
+  ],
+  "albums_missing": [
+    {"album_name": "Master of Reality", "year": "1971"}
+  ]
+}
+```
+
+### Task 7.2: Scanner Tool Enhancement for Local Albums Only - PRIORITY HIGH
+- [ ] **Update scan_music_folders Tool**
+  - [ ] Modify `src/tools/scanner.py` to populate only the `albums` array with found albums
+  - [ ] Remove logic that sets `missing: true` for albums not found locally
+  - [ ] Only scan and include albums that exist in the folder structure
+  - [ ] Update album discovery to use enhanced parsing with type detection
+  - [ ] Preserve folder structure analysis and compliance validation
+  - [ ] Update collection index with accurate local album counts
+
+- [ ] **Enhanced Local Album Detection**
+  - [ ] Improve folder parsing to detect all local albums accurately
+  - [ ] Handle album type detection during scanning (Album, EP, Live, Demo, etc.)
+  - [ ] Extract complete folder information (year, edition, type)
+  - [ ] Validate folder structure compliance during scanning
+  - [ ] Track folder paths for all discovered albums
+  - [ ] Generate scanning statistics (albums found, types detected, compliance scores)
+
+- [ ] **Scanning Output Updates**
+  - [ ] Update scan results to show only local albums discovered
+  - [ ] Remove references to missing albums from scan output
+  - [ ] Add statistics for local albums by type and year
+  - [ ] Include folder structure analysis results
+  - [ ] Report scanning performance and album detection accuracy
+  - [ ] Generate recommendations for folder organization improvements
+
+**Implementation Priority**: HIGH - Scanner must work with new schema before metadata tool updates.
+
+### Task 7.3: Save Band Metadata Tool Enhancement for Missing Albums - PRIORITY HIGH
+- [ ] **Update save_band_metadata_tool Logic**
+  - [ ] Modify `save_band_metadata_tool` in `src/music_mcp_server.py` to handle separated arrays
+  - [ ] When saving metadata, populate `albums_missing` with albums not found locally
+  - [ ] Update existing albums in `albums` array with additional metadata (track counts, genres, ratings)
+  - [ ] Merge scanning data (local albums) with external metadata (complete discography)
+  - [ ] Preserve existing local album data while adding metadata enhancements
+  - [ ] Maintain data validation for both arrays
+
+- [ ] **Metadata Integration Strategy**
+  - [ ] Compare external metadata albums with locally scanned albums (by name and year)
+  - [ ] Move albums from `albums_missing` to `albums` if they become locally available
+  - [ ] Update `albums` entries with enhanced metadata (genres, duration, track counts)
+  - [ ] Add new missing albums to `albums_missing` array
+  - [ ] Preserve folder-specific data (type, edition, folder_path) for local albums
+  - [ ] Maintain consistency between collection index and band metadata
+
+- [ ] **Tool Parameter Updates**
+  - [ ] Update tool documentation to explain separated album handling
+  - [ ] Add validation for album arrays (no duplicates between arrays)
+  - [ ] Update tool response to show local vs missing album statistics
+  - [ ] Add option to force move albums between arrays (if folder status changes)
+  - [ ] Include migration recommendations in tool output
+
+**Implementation Priority**: HIGH - Core metadata saving functionality must support new schema.
+
+### Task 7.4: Storage Layer Updates for Separated Albums - PRIORITY MEDIUM
+- [ ] **Update Storage Functions**
+  - [ ] Modify `save_band_metadata()` in `src/tools/storage.py` to handle new schema
+  - [ ] Update `load_band_metadata()` to automatically migrate old schema files
+  - [ ] Ensure `save_band_analyze()` works with both album arrays
+  - [ ] Update collection index synchronization for separated counts
+  - [ ] Add validation to prevent albums existing in both arrays
+  - [ ] Implement atomic operations for consistent data updates
+
+- [ ] **Data Migration Implementation**
+  - [ ] Create migration function for existing `.band_metadata.json` files
+  - [ ] Add automatic backup before migration
+  - [ ] Implement rollback capability for failed migrations
+  - [ ] Add migration logging and progress tracking
+  - [ ] Validate data integrity after migration
+  - [ ] Update collection index after successful migrations
+
+- [ ] **Enhanced Data Validation**
+  - [ ] Add validation rules for separated album arrays
+  - [ ] Ensure album names are unique within each band
+  - [ ] Validate that local albums have folder_path information
+  - [ ] Check that missing albums don't have folder-specific fields
+  - [ ] Implement data consistency checks between arrays
+  - [ ] Add comprehensive error handling and reporting
+
+**Implementation Priority**: MEDIUM - Storage layer must support new schema but depends on Tasks 7.1-7.3.
+
+### Task 7.5: Tools and Resources Updates for Separated Albums - PRIORITY MEDIUM
+- [ ] **Update get_band_list_tool**
+  - [ ] Modify filtering to work with separated album arrays
+  - [ ] Add filtering options for local albums only or missing albums only
+  - [ ] Update band statistics to show local vs missing counts
+  - [ ] Add completion percentage calculations (local/total)
+  - [ ] Update album type filtering to work with both arrays
+  - [ ] Include folder structure analysis in band list results
+
+- [ ] **Update Band Info Resource**
+  - [ ] Modify `src/resources/band_info.py` to display separated album sections
+  - [ ] Create "Local Albums" section for found albums
+  - [ ] Create "Missing Albums" section for albums not found locally
+  - [ ] Show completion statistics and acquisition recommendations
+  - [ ] Display folder structure analysis and compliance scores
+  - [ ] Include migration recommendations for missing albums
+
+- [ ] **Update Collection Summary Resource**
+  - [ ] Modify `src/resources/collection_summary.py` for separated statistics
+  - [ ] Show collection-wide local vs missing album distribution
+  - [ ] Add completion percentage across entire collection
+  - [ ] Include acquisition recommendations for missing albums
+  - [ ] Display folder structure health across collection
+  - [ ] Add collection organization insights and recommendations
+
+**Implementation Priority**: MEDIUM - User-facing tools and resources need updates after core schema changes.
+
+### Task 7.6: Analysis Tools Updates for Separated Albums - PRIORITY LOW
+- [ ] **Update save_band_analyze_tool**
+  - [ ] Modify analysis tool to work with both album arrays
+  - [ ] Add option to analyze only local albums or include missing albums
+  - [ ] Update album analysis filtering based on availability
+  - [ ] Preserve analysis data structure and rating system
+  - [ ] Add analysis insights about local vs missing album patterns
+  - [ ] Include recommendations for missing album acquisition
+
+- [ ] **Update Analysis Prompts**
+  - [ ] Modify `analyze_band_prompt` to specify local vs missing album analysis
+  - [ ] Update prompt templates to handle separated album context
+  - [ ] Add guidance for analyzing incomplete discographies
+  - [ ] Include collection completion assessment in analysis
+  - [ ] Update similar band recommendations based on local collection
+  - [ ] Add acquisition priority recommendations
+
+- [ ] **Collection Insights Enhancement**
+  - [ ] Update collection insights to analyze local vs missing patterns
+  - [ ] Generate acquisition recommendations based on missing albums
+  - [ ] Add collection completion tracking and goals
+  - [ ] Analyze folder structure health across collection
+  - [ ] Provide migration recommendations for better organization
+  - [ ] Include type-based acquisition suggestions
+
+**Implementation Priority**: LOW - Analysis features can be updated after core functionality is working.
+
+### Task 7.7: Testing and Quality Assurance for Separated Albums - PRIORITY MEDIUM
+- [ ] **Unit Test Updates**
+  - [ ] Update all model tests for new separated album schema
+  - [ ] Create tests for schema migration functionality
+  - [ ] Update scanner tests to verify local-only album population
+  - [ ] Update metadata tool tests for separated album handling
+  - [ ] Add tests for data validation and consistency checks
+  - [ ] Create comprehensive integration tests for new workflow
+
+- [ ] **Data Migration Testing**
+  - [ ] Create test data with existing schema files
+  - [ ] Test automatic migration during data loading
+  - [ ] Verify backup and rollback functionality
+  - [ ] Test migration performance with large collections
+  - [ ] Validate data integrity after migration
+  - [ ] Test edge cases and error scenarios
+
+- [ ] **End-to-End Workflow Testing**
+  - [ ] Test complete workflow: scan → save metadata → analyze
+  - [ ] Verify collection index consistency throughout workflow
+  - [ ] Test tool interactions with separated album data
+  - [ ] Validate resource display with new album organization
+  - [ ] Test error handling and recovery scenarios
+  - [ ] Performance testing with large collections
+
+**Implementation Priority**: MEDIUM - Comprehensive testing ensures reliability of schema changes.
+
+### Task 7.8: Documentation Updates for Separated Albums - PRIORITY LOW
+- [ ] **Update Schema Documentation**
+  - [ ] Update `METADATA_SCHEMA.md` with separated album arrays
+  - [ ] Add migration guide for existing collections
+  - [ ] Document new workflow separation (scan vs metadata tools)
+  - [ ] Update API documentation for tool parameter changes
+  - [ ] Add examples of new schema structure
+  - [ ] Include best practices for separated album management
+
+- [ ] **Update User Documentation**
+  - [ ] Update `USAGE_EXAMPLES.md` with new workflow examples
+  - [ ] Add migration instructions for existing users
+  - [ ] Update tool documentation for parameter changes
+  - [ ] Include troubleshooting guide for migration issues
+  - [ ] Add FAQ entries for separated album schema
+  - [ ] Update collection organization best practices
+
+- [ ] **Update Developer Documentation**
+  - [ ] Update `ARCHITECTURE.md` with new data flow diagrams
+  - [ ] Document schema migration implementation
+  - [ ] Update code examples for new album handling
+  - [ ] Add extension guides for separated album features
+  - [ ] Update contribution guidelines for schema changes
+  - [ ] Document testing strategies for separated albums
+
+**Implementation Priority**: LOW - Documentation updates after implementation is complete.
+
+## Phase 7 Implementation Strategy
+
+### Implementation Order (Critical Path):
+1. **Task 7.1**: Update band schema and models (FOUNDATION)
+2. **Task 7.2**: Update scanner for local albums only (SCANNING) 
+3. **Task 7.3**: Update metadata tool for missing albums (METADATA)
+4. **Task 7.4**: Update storage layer (PERSISTENCE)
+5. **Task 7.5**: Update tools and resources (USER INTERFACE)
+6. **Task 7.7**: Comprehensive testing (QUALITY ASSURANCE)
+7. **Task 7.6**: Update analysis features (ENHANCEMENT)
+8. **Task 7.8**: Update documentation (DOCUMENTATION)
+
+### Key Benefits of Separated Albums Schema:
+
+**Data Clarity**:
+- Clear distinction between locally available albums and missing albums
+- No confusion about album availability status
+- Simplified data structure without boolean flags
+
+**Workflow Separation**:
+- Scanner focuses only on local album discovery
+- Metadata tool handles complete discography and missing albums
+- Clear responsibility separation between tools
+
+**Enhanced Analytics**:
+- Accurate local vs missing album statistics
+- Better collection completion tracking
+- Improved acquisition recommendations
+
+**Performance Improvements**:
+- Faster scanning (no metadata comparison needed)
+- More efficient storage (no redundant missing flags)
+- Clearer caching strategies
+
+**User Experience**:
+- Clearer display of local vs missing albums
+- Better acquisition guidance
+- Improved collection management
+
+### Backward Compatibility Strategy:
+- Automatic migration of existing JSON files during loading
+- Preserve all existing functionality during transition
+- Gradual rollout with fallback mechanisms
+- Comprehensive testing before deployment
+
+**Implementation Timeline**: Phase 7 represents approximately 2-3 weeks of development work with the critical path focusing on Tasks 7.1-7.4 for core functionality.
 
 ## Success Criteria
 
