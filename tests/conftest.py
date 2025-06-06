@@ -36,8 +36,7 @@ def sample_band_metadata():
             Album(
                 album_name="Test Album",
                 year="1975", 
-                type=AlbumType.ALBUM,
-                missing=False
+                type=AlbumType.ALBUM
             )
         ]
     )
@@ -49,8 +48,7 @@ def sample_album():
     return Album(
         album_name="Sample Album",
         year="1980",
-        type=AlbumType.ALBUM,
-        missing=False
+        type=AlbumType.ALBUM
     )
 
 

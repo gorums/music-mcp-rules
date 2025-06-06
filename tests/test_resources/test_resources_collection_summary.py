@@ -183,6 +183,7 @@ class TestOverviewSection:
             BandIndexEntry(
                 name="Pink Floyd",
                 albums_count=15,
+                local_albums_count=12,
                 folder_path="Pink Floyd",
                 missing_albums_count=3,
                 has_metadata=True
@@ -190,6 +191,7 @@ class TestOverviewSection:
             BandIndexEntry(
                 name="The Beatles",
                 albums_count=13,
+                local_albums_count=13,
                 folder_path="The Beatles",
                 missing_albums_count=0,
                 has_metadata=False
@@ -225,8 +227,8 @@ class TestStatisticsSection:
     def test_statistics_section_with_genres(self):
         """Test statistics section including genre information."""
         bands = [
-            BandIndexEntry(name="Band 1", albums_count=10, folder_path="Band 1", has_metadata=True),
-            BandIndexEntry(name="Band 2", albums_count=5, folder_path="Band 2", missing_albums_count=2)
+            BandIndexEntry(name="Band 1", albums_count=10, local_albums_count=10, folder_path="Band 1", has_metadata=True),
+            BandIndexEntry(name="Band 2", albums_count=5, local_albums_count=3, folder_path="Band 2", missing_albums_count=2)
         ]
         
         stats = CollectionStats(
@@ -265,13 +267,13 @@ class TestBandDistributionSection:
     def test_band_distribution_all_categories(self):
         """Test band distribution with all size categories."""
         bands = [
-            BandIndexEntry(name="Large Band 1", albums_count=15, folder_path="Large Band 1", has_metadata=True, has_analysis=True),
-            BandIndexEntry(name="Large Band 2", albums_count=12, folder_path="Large Band 2"),
-            BandIndexEntry(name="Medium Band 1", albums_count=7, folder_path="Medium Band 1", has_metadata=True),
-            BandIndexEntry(name="Medium Band 2", albums_count=6, folder_path="Medium Band 2"),
-            BandIndexEntry(name="Small Band 1", albums_count=3, folder_path="Small Band 1"),
-            BandIndexEntry(name="Small Band 2", albums_count=2, folder_path="Small Band 2"),
-            BandIndexEntry(name="No Albums Band", albums_count=0, folder_path="No Albums Band")
+            BandIndexEntry(name="Large Band 1", albums_count=15, local_albums_count=15, folder_path="Large Band 1", has_metadata=True, has_analysis=True),
+            BandIndexEntry(name="Large Band 2", albums_count=12, local_albums_count=12, folder_path="Large Band 2"),
+            BandIndexEntry(name="Medium Band 1", albums_count=7, local_albums_count=7, folder_path="Medium Band 1", has_metadata=True),
+            BandIndexEntry(name="Medium Band 2", albums_count=6, local_albums_count=6, folder_path="Medium Band 2"),
+            BandIndexEntry(name="Small Band 1", albums_count=3, local_albums_count=3, folder_path="Small Band 1"),
+            BandIndexEntry(name="Small Band 2", albums_count=2, local_albums_count=2, folder_path="Small Band 2"),
+            BandIndexEntry(name="No Albums Band", albums_count=0, local_albums_count=0, folder_path="No Albums Band")
         ]
         
         collection_index = CollectionIndex(bands=bands)
@@ -306,18 +308,21 @@ class TestMissingAlbumsSection:
             BandIndexEntry(
                 name="Pink Floyd",
                 albums_count=15,
+                local_albums_count=7,
                 folder_path="Pink Floyd",
                 missing_albums_count=8
             ),
             BandIndexEntry(
                 name="The Beatles",
                 albums_count=13,
+                local_albums_count=10,
                 folder_path="The Beatles",
                 missing_albums_count=3
             ),
             BandIndexEntry(
                 name="Led Zeppelin",
                 albums_count=8,
+                local_albums_count=7,
                 folder_path="Led Zeppelin",
                 missing_albums_count=1
             )
@@ -337,6 +342,7 @@ class TestMissingAlbumsSection:
             BandIndexEntry(
                 name=f"Band {i}",
                 albums_count=10,
+                local_albums_count=10 - (i % 3 + 1),
                 folder_path=f"Band {i}",
                 missing_albums_count=i % 3 + 1
             ) for i in range(20)
@@ -444,6 +450,7 @@ class TestHealthSection:
             BandIndexEntry(
                 name="Band 1",
                 albums_count=10,
+                local_albums_count=10,
                 folder_path="Band 1",
                 missing_albums_count=0,
                 has_metadata=True,
@@ -464,7 +471,7 @@ class TestMetadataInfoSection:
     def test_metadata_info_section(self):
         """Test metadata information section."""
         bands = [
-            BandIndexEntry(name="Band 1", albums_count=5, folder_path="Band 1")
+            BandIndexEntry(name="Band 1", albums_count=5, local_albums_count=5, folder_path="Band 1")
         ]
         
         collection_index = CollectionIndex(
@@ -571,11 +578,15 @@ class TestIntegrationScenarios:
         
         # Create diverse collection
         for i in range(100):
+            albums_count = (i % 20) + 1  # 1-20 albums
+            missing_count = (i % 5)  # 0-4 missing
+            local_count = albums_count - missing_count
             band = BandIndexEntry(
                 name=f"Band {i}",
-                albums_count=(i % 20) + 1,  # 1-20 albums
+                albums_count=albums_count,
+                local_albums_count=local_count,
                 folder_path=f"Band {i}",
-                missing_albums_count=(i % 5),  # 0-4 missing
+                missing_albums_count=missing_count,
                 has_metadata=(i % 3 == 0),  # 1/3 have metadata
                 has_analysis=(i % 4 == 0)   # 1/4 have analysis
             )
@@ -613,6 +624,7 @@ class TestIntegrationScenarios:
             BandIndexEntry(
                 name="Pink Floyd",
                 albums_count=15,
+                local_albums_count=3,
                 folder_path="Pink Floyd",
                 missing_albums_count=12,
                 has_metadata=False,
@@ -621,6 +633,7 @@ class TestIntegrationScenarios:
             BandIndexEntry(
                 name="The Beatles",
                 albums_count=13,
+                local_albums_count=3,
                 folder_path="The Beatles",
                 missing_albums_count=10,
                 has_metadata=False,

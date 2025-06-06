@@ -268,7 +268,6 @@ class TestComplianceValidator:
             album_name="Missing Album",
             year="2020",
             type=AlbumType.ALBUM,
-            missing=True,
             folder_path=""
         )
         
@@ -366,18 +365,12 @@ class TestComplianceValidator:
                 year="2010",
                 type=AlbumType.ALBUM,
                 track_count=10,
-                folder_path="2010 - Local Album",
-                missing=False
-            ),
-            Album(
-                album_name="Missing Album",
-                year="2012",
-                type=AlbumType.ALBUM,
-                track_count=12,
-                folder_path="",
-                missing=True
+                folder_path="2010 - Local Album"
             )
         ]
+        
+        # Note: In separated albums schema, missing albums would be in albums_missing array
+        # This test now validates only local albums
         
         report = self.validator.validate_band_compliance(albums, "Test Band", "default")
         

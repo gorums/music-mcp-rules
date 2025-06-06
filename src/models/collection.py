@@ -10,7 +10,8 @@ class BandIndexEntry(BaseModel):
     
     Attributes:
         name: Band name
-        albums_count: Number of albums for this band
+        albums_count: Total number of albums (local + missing)
+        local_albums_count: Number of local albums found in folder structure
         folder_path: Relative path to band folder
         missing_albums_count: Number of albums marked as missing
         has_metadata: True if .band_metadata.json exists
@@ -18,7 +19,8 @@ class BandIndexEntry(BaseModel):
         last_updated: ISO datetime of last metadata update
     """
     name: str = Field(..., description="Band name")
-    albums_count: int = Field(default=0, ge=0, description="Number of albums")
+    albums_count: int = Field(default=0, ge=0, description="Total number of albums (local + missing)")
+    local_albums_count: int = Field(default=0, ge=0, description="Number of local albums found in folder structure")
     folder_path: str = Field(..., description="Relative path to band folder")
     missing_albums_count: int = Field(default=0, ge=0, description="Number of missing albums")
     has_metadata: bool = Field(default=False, description="True if metadata file exists")
@@ -26,10 +28,21 @@ class BandIndexEntry(BaseModel):
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
 
     @model_validator(mode='after')
-    def validate_missing_count(self):
-        """Ensure missing albums count doesn't exceed total albums count."""
+    def validate_album_counts(self):
+        """Ensure album counts are consistent and valid."""
+        # Ensure missing albums count doesn't exceed total albums count
         if self.missing_albums_count > self.albums_count:
             self.missing_albums_count = self.albums_count
+        
+        # Ensure local albums count doesn't exceed total albums count
+        if self.local_albums_count > self.albums_count:
+            self.local_albums_count = self.albums_count
+        
+        # Ensure local + missing equals total (adjust total if needed)
+        calculated_total = self.local_albums_count + self.missing_albums_count
+        if calculated_total != self.albums_count:
+            self.albums_count = calculated_total
+        
         return self
 
 
@@ -39,7 +52,8 @@ class CollectionStats(BaseModel):
     
     Attributes:
         total_bands: Total number of bands
-        total_albums: Total number of albums
+        total_albums: Total number of albums (local + missing)
+        total_local_albums: Total number of local albums found in folder structure
         total_missing_albums: Total missing albums across collection
         bands_with_metadata: Number of bands with metadata files
         top_genres: Most common genres in collection
@@ -49,7 +63,8 @@ class CollectionStats(BaseModel):
         edition_distribution: Distribution of albums by edition
     """
     total_bands: int = Field(default=0, ge=0, description="Total number of bands")
-    total_albums: int = Field(default=0, ge=0, description="Total number of albums")
+    total_albums: int = Field(default=0, ge=0, description="Total number of albums (local + missing)")
+    total_local_albums: int = Field(default=0, ge=0, description="Total number of local albums found in folder structure")
     total_missing_albums: int = Field(default=0, ge=0, description="Total missing albums")
     bands_with_metadata: int = Field(default=0, ge=0, description="Bands with metadata files")
     top_genres: Dict[str, int] = Field(default_factory=dict, description="Genre frequency map")
@@ -60,12 +75,11 @@ class CollectionStats(BaseModel):
 
     @model_validator(mode='after')
     def calculate_completion_percentage(self):
-        """Calculate completion percentage based on albums present vs missing."""
+        """Calculate completion percentage based on local albums vs total albums."""
         if self.total_albums == 0:
             self.completion_percentage = 100.0
         else:
-            present_albums = self.total_albums - self.total_missing_albums
-            self.completion_percentage = round((present_albums / self.total_albums) * 100, 2)
+            self.completion_percentage = round((self.total_local_albums / self.total_albums) * 100, 2)
         return self
 
 
@@ -227,6 +241,7 @@ class CollectionIndex(BaseModel):
         """Update collection statistics based on current bands."""
         self.stats.total_bands = len(self.bands)
         self.stats.total_albums = sum(band.albums_count for band in self.bands)
+        self.stats.total_local_albums = sum(band.local_albums_count for band in self.bands)
         self.stats.total_missing_albums = sum(band.missing_albums_count for band in self.bands)
         self.stats.bands_with_metadata = sum(1 for band in self.bands if band.has_metadata)
         
@@ -236,12 +251,11 @@ class CollectionIndex(BaseModel):
         else:
             self.stats.avg_albums_per_band = 0.0
         
-        # Calculate completion percentage manually since Pydantic validator doesn't run on direct field updates
+        # Calculate completion percentage based on local albums vs total albums
         if self.stats.total_albums == 0:
             self.stats.completion_percentage = 100.0
         else:
-            present_albums = self.stats.total_albums - self.stats.total_missing_albums
-            self.stats.completion_percentage = round((present_albums / self.stats.total_albums) * 100, 2)
+            self.stats.completion_percentage = round((self.stats.total_local_albums / self.stats.total_albums) * 100, 2)
 
     def update_insights(self, insights: CollectionInsight) -> None:
         """

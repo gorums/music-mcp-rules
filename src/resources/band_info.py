@@ -73,9 +73,8 @@ def _generate_band_markdown(metadata: BandMetadata) -> str:
     markdown_parts.append(_generate_albums_section(metadata))
     
     # Missing albums section (if any)
-    missing_albums = metadata.get_missing_albums()
-    if missing_albums:
-        markdown_parts.append(_generate_missing_albums_section(missing_albums))
+    if metadata.albums_missing:
+        markdown_parts.append(_generate_missing_albums_section(metadata.albums_missing))
     
     # Analysis section (if available)
     if metadata.analyze:
@@ -105,7 +104,7 @@ def _generate_header_section(metadata: BandMetadata) -> str:
         badges.append(f"⭐ **{metadata.analyze.rate}/10**")
     
     if completion_percentage < 100:
-        missing_count = len(metadata.get_missing_albums())
+        missing_count = len(metadata.albums_missing)
         badges.append(f"⚠️ **{missing_count} missing albums**")
     else:
         badges.append("✅ **Complete collection**")
@@ -143,7 +142,8 @@ def _generate_details_section(metadata: BandMetadata) -> str:
         members_str = ", ".join(metadata.members)
         info_table.append(f"| **Members** | {members_str} |")
     
-    info_table.append(f"| **Total Albums** | {metadata.albums_count} |")
+    total_albums = len(metadata.albums) + len(metadata.albums_missing)
+    info_table.append(f"| **Total Albums** | {total_albums} |")
     
     completion_percentage = _calculate_completion_percentage(metadata)
     info_table.append(f"| **Collection Status** | {completion_percentage:.1f}% complete |")
@@ -158,8 +158,8 @@ def _generate_albums_section(metadata: BandMetadata) -> str:
     albums = ["## Albums"]
     
     # Get local albums (not missing)
-    local_albums = metadata.get_local_albums()
-    missing_albums = metadata.get_missing_albums()
+    local_albums = metadata.albums
+    missing_albums = metadata.albums_missing
     
     if not metadata.albums:
         albums.append("*No album information available.*")
@@ -280,14 +280,15 @@ def _generate_statistics_section(metadata: BandMetadata) -> str:
     """Generate collection statistics section with enhanced metadata."""
     section = ["## 📈 Collection Statistics"]
     
-    local_albums = metadata.get_local_albums()
-    missing_albums = metadata.get_missing_albums()
+    local_albums = metadata.albums
+    missing_albums = metadata.albums_missing
+    total_albums = len(local_albums) + len(missing_albums)
     
     # Basic statistics table
     stats_table = [
         "| Statistic | Value |",
         "|-----------|-------|",
-        f"| Total Albums | {metadata.albums_count} |",
+        f"| Total Albums | {total_albums} |",
         f"| Available Locally | {len(local_albums)} |",
         f"| Missing | {len(missing_albums)} |",
         f"| Completion | {_calculate_completion_percentage(metadata):.1f}% |"
@@ -301,8 +302,9 @@ def _generate_statistics_section(metadata: BandMetadata) -> str:
     if metadata.members:
         stats_table.append(f"| Members | {len(metadata.members)} |")
     
-    # Add total tracks count
-    total_tracks = sum(album.track_count for album in metadata.albums)
+    # Add total tracks count (from both local and missing albums)
+    total_tracks = (sum(album.track_count for album in metadata.albums) + 
+                   sum(album.track_count for album in metadata.albums_missing))
     if total_tracks > 0:
         stats_table.append(f"| Total Tracks | {total_tracks} |")
     
@@ -507,11 +509,12 @@ def _format_album_info_enhanced(album: Album, analysis=None) -> str:
 
 def _calculate_completion_percentage(metadata: BandMetadata) -> float:
     """Calculate collection completion percentage."""
-    if metadata.albums_count == 0:
+    total_albums = len(metadata.albums) + len(metadata.albums_missing)
+    if total_albums == 0:
         return 100.0
     
-    local_albums = len(metadata.get_local_albums())
-    return (local_albums / metadata.albums_count) * 100
+    local_albums = len(metadata.albums)
+    return (local_albums / total_albums) * 100
 
 
 def _generate_no_metadata_message(band_name: str) -> str:

@@ -354,7 +354,7 @@ def _generate_missing_albums_section(bands_with_missing: List) -> str:
     ]
     
     for band in sorted_bands[:15]:  # Show top 15 bands with missing albums
-        completion = ((band.albums_count - band.missing_albums_count) / max(band.albums_count, 1)) * 100
+        completion = (band.local_albums_count / max(band.albums_count, 1)) * 100
         completion_icon = "🔴" if completion < 50 else "🟡" if completion < 80 else "🟢"
         
         missing_table.append(

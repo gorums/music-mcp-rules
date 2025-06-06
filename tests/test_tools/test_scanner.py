@@ -72,21 +72,20 @@ class TestMusicDirectoryScanner:
             "albums": [
                 {
                     "album_name": "Abbey Road",
-                    "missing": False,
                     "track_count": 2,
                     "year": "1969",
                     "genre": ["Rock"]
                 },
                 {
                     "album_name": "Sgt. Pepper's Lonely Hearts Club Band",
-                    "missing": False,
                     "track_count": 1,
                     "year": "1967",
                     "genre": ["Psychedelic Rock"]
-                },
+                }
+            ],
+            "albums_missing": [
                 {
                     "album_name": "Revolver",  # This album is not in folders (missing)
-                    "missing": True,
                     "track_count": 0,
                     "year": "1966",
                     "genre": ["Rock"]
@@ -317,7 +316,7 @@ class TestMusicDirectoryScanner:
         assert result is not None
         assert result['album_name'] == "Abbey Road"
         assert result['track_count'] == 2
-        assert result['missing'] == False
+        # Note: missing field removed in separated albums schema
 
     def test_scan_album_folder_no_music(self, temp_music_dir):
         """Test scanning album folder with no music files."""
@@ -378,7 +377,9 @@ class TestMusicDirectoryScanner:
         test_index.add_band(BandIndexEntry(
             name="Test Band",
             albums_count=1,
+            local_albums_count=1,
             folder_path="Test Band",
+            missing_albums_count=0,
             has_metadata=False
         ))
         
@@ -413,7 +414,9 @@ class TestMusicDirectoryScanner:
         index.add_band(BandIndexEntry(
             name="Test Band",
             albums_count=1,
+            local_albums_count=1,
             folder_path="Test Band",
+            missing_albums_count=0,
             has_metadata=False
         ))
         
@@ -480,6 +483,7 @@ class TestMusicDirectoryScanner:
         existing_entry = BandIndexEntry(
             name='The Beatles',
             albums_count=2,
+            local_albums_count=2,  # New field for separated schema
             folder_path='The Beatles',
             missing_albums_count=0,
             has_metadata=True,
@@ -512,7 +516,9 @@ class TestMusicDirectoryScanner:
         assert hasattr(metadata, 'band_name')
         assert hasattr(metadata, 'albums')
         assert metadata.band_name == "The Beatles"
-        assert len(metadata.albums) == 3
+        # With separated schema, only local albums are in the albums array
+        assert len(metadata.albums) == 2  # Abbey Road and Sgt. Pepper's (local)
+        assert len(metadata.albums_missing) == 1  # Revolver (missing)
 
     def test_load_band_metadata_invalid_file(self, temp_music_dir):
         """Test loading invalid band metadata file."""
@@ -541,7 +547,9 @@ class TestMusicDirectoryScanner:
         beatles_entry = BandIndexEntry(
             name="The Beatles",
             albums_count=3,
+            local_albums_count=2,  # Local albums found
             folder_path="The Beatles",
+            missing_albums_count=1,  # One missing album
             has_metadata=True
         )
         collection_index.add_band(beatles_entry)
@@ -560,7 +568,9 @@ class TestMusicDirectoryScanner:
         band_entry = BandIndexEntry(
             name="Pink Floyd",
             albums_count=1,
+            local_albums_count=1,  # Local albums found
             folder_path="Pink Floyd",
+            missing_albums_count=0,  # No missing albums when no metadata
             has_metadata=False  # No metadata file
         )
         collection_index.add_band(band_entry)

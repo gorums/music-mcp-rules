@@ -822,6 +822,8 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
                 band_info["metadata"] = True
                 
                 album_details = []
+                
+                # Add local albums (found in folder structure)
                 for album in metadata.albums:
                     album_detail = {
                         "album_name": album.album_name,
@@ -829,10 +831,22 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
                         "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
                         "edition": album.edition,
                         "track_count": album.track_count,
-                        "missing": album.missing,
+                        "missing": False,  # Albums in albums array are local (not missing)
                         "folder_path": album.folder_path
                     }
-                    
+                    album_details.append(album_detail)
+                
+                # Add missing albums (not found in folder structure)
+                for album in metadata.albums_missing:
+                    album_detail = {
+                        "album_name": album.album_name,
+                        "year": album.year,
+                        "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
+                        "edition": album.edition,
+                        "track_count": album.track_count,
+                        "missing": True,  # Albums in albums_missing array are missing
+                        "folder_path": album.folder_path
+                    }
                     album_details.append(album_detail)
                 
                 band_info["albums"] = album_details

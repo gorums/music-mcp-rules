@@ -45,8 +45,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
                 {
                     "album_name": "First Album",
                     "year": "1995",
-                    "tracks_count": 10,
-                    "missing": False
+                    "track_count": 10
                 }
             ]
         }
@@ -100,14 +99,14 @@ class TestSaveBandMetadataTool(unittest.TestCase):
                 {
                     "album_name": "Heavy Album",
                     "year": "1990",
-                    "tracks_count": 8,
-                    "missing": False
-                },
+                    "track_count": 8
+                }
+            ],
+            "albums_missing": [
                 {
                     "album_name": "Missing Album",
                     "year": "1995",
-                    "tracks_count": 12,
-                    "missing": True
+                    "track_count": 12
                 }
             ],
             "analyze": {
@@ -296,24 +295,23 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             "albums": [
                 {
                     "album_name": "Debut Album",
-                    "missing": False,
-                    "tracks_count": 8,
+                    "track_count": 8,
                     "duration": "45min",
                     "year": "1982",
                     "genres": ["Progressive Rock"]
                 },
                 {
                     "album_name": "Sophomore Effort",
-                    "missing": False,
-                    "tracks_count": 10,
+                    "track_count": 10,
                     "duration": "52min",
                     "year": "1984",
                     "genres": ["Art Rock"]
-                },
+                }
+            ],
+            "albums_missing": [
                 {
                     "album_name": "Lost Album",
-                    "missing": True,
-                    "tracks_count": 6,
+                    "track_count": 6,
                     "duration": "38min",
                     "year": "1986",
                     "genres": ["Progressive Rock"]

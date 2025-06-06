@@ -310,12 +310,12 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
 
 def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albums: List[Dict], band_name: str) -> 'BandMetadata':
     """
-    Synchronize metadata albums list with actual local albums found during scanning.
+    Synchronize metadata albums with actual local albums found during scanning.
     
     This function:
-    - Updates existing albums with current local info (track counts, missing status)
+    - Updates albums array with local albums found during scanning
+    - Moves albums to albums_missing array if they're not found locally
     - Adds new albums found locally that aren't in metadata
-    - Marks albums as missing if they're in metadata but not found locally
     - Preserves existing metadata like year, genres, duration for known albums
     
     Args:
@@ -324,7 +324,7 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
         band_name: Name of the band for logging
         
     Returns:
-        Updated BandMetadata object
+        Updated BandMetadata object with separated albums arrays
     """
     from models.band import Album, AlbumType
     
@@ -336,18 +336,22 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
     # Track which local albums we've processed
     processed_local_albums = set()
     
-    # Update existing albums in metadata
-    updated_albums = []
-    for existing_album in metadata.albums:
+    # Separate albums into local and missing arrays
+    updated_local_albums = []
+    updated_missing_albums = []
+    
+    # Process existing albums from both arrays
+    all_existing_albums = list(metadata.albums) + list(metadata.albums_missing)
+    
+    for existing_album in all_existing_albums:
         album_name_lower = existing_album.album_name.lower()
         
         if album_name_lower in local_albums_lookup:
-            # Album exists locally - update with current info
+            # Album exists locally - add to local albums array
             local_album = local_albums_lookup[album_name_lower]
             processed_local_albums.add(album_name_lower)
             
             # Update the existing album with local info while preserving metadata
-            existing_album.missing = False
             existing_album.track_count = local_album['track_count']
             existing_album.folder_path = local_album['folder_path']
             
@@ -367,15 +371,15 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
             if local_album.get('year') and not existing_album.year:
                 existing_album.year = local_album['year']
             
-            updated_albums.append(existing_album)
-            logging.debug(f"Updated existing album: {existing_album.album_name}")
+            updated_local_albums.append(existing_album)
+            logging.debug(f"Updated existing album in local array: {existing_album.album_name}")
             
         else:
-            # Album not found locally - mark as missing
-            existing_album.missing = True
+            # Album not found locally - add to missing albums array
             existing_album.track_count = 0  # No tracks since it's missing
-            updated_albums.append(existing_album)
-            logging.debug(f"Marked album as missing: {existing_album.album_name}")
+            existing_album.folder_path = ""  # No folder path since it's missing
+            updated_missing_albums.append(existing_album)
+            logging.debug(f"Moved album to missing array: {existing_album.album_name}")
     
     # Add new albums found locally that aren't in metadata
     for local_album in local_albums:
@@ -388,29 +392,29 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
             except ValueError:
                 album_type = AlbumType.ALBUM
             
-            # Create new album entry
+            # Create new album entry for local albums array
             new_album = Album(
                 album_name=local_album['album_name'],
                 year=local_album.get('year', ''),
                 type=album_type,
                 edition=local_album.get('edition', ''),
                 track_count=local_album['track_count'],
-                missing=False,
                 duration=local_album.get('duration', ''),
                 genres=local_album.get('genres', []),
                 folder_path=local_album['folder_path']
             )
             
-            updated_albums.append(new_album)
+            updated_local_albums.append(new_album)
             logging.debug(f"Added new local album: {new_album.album_name}")
     
-    # Update metadata with synchronized albums
-    metadata.albums = updated_albums
-    metadata.albums_count = len(updated_albums)
+    # Update metadata with separated albums arrays
+    metadata.albums = updated_local_albums
+    metadata.albums_missing = updated_missing_albums
+    metadata.albums_count = len(updated_local_albums) + len(updated_missing_albums)
     
-    logging.debug(f"Synchronized metadata: {len(updated_albums)} total albums, "
-                 f"{len([a for a in updated_albums if not a.missing])} local, "
-                 f"{len([a for a in updated_albums if a.missing])} missing")
+    logging.debug(f"Synchronized metadata: {len(updated_local_albums)} local albums, "
+                 f"{len(updated_missing_albums)} missing albums, "
+                 f"{metadata.albums_count} total albums")
     
     return metadata
 
@@ -678,14 +682,14 @@ def _create_band_index_entry(band_result: Dict, music_root: Path, existing_entry
     # If we have metadata, use album count from metadata (includes missing albums)
     # Otherwise, use physical album count from scan
     if metadata:
-        total_albums = len(metadata.albums)
-        missing_albums = len(metadata.get_missing_albums())
-        # Ensure missing count doesn't exceed total (validation constraint)
-        missing_albums = min(missing_albums, total_albums)
+        local_albums = len(metadata.albums)
+        missing_albums = len(metadata.albums_missing)
+        total_albums = local_albums + missing_albums
     else:
         # No metadata - use physical scan results
-        total_albums = band_result['albums_count']
+        local_albums = band_result['albums_count']
         missing_albums = 0
+        total_albums = local_albums
     
     # Preserve analysis flag from existing entry if available
     has_analysis = False
@@ -704,6 +708,7 @@ def _create_band_index_entry(band_result: Dict, music_root: Path, existing_entry
     return BandIndexEntry(
         name=band_result['band_name'],
         albums_count=total_albums,
+        local_albums_count=local_albums,
         folder_path=band_result['folder_path'],
         missing_albums_count=missing_albums,
         has_metadata=band_result['has_metadata'],
@@ -759,16 +764,8 @@ def _detect_missing_albums(collection_index: CollectionIndex) -> int:
             if metadata_file.exists():
                 metadata = _load_band_metadata(metadata_file)
                 if metadata:
-                    # Check each album in metadata against actual folders
-                    album_folders = {af.name.lower() for af in _discover_album_folders(band_folder)}
-                    missing_count = 0
-                    
-                    for album in metadata.albums:
-                        if album.album_name.lower() not in album_folders:
-                            album.missing = True
-                            missing_count += 1
-                        else:
-                            album.missing = False
+                    # With separated albums schema, missing count is already tracked
+                    missing_count = len(metadata.albums_missing)
                     
                     # Update band entry
                     band_entry.missing_albums_count = missing_count
@@ -803,10 +800,10 @@ def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
         return {
             'album_name': album_name,
             'track_count': tracks_count,
-            'missing': False,  # Found in folder, so not missing
             'duration': '',    # Will be filled by metadata tools
             'year': '',        # Will be filled by metadata tools
-            'genres': []       # Will be filled by metadata tools
+            'genres': [],      # Will be filled by metadata tools
+            'folder_path': album_name  # Store the folder name
         }
         
     except Exception as e:

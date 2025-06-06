@@ -19,7 +19,6 @@ class TestAlbum:
         album = Album(album_name="Test Album")
         
         assert album.album_name == "Test Album"
-        assert album.missing is False
         assert album.track_count == 0
         assert album.duration == ""
         assert album.year == ""
@@ -29,7 +28,6 @@ class TestAlbum:
         """Test album creation with all fields provided."""
         album = Album(
             album_name="Test Album",
-            missing=True,
             track_count=12,
             duration="45min",
             year="1990",
@@ -37,7 +35,6 @@ class TestAlbum:
         )
         
         assert album.album_name == "Test Album"
-        assert album.missing is True
         assert album.track_count == 12
         assert album.duration == "45min"
         assert album.year == "1990"
@@ -251,14 +248,15 @@ class TestBandMetadata:
             BandMetadata.from_json('{"invalid": "data"}')  # Missing required band_name
     
     def test_get_missing_albums(self):
-        """Test getting list of missing albums."""
-        album1 = Album(album_name="Present Album", missing=False)
-        album2 = Album(album_name="Missing Album", missing=True)
-        album3 = Album(album_name="Another Missing", missing=True)
+        """Test getting list of missing albums from albums_missing array."""
+        present_album = Album(album_name="Present Album")
+        missing_album1 = Album(album_name="Missing Album")
+        missing_album2 = Album(album_name="Another Missing")
         
         metadata = BandMetadata(
             band_name="Test Band",
-            albums=[album1, album2, album3]
+            albums=[present_album],
+            albums_missing=[missing_album1, missing_album2]
         )
         
         missing_albums = metadata.get_missing_albums()
@@ -267,13 +265,14 @@ class TestBandMetadata:
         assert missing_albums[1].album_name == "Another Missing"
     
     def test_get_local_albums(self):
-        """Test getting list of locally available albums."""
-        album1 = Album(album_name="Present Album", missing=False)
-        album2 = Album(album_name="Missing Album", missing=True)
+        """Test getting list of locally available albums from albums array."""
+        local_album = Album(album_name="Present Album")
+        missing_album = Album(album_name="Missing Album")
         
         metadata = BandMetadata(
             band_name="Test Band",
-            albums=[album1, album2]
+            albums=[local_album],
+            albums_missing=[missing_album]
         )
         
         local_albums = metadata.get_local_albums()

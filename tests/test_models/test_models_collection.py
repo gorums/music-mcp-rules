@@ -38,6 +38,7 @@ class TestBandIndexEntry:
         entry = BandIndexEntry(
             name="Test Band",
             albums_count=5,
+            local_albums_count=3,
             folder_path="Test Band",
             missing_albums_count=2,
             has_metadata=True
@@ -45,6 +46,7 @@ class TestBandIndexEntry:
         
         assert entry.name == "Test Band"
         assert entry.albums_count == 5
+        assert entry.local_albums_count == 3
         assert entry.missing_albums_count == 2
         assert entry.has_metadata is True
     
@@ -91,6 +93,7 @@ class TestCollectionStats:
         stats = CollectionStats(
             total_bands=10,
             total_albums=50,
+            total_local_albums=45,
             total_missing_albums=5,
             bands_with_metadata=8,
             top_genres={"Rock": 15, "Pop": 10},
@@ -99,25 +102,26 @@ class TestCollectionStats:
         
         assert stats.total_bands == 10
         assert stats.total_albums == 50
+        assert stats.total_local_albums == 45
         assert stats.total_missing_albums == 5
         assert stats.bands_with_metadata == 8
         assert stats.top_genres == {"Rock": 15, "Pop": 10}
         assert stats.avg_albums_per_band == 5.0
         # completion_percentage should be calculated automatically
-        assert stats.completion_percentage == 90.0  # (50-5)/50 * 100
+        assert stats.completion_percentage == 90.0  # 45/50 * 100
     
     def test_completion_percentage_calculation(self):
         """Test completion percentage calculation."""
-        # 100% completion (no missing albums)
-        stats = CollectionStats(total_albums=10, total_missing_albums=0)
+        # 100% completion (all albums local)
+        stats = CollectionStats(total_albums=10, total_local_albums=10, total_missing_albums=0)
         assert stats.completion_percentage == 100.0
         
         # 50% completion
-        stats = CollectionStats(total_albums=10, total_missing_albums=5)
+        stats = CollectionStats(total_albums=10, total_local_albums=5, total_missing_albums=5)
         assert stats.completion_percentage == 50.0
         
         # 0 albums case
-        stats = CollectionStats(total_albums=0, total_missing_albums=0)
+        stats = CollectionStats(total_albums=0, total_local_albums=0, total_missing_albums=0)
         assert stats.completion_percentage == 100.0
     
     def test_completion_percentage_validation(self):
@@ -185,8 +189,8 @@ class TestCollectionIndex:
     
     def test_collection_index_with_bands(self):
         """Test collection index with band entries."""
-        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3)
-        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5)
+        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3, local_albums_count=3)
+        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5, local_albums_count=5)
         
         index = CollectionIndex(bands=[band1, band2])
         
@@ -214,12 +218,14 @@ class TestCollectionIndex:
         json_data = {
             "stats": {
                 "total_bands": 1,
-                "total_albums": 3
+                "total_albums": 3,
+                "total_local_albums": 3
             },
             "bands": [
                 {
                     "name": "Test Band",
                     "albums_count": 3,
+                    "local_albums_count": 3,
                     "folder_path": "Test Band"
                 }
             ]
@@ -229,6 +235,7 @@ class TestCollectionIndex:
         
         assert index.stats.total_bands == 1
         assert index.stats.total_albums == 3
+        assert index.stats.total_local_albums == 3
         assert len(index.bands) == 1
         assert index.bands[0].name == "Test Band"
     
@@ -240,7 +247,7 @@ class TestCollectionIndex:
     def test_add_band(self):
         """Test adding a band to the index."""
         index = CollectionIndex()
-        band = BandIndexEntry(name="New Band", folder_path="New Band", albums_count=5)
+        band = BandIndexEntry(name="New Band", folder_path="New Band", albums_count=5, local_albums_count=5)
         
         index.add_band(band)
         
@@ -251,8 +258,8 @@ class TestCollectionIndex:
     
     def test_add_band_replace_existing(self):
         """Test adding a band replaces existing entry with same name."""
-        band1 = BandIndexEntry(name="Band", folder_path="Band", albums_count=3)
-        band2 = BandIndexEntry(name="Band", folder_path="Band", albums_count=5)
+        band1 = BandIndexEntry(name="Band", folder_path="Band", albums_count=3, local_albums_count=3)
+        band2 = BandIndexEntry(name="Band", folder_path="Band", albums_count=5, local_albums_count=5)
         
         index = CollectionIndex(bands=[band1])
         index.add_band(band2)
@@ -315,9 +322,9 @@ class TestCollectionIndex:
     
     def test_get_bands_with_missing_albums(self):
         """Test getting bands with missing albums."""
-        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3, missing_albums_count=0)
-        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5, missing_albums_count=2)
-        band3 = BandIndexEntry(name="Band 3", folder_path="Band 3", albums_count=2, missing_albums_count=1)
+        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3, local_albums_count=3, missing_albums_count=0)
+        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5, local_albums_count=3, missing_albums_count=2)
+        band3 = BandIndexEntry(name="Band 3", folder_path="Band 3", albums_count=2, local_albums_count=1, missing_albums_count=1)
         
         index = CollectionIndex(bands=[band1, band2, band3])
         
@@ -343,8 +350,8 @@ class TestCollectionIndex:
     
     def test_get_summary_stats(self):
         """Test getting summary statistics."""
-        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3)
-        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5)
+        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=3, local_albums_count=3)
+        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=5, local_albums_count=5)
         
         index = CollectionIndex(bands=[band1, band2])
         
@@ -361,7 +368,7 @@ class TestCollectionIndex:
         index = CollectionIndex()
         
         # Add first band
-        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=5)
+        band1 = BandIndexEntry(name="Band 1", folder_path="Band 1", albums_count=5, local_albums_count=5)
         index.add_band(band1)
         
         assert index.stats.total_bands == 1
@@ -369,7 +376,7 @@ class TestCollectionIndex:
         assert index.stats.avg_albums_per_band == 5.0
         
         # Add second band
-        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=3)
+        band2 = BandIndexEntry(name="Band 2", folder_path="Band 2", albums_count=3, local_albums_count=3)
         index.add_band(band2)
         
         assert index.stats.total_bands == 2

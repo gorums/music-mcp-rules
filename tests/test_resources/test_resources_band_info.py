@@ -44,7 +44,6 @@ class TestGetBandInfoMarkdown:
             albums=[
                 Album(
                     album_name="The Wall",
-                    missing=False,
                     track_count=26,
                     year="1979",
                     duration="81min"
@@ -105,8 +104,10 @@ class TestHeaderSection:
             band_name="Pink Floyd",
             formed="1965",
             albums=[
-                Album(album_name="Album1", missing=False),
-                Album(album_name="Album2", missing=True)
+                Album(album_name="Album1")
+            ],
+            albums_missing=[
+                Album(album_name="Album2")
             ],
             analyze=BandAnalysis(rate=9)
         )
@@ -123,8 +124,8 @@ class TestHeaderSection:
         metadata = BandMetadata(
             band_name="Complete Band",
             albums=[
-                Album(album_name="Album1", missing=False),
-                Album(album_name="Album2", missing=False)
+                Album(album_name="Album1"),
+                Album(album_name="Album2")
             ]
         )
         
@@ -156,8 +157,10 @@ class TestDetailsSection:
             members=["David Gilmour", "Roger Waters"],
             description="Legendary progressive rock band",
             albums=[
-                Album(album_name="Album1", missing=False),
-                Album(album_name="Album2", missing=True)
+                Album(album_name="Album1")
+            ],
+            albums_missing=[
+                Album(album_name="Album2")
             ]
         )
         
@@ -192,14 +195,14 @@ class TestAlbumsSection:
             albums=[
                 Album(
                     album_name="Local Album",
-                    missing=False,
                     track_count=10,
                     year="1979",
                     duration="45min"
-                ),
+                )
+            ],
+            albums_missing=[
                 Album(
                     album_name="Missing Album",
-                    missing=True,
                     track_count=8,
                     year="1981"
                 )
@@ -231,13 +234,11 @@ class TestMissingAlbumsSection:
         missing_albums = [
             Album(
                 album_name="Missing Album 1",
-                missing=True,
                 track_count=10,
                 year="1979"
             ),
             Album(
                 album_name="Missing Album 2",
-                missing=True,
                 track_count=8,
                 year="1981"
             )
@@ -310,9 +311,11 @@ class TestStatisticsSection:
         metadata = BandMetadata(
             band_name="Pink Floyd",
             albums=[
-                Album(album_name="Album1", missing=False, track_count=10),
-                Album(album_name="Album2", missing=True, track_count=8),
-                Album(album_name="Album3", missing=False, track_count=12)
+                Album(album_name="Album1", track_count=10),
+                Album(album_name="Album3", track_count=12)
+            ],
+            albums_missing=[
+                Album(album_name="Album2", track_count=8)
             ],
             genres=["Progressive Rock", "Psychedelic Rock"],
             members=["Member1", "Member2", "Member3"],
@@ -380,7 +383,6 @@ class TestFormatAlbumInfo:
         """Test formatting complete album information."""
         album = Album(
             album_name="The Wall",
-            missing=False,
             track_count=26,
             year="1979",
             duration="81min",
@@ -408,7 +410,6 @@ class TestFormatAlbumInfo:
         """Test formatting missing album information."""
         album = Album(
             album_name="Missing Album",
-            missing=True,
             track_count=10,
             year="1975"
         )
@@ -419,7 +420,7 @@ class TestFormatAlbumInfo:
     
     def test_minimal_album_info(self):
         """Test formatting minimal album information."""
-        album = Album(album_name="Simple Album", missing=False)
+        album = Album(album_name="Simple Album")
         
         result = _format_album_info(album, None)
         
@@ -434,8 +435,8 @@ class TestCalculateCompletionPercentage:
         metadata = BandMetadata(
             band_name="Complete Band",
             albums=[
-                Album(album_name="Album1", missing=False),
-                Album(album_name="Album2", missing=False)
+                Album(album_name="Album1"),
+                Album(album_name="Album2")
             ]
         )
         
@@ -447,9 +448,11 @@ class TestCalculateCompletionPercentage:
         metadata = BandMetadata(
             band_name="Partial Band",
             albums=[
-                Album(album_name="Album1", missing=False),
-                Album(album_name="Album2", missing=True),
-                Album(album_name="Album3", missing=False)
+                Album(album_name="Album1"),
+                Album(album_name="Album3")
+            ],
+            albums_missing=[
+                Album(album_name="Album2")
             ]
         )
         
@@ -506,13 +509,13 @@ class TestCompleteIntegration:
             albums=[
                 Album(
                     album_name="The Wall",
-                    missing=False,
                     track_count=26,
                     year="1979"
-                ),
+                )
+            ],
+            albums_missing=[
                 Album(
                     album_name="Dark Side",
-                    missing=True,
                     track_count=10,
                     year="1973"
                 )
@@ -559,7 +562,6 @@ class TestCompleteIntegration:
             albums=[
                 Album(
                     album_name="Only Album",
-                    missing=False,
                     track_count=10
                 )
             ]

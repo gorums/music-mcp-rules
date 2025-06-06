@@ -54,16 +54,16 @@ def sample_band_metadata():
         "albums": [
             {
                 "album_name": "First Album",
-                "missing": False,
-                "tracks_count": 10,
+                "track_count": 10,
                 "duration": "45min",
                 "year": "2005",
                 "genre": ["Rock"]
-            },
+            }
+        ],
+        "albums_missing": [
             {
                 "album_name": "Second Album", 
-                "missing": True,
-                "tracks_count": 12,
+                "track_count": 12,
                 "duration": "50min",
                 "year": "2010",
                 "genre": ["Rock"]

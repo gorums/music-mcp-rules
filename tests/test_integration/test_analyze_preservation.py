@@ -45,8 +45,7 @@ class TestAnalyzePreservation:
                 Album(
                     album_name="Test Album",
                     year="1975",
-                    tracks_count=10,
-                    missing=False
+                    track_count=10
                 )
             ],
             analyze=BandAnalysis(
@@ -79,14 +78,12 @@ class TestAnalyzePreservation:
                 Album(
                     album_name="Test Album",
                     year="1975",
-                    tracks_count=10,
-                    missing=False
+                    track_count=10
                 ),
                 Album(
                     album_name="New Album",
                     year="1980",
-                    tracks_count=8,
-                    missing=False
+                    track_count=8
                 )
             ]
             # Note: No analyze data provided
@@ -133,8 +130,7 @@ class TestAnalyzePreservation:
                 {
                     "album_name": "Test Album",
                     "year": "1975",
-                    "tracks_count": 10,
-                    "missing": False
+                    "track_count": 10
                 }
             ]
         }
@@ -159,8 +155,7 @@ class TestAnalyzePreservation:
                     Album(
                         album_name="Test Album",
                         year="1975",
-                        tracks_count=10,
-                        missing=False
+                        track_count=10
                     )
                 ]
             )
@@ -185,14 +180,12 @@ class TestAnalyzePreservation:
                 {
                     "album_name": "Test Album",
                     "year": "1975",
-                    "tracks_count": 10,
-                    "missing": False
+                    "track_count": 10
                 },
                 {
                     "album_name": "New Album",
                     "year": "1980",
-                    "tracks_count": 8,
-                    "missing": False
+                    "track_count": 8
                 }
             ]
         }
@@ -239,8 +232,7 @@ class TestAnalyzePreservation:
                 {
                     "album_name": "Test Album",
                     "year": "1975",
-                    "tracks_count": 10,
-                    "missing": False
+                    "track_count": 10
                 }
             ]
         }
@@ -264,8 +256,7 @@ class TestAnalyzePreservation:
                     Album(
                         album_name="Test Album",
                         year="1975",
-                        tracks_count=10,
-                        missing=False
+                        track_count=10
                     )
                 ]
             )
@@ -296,8 +287,7 @@ class TestAnalyzePreservation:
                 {
                     "album_name": "Test Album",
                     "year": "1975",
-                    "tracks_count": 10,
-                    "missing": False
+                    "track_count": 10
                 }
             ]
         }

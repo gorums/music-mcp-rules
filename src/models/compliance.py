@@ -210,9 +210,8 @@ class ComplianceValidator:
         migration_candidates = []
         
         for album in albums:
-            if album.missing:
-                continue  # Skip missing albums
-                
+            # Note: In separated albums schema, missing albums are not in the albums array
+            # so we don't need to check for missing field anymore
             compliance = self.validate_album_compliance(album, band_structure_type)
             album_compliances.append(compliance)
             

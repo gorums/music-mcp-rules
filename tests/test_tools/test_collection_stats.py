@@ -24,6 +24,7 @@ class TestCollectionStats(unittest.TestCase):
         band1 = BandIndexEntry(
             name="Test Band 1",
             albums_count=10,
+            local_albums_count=7,
             folder_path="Test Band 1",
             missing_albums_count=3,
             has_metadata=True,
@@ -33,6 +34,7 @@ class TestCollectionStats(unittest.TestCase):
         band2 = BandIndexEntry(
             name="Test Band 2", 
             albums_count=15,
+            local_albums_count=10,
             folder_path="Test Band 2",
             missing_albums_count=5,
             has_metadata=True,
@@ -45,12 +47,13 @@ class TestCollectionStats(unittest.TestCase):
         # Verify initial stats are correct
         self.assertEqual(collection_index.stats.total_bands, 2)
         self.assertEqual(collection_index.stats.total_albums, 25)  # 10 + 15
+        self.assertEqual(collection_index.stats.total_local_albums, 17)  # 7 + 10
         self.assertEqual(collection_index.stats.total_missing_albums, 8)  # 3 + 5
         self.assertEqual(collection_index.stats.bands_with_metadata, 2)
         self.assertEqual(collection_index.stats.avg_albums_per_band, 12.5)  # 25/2
         
         # Calculate expected completion percentage
-        expected_completion = ((25 - 8) / 25) * 100  # (17/25) * 100 = 68%
+        expected_completion = (17 / 25) * 100  # (17/25) * 100 = 68%
         self.assertEqual(collection_index.stats.completion_percentage, 68.0)
         
         # Mock the storage operations
@@ -87,6 +90,7 @@ class TestCollectionStats(unittest.TestCase):
         band = BandIndexEntry(
             name="Complete Band",
             albums_count=5,
+            local_albums_count=5,
             folder_path="Complete Band",
             missing_albums_count=0,
             has_metadata=True,
@@ -96,6 +100,7 @@ class TestCollectionStats(unittest.TestCase):
         collection_index = CollectionIndex(bands=[band])
         
         self.assertEqual(collection_index.stats.total_albums, 5)
+        self.assertEqual(collection_index.stats.total_local_albums, 5)
         self.assertEqual(collection_index.stats.total_missing_albums, 0)
         self.assertEqual(collection_index.stats.completion_percentage, 100.0)
 
@@ -104,6 +109,7 @@ class TestCollectionStats(unittest.TestCase):
         band = BandIndexEntry(
             name="Missing Band",
             albums_count=8,
+            local_albums_count=0,
             folder_path="Missing Band", 
             missing_albums_count=8,
             has_metadata=True,
@@ -113,6 +119,7 @@ class TestCollectionStats(unittest.TestCase):
         collection_index = CollectionIndex(bands=[band])
         
         self.assertEqual(collection_index.stats.total_albums, 8)
+        self.assertEqual(collection_index.stats.total_local_albums, 0)
         self.assertEqual(collection_index.stats.total_missing_albums, 8)
         self.assertEqual(collection_index.stats.completion_percentage, 0.0)
 
@@ -128,6 +135,7 @@ class TestCollectionStats(unittest.TestCase):
         band = BandIndexEntry(
             name="New Band",
             albums_count=7,
+            local_albums_count=5,
             folder_path="New Band",
             missing_albums_count=2,
             has_metadata=True,
@@ -139,6 +147,7 @@ class TestCollectionStats(unittest.TestCase):
         # Stats should be updated
         self.assertEqual(collection_index.stats.total_bands, 1)
         self.assertEqual(collection_index.stats.total_albums, 7)
+        self.assertEqual(collection_index.stats.total_local_albums, 5)
         self.assertEqual(collection_index.stats.total_missing_albums, 2)
         self.assertEqual(collection_index.stats.completion_percentage, round((5/7) * 100, 2))
 
@@ -147,6 +156,7 @@ class TestCollectionStats(unittest.TestCase):
         band1 = BandIndexEntry(
             name="Band 1",
             albums_count=5,
+            local_albums_count=4,
             folder_path="Band 1",
             missing_albums_count=1,
             has_metadata=True,
@@ -156,6 +166,7 @@ class TestCollectionStats(unittest.TestCase):
         band2 = BandIndexEntry(
             name="Band 2",
             albums_count=3,
+            local_albums_count=3,
             folder_path="Band 2", 
             missing_albums_count=0,
             has_metadata=False,
@@ -167,6 +178,7 @@ class TestCollectionStats(unittest.TestCase):
         # Initial stats
         self.assertEqual(collection_index.stats.total_bands, 2)
         self.assertEqual(collection_index.stats.total_albums, 8)
+        self.assertEqual(collection_index.stats.total_local_albums, 7)
         self.assertEqual(collection_index.stats.bands_with_metadata, 1)
         
         # Remove a band
@@ -176,6 +188,7 @@ class TestCollectionStats(unittest.TestCase):
         # Stats should be updated
         self.assertEqual(collection_index.stats.total_bands, 1)
         self.assertEqual(collection_index.stats.total_albums, 5)
+        self.assertEqual(collection_index.stats.total_local_albums, 4)
         self.assertEqual(collection_index.stats.total_missing_albums, 1)
         self.assertEqual(collection_index.stats.bands_with_metadata, 1)
 

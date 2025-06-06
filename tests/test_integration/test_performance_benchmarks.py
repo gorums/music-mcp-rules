@@ -67,17 +67,16 @@ class TestPerformanceBenchmarks(unittest.TestCase):
                 albums.append(Album(
                     album_name=f"Album {j:02d}",
                     year=str(2000 + (i + j) % 24),  # Years 2000-2023
-                    tracks_count=10,
-                    missing=False
+                    track_count=10
                 ))
             
             # Add some missing albums
+            albums_missing = []
             for j in range(2):  # 2 missing albums per band
-                albums.append(Album(
+                albums_missing.append(Album(
                     album_name=f"Missing Album {j:02d}",
                     year=str(1990 + j),
-                    tracks_count=12,
-                    missing=True
+                    track_count=12
                 ))
             
             metadata = BandMetadata(
@@ -87,7 +86,8 @@ class TestPerformanceBenchmarks(unittest.TestCase):
                 origin=f"City {i % 100}",
                 members=[f"Member {i % 500} A", f"Member {i % 500} B"],
                 description=f"Description for {band_name}",
-                albums=albums
+                albums=albums,
+                albums_missing=albums_missing
             )
             
             save_band_metadata(band_name, metadata)
@@ -185,6 +185,7 @@ class TestPerformanceBenchmarks(unittest.TestCase):
             bands.append(BandIndexEntry(
                 name=f"Performance Band {i:04d}",
                 albums_count=15,
+                local_albums_count=13,
                 folder_path=f"Performance Band {i:04d}",
                 missing_albums_count=2,
                 has_metadata=True
@@ -199,7 +200,9 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         large_index.add_band(BandIndexEntry(
             name="New Performance Band",
             albums_count=10,
-            folder_path="New Performance Band"
+            local_albums_count=10,
+            folder_path="New Performance Band",
+            missing_albums_count=0
         ))
         
         # Search operations

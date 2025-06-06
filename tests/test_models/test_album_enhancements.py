@@ -50,7 +50,6 @@ class TestEnhancedAlbumModel:
         assert album.type == AlbumType.ALBUM
         assert album.edition == ""
         assert album.track_count == 0
-        assert album.missing == False
         assert album.duration == ""
         assert album.genres == []
         assert album.folder_path == ""
@@ -63,7 +62,6 @@ class TestEnhancedAlbumModel:
             type=AlbumType.ALBUM,
             edition="Deluxe Edition",
             track_count=15,
-            missing=False,
             duration="67min",
             genres=["Hard Rock", "Blues Rock"],
             folder_path="2012 - Apocalyptic Love (Deluxe Edition)"
@@ -74,7 +72,6 @@ class TestEnhancedAlbumModel:
         assert album.type == AlbumType.ALBUM
         assert album.edition == "Deluxe Edition"
         assert album.track_count == 15
-        assert album.missing == False
         assert album.duration == "67min"
         assert album.genres == ["Hard Rock", "Blues Rock"]
         assert album.folder_path == "2012 - Apocalyptic Love (Deluxe Edition)"
@@ -249,7 +246,6 @@ class TestAlbumDataMigrator:
         old_album = {
             'album_name': 'Test Album',
             'tracks_count': 12,  # Old field name
-            'missing': False,
             'duration': '45min',
             'year': '2020',
             'genres': ['Rock']
@@ -261,7 +257,7 @@ class TestAlbumDataMigrator:
         assert enhanced['track_count'] == 12  # Field name updated
         assert enhanced['type'] == AlbumType.ALBUM.value
         assert enhanced['edition'] == ''
-        assert enhanced['missing'] == False
+        # Note: missing field removed in separated albums schema
         assert enhanced['duration'] == '45min'
         assert enhanced['year'] == '2020'
         assert enhanced['genres'] == ['Rock']
@@ -329,8 +325,7 @@ class TestAlbumValidator:
             'album_name': 'Test Album',
             'type': 'Album',
             'year': '2023',
-            'track_count': 10,
-            'missing': False
+            'track_count': 10
         }
         
         is_valid, errors = AlbumValidator.validate_album_data(valid_album)
@@ -342,13 +337,12 @@ class TestAlbumValidator:
             'album_name': '',  # Required field empty
             'type': 'InvalidType',  # Invalid type
             'year': '23',  # Invalid year format
-            'track_count': -1,  # Negative track count
-            'missing': 'not_boolean'  # Wrong type
+            'track_count': -1  # Negative track count
         }
         
         is_valid, errors = AlbumValidator.validate_album_data(invalid_album)
         assert is_valid == False
-        assert len(errors) == 5
+        assert len(errors) == 4  # Reduced by 1 since missing field removed
 
 
 class TestAlbumUtilityFunctions:
@@ -432,7 +426,6 @@ class TestBackwardCompatibility:
         # Simulate old album data structure
         old_data = {
             'album_name': 'Test Album',
-            'missing': False,
             'tracks_count': 12,  # Old field name
             'duration': '45min',
             'year': '2020',

@@ -86,20 +86,20 @@ class Album(BaseModel):
         type: Type of album (Album, EP, Demo, Live, etc.)
         edition: Edition information (Deluxe, Limited, etc.)
         track_count: Number of tracks in the album
-        missing: True if album is in metadata but not in local folders
         duration: Album duration in format "67min"
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
+        folder_compliance: Optional folder compliance tracking
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
     type: AlbumType = Field(default=AlbumType.ALBUM, description="Type of album")
     edition: str = Field(default="", description="Edition information (Deluxe, Limited, etc.)")
     track_count: int = Field(default=0, ge=0, description="Number of tracks in album")
-    missing: bool = Field(default=False, description="True if album not found in local folders")
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
+    folder_compliance: Optional[FolderCompliance] = Field(default=None, description="Folder compliance tracking")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -257,9 +257,10 @@ class BandMetadata(BaseModel):
         genres: List of band genres
         origin: Country/location of origin
         members: List of band member names
-        albums_count: Total number of albums
+        albums_count: Total number of albums (local + missing)
         description: Band description/biography
-        albums: List of album metadata
+        albums: List of local album metadata (found in folder structure)
+        albums_missing: List of missing album metadata (not found locally but known from metadata)
         last_updated: ISO datetime of last metadata update
         last_metadata_saved: ISO datetime when metadata was last saved via save_band_metadata_tool
         analyze: Optional analysis data with reviews and ratings
@@ -270,9 +271,10 @@ class BandMetadata(BaseModel):
     genres: List[str] = Field(default_factory=list, description="Band genres")
     origin: str = Field(default="", description="Country/location of origin")
     members: List[str] = Field(default_factory=list, description="Band member names")
-    albums_count: int = Field(default=0, ge=0, description="Total number of albums")
+    albums_count: int = Field(default=0, ge=0, description="Total number of albums (local + missing)")
     description: str = Field(default="", description="Band description/biography")
-    albums: List[Album] = Field(default_factory=list, description="Album metadata list")
+    albums: List[Album] = Field(default_factory=list, description="Local album metadata list (found in folder structure)")
+    albums_missing: List[Album] = Field(default_factory=list, description="Missing album metadata list (not found locally)")
     last_updated: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Last update timestamp")
     last_metadata_saved: Optional[str] = Field(default=None, description="Last metadata save timestamp via save_band_metadata_tool")
     analyze: Optional[BandAnalysis] = Field(default=None, description="Band analysis data")
@@ -281,17 +283,28 @@ class BandMetadata(BaseModel):
     @model_validator(mode='before')
     @classmethod
     def sync_albums_count(cls, data):
-        """Ensure albums_count matches length of albums list."""
-        if isinstance(data, dict) and 'albums' in data:
-            albums = data['albums']
-            if isinstance(albums, list):
-                data['albums_count'] = len(albums)
+        """Ensure albums_count matches total length of albums + albums_missing lists."""
+        if isinstance(data, dict):
+            albums = data.get('albums', [])
+            albums_missing = data.get('albums_missing', [])
+            if isinstance(albums, list) and isinstance(albums_missing, list):
+                data['albums_count'] = len(albums) + len(albums_missing)
         return data
 
     @model_validator(mode='after')
     def validate_albums_count_post(self):
-        """Ensure albums_count is always synced with albums list after creation."""
-        self.albums_count = len(self.albums)
+        """Ensure albums_count is always synced with total albums after creation."""
+        self.albums_count = len(self.albums) + len(self.albums_missing)
+        return self
+
+    @model_validator(mode='after')
+    def validate_no_duplicate_albums(self):
+        """Ensure no album exists in both albums and albums_missing arrays."""
+        local_names = {album.album_name.lower() for album in self.albums}
+        missing_names = {album.album_name.lower() for album in self.albums_missing}
+        duplicates = local_names.intersection(missing_names)
+        if duplicates:
+            raise ValueError(f"Albums cannot exist in both local and missing arrays: {', '.join(duplicates)}")
         return self
 
     def to_json(self) -> str:
@@ -306,7 +319,7 @@ class BandMetadata(BaseModel):
     @classmethod
     def from_json(cls, json_str: str) -> 'BandMetadata':
         """
-        Deserialize band metadata from JSON string.
+        Deserialize band metadata from JSON string with backward compatibility.
         
         Args:
             json_str: JSON string to deserialize
@@ -319,6 +332,29 @@ class BandMetadata(BaseModel):
         """
         try:
             data = json.loads(json_str)
+            
+            # Handle backward compatibility for old schema with missing field
+            if 'albums' in data and 'albums_missing' not in data:
+                albums = data.get('albums', [])
+                local_albums = []
+                missing_albums = []
+                
+                for album_data in albums:
+                    # Create a copy to avoid modifying original data
+                    album_copy = album_data.copy()
+                    
+                    # Check if this album has the old 'missing' field
+                    is_missing = album_copy.pop('missing', False)
+                    
+                    if is_missing:
+                        missing_albums.append(album_copy)
+                    else:
+                        local_albums.append(album_copy)
+                
+                # Update data with separated arrays
+                data['albums'] = local_albums
+                data['albums_missing'] = missing_albums
+            
             return cls(**data)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON format: {e}")
@@ -330,18 +366,38 @@ class BandMetadata(BaseModel):
         Get list of albums marked as missing.
         
         Returns:
-            List of albums with missing=True
+            List of albums from albums_missing array
         """
-        return [album for album in self.albums if album.missing]
+        return list(self.albums_missing)
 
     def get_local_albums(self) -> List[Album]:
         """
         Get list of albums present locally.
         
         Returns:
-            List of albums with missing=False
+            List of albums from albums array (local albums)
         """
-        return [album for album in self.albums if not album.missing]
+        return list(self.albums)
+
+    @property
+    def local_albums_count(self) -> int:
+        """
+        Get count of local albums (found in folder structure).
+        
+        Returns:
+            Number of albums in the albums array
+        """
+        return len(self.albums)
+
+    @property
+    def missing_albums_count(self) -> int:
+        """
+        Get count of missing albums (not found locally).
+        
+        Returns:
+            Number of albums in the albums_missing array
+        """
+        return len(self.albums_missing)
 
     def update_timestamp(self) -> None:
         """Update the last_updated timestamp to current time."""
@@ -356,20 +412,46 @@ class BandMetadata(BaseModel):
         """Check if metadata has been saved via save_band_metadata_tool."""
         return self.last_metadata_saved is not None
 
-    def add_album(self, album: Album) -> None:
+    def add_album(self, album: Album, is_local: bool = True) -> None:
         """
-        Add an album to the band's album list and update count.
+        Add an album to the appropriate array based on availability.
         
         Args:
             album: Album instance to add
+            is_local: True to add to local albums, False to add to missing albums
         """
-        self.albums.append(album)
-        self.albums_count = len(self.albums)
+        # Remove from the other array if it exists there
+        self.remove_album(album.album_name)
+        
+        if is_local:
+            self.albums.append(album)
+        else:
+            self.albums_missing.append(album)
+        
+        self.albums_count = len(self.albums) + len(self.albums_missing)
         self.update_timestamp()
+
+    def add_local_album(self, album: Album) -> None:
+        """
+        Add an album to the local albums array.
+        
+        Args:
+            album: Album instance to add to local albums
+        """
+        self.add_album(album, is_local=True)
+
+    def add_missing_album(self, album: Album) -> None:
+        """
+        Add an album to the missing albums array.
+        
+        Args:
+            album: Album instance to add to missing albums
+        """
+        self.add_album(album, is_local=False)
 
     def remove_album(self, album_name: str) -> bool:
         """
-        Remove an album by name and update count.
+        Remove an album by name from both local and missing arrays.
         
         Args:
             album_name: Name of album to remove
@@ -377,10 +459,60 @@ class BandMetadata(BaseModel):
         Returns:
             True if album was found and removed, False otherwise
         """
+        removed = False
+        
+        # Remove from local albums
         for i, album in enumerate(self.albums):
             if album.album_name == album_name:
                 del self.albums[i]
-                self.albums_count = len(self.albums)
+                removed = True
+                break
+        
+        # Remove from missing albums
+        for i, album in enumerate(self.albums_missing):
+            if album.album_name == album_name:
+                del self.albums_missing[i]
+                removed = True
+                break
+        
+        if removed:
+            self.albums_count = len(self.albums) + len(self.albums_missing)
+            self.update_timestamp()
+        
+        return removed
+
+    def move_album_to_local(self, album_name: str) -> bool:
+        """
+        Move an album from missing to local array.
+        
+        Args:
+            album_name: Name of album to move
+            
+        Returns:
+            True if album was found and moved, False otherwise
+        """
+        for i, album in enumerate(self.albums_missing):
+            if album.album_name == album_name:
+                moved_album = self.albums_missing.pop(i)
+                self.albums.append(moved_album)
+                self.update_timestamp()
+                return True
+        return False
+
+    def move_album_to_missing(self, album_name: str) -> bool:
+        """
+        Move an album from local to missing array.
+        
+        Args:
+            album_name: Name of album to move
+            
+        Returns:
+            True if album was found and moved, False otherwise
+        """
+        for i, album in enumerate(self.albums):
+            if album.album_name == album_name:
+                moved_album = self.albums.pop(i)
+                self.albums_missing.append(moved_album)
                 self.update_timestamp()
                 return True
         return False 

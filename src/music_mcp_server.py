@@ -289,6 +289,30 @@ def save_band_metadata_tool(
             # Ensure band_name is set correctly in metadata
             metadata['band_name'] = band_name
             
+            # Handle schema conversion from old format to new separated albums format
+            if 'albums' in metadata and metadata['albums'] and any('missing' in album for album in metadata['albums']):
+                # Old format: albums array with missing field - convert to separated arrays
+                local_albums = []
+                missing_albums = []
+                
+                for album in metadata['albums']:
+                    # Remove the missing field from the album data as it's no longer part of Album model
+                    album_copy = dict(album)
+                    is_missing = album_copy.pop('missing', False)  # Remove and get missing status
+                    
+                    if is_missing:
+                        missing_albums.append(album_copy)
+                    else:
+                        local_albums.append(album_copy)
+                
+                # Update metadata with separated arrays
+                metadata['albums'] = local_albums
+                metadata['albums_missing'] = missing_albums
+            else:
+                # New format: already has separated arrays or no albums - ensure both arrays exist
+                metadata['albums'] = metadata.get('albums', [])
+                metadata['albums_missing'] = metadata.get('albums_missing', [])
+            
             # Create BandMetadata object for validation
             band_metadata = BandMetadata(**metadata)
             
@@ -298,8 +322,8 @@ def save_band_metadata_tool(
             
             validation_results["schema_valid"] = True
             validation_results["fields_validated"] = list(metadata.keys())
-            validation_results["albums_count"] = len(band_metadata.albums)
-            validation_results["missing_albums_count"] = len(band_metadata.get_missing_albums())
+            validation_results["albums_count"] = len(band_metadata.albums) + len(band_metadata.albums_missing)
+            validation_results["missing_albums_count"] = len(band_metadata.albums_missing)
             
         except Exception as e:
             validation_results["validation_errors"].append(f"Schema validation failed: {str(e)}")
@@ -332,14 +356,14 @@ def save_band_metadata_tool(
                 collection_index = CollectionIndex()
             
             # Create or update band entry
-            missing_albums_count = len(band_metadata.get_missing_albums())
-            
-            # Ensure missing count doesn't exceed total (validation constraint)
-            missing_albums_count = min(missing_albums_count, band_metadata.albums_count)
+            local_albums_count = len(band_metadata.albums)
+            missing_albums_count = len(band_metadata.albums_missing)
+            total_albums_count = local_albums_count + missing_albums_count
             
             band_entry = BandIndexEntry(
                 name=band_name,
-                albums_count=band_metadata.albums_count,
+                albums_count=total_albums_count,
+                local_albums_count=local_albums_count,
                 folder_path=band_name,
                 missing_albums_count=missing_albums_count,
                 has_metadata=band_metadata.has_metadata_saved(),  # Use the new method to determine if metadata was saved
@@ -387,11 +411,12 @@ def save_band_metadata_tool(
             'collection_sync': collection_sync_results,
             'band_info': {
                 'band_name': band_name,
-                'albums_count': band_metadata.albums_count,
+                'albums_count': validation_results["albums_count"],
+                'local_albums_count': len(band_metadata.albums),
                 'missing_albums_count': validation_results["missing_albums_count"],
                 'completion_percentage': round(
-                    ((band_metadata.albums_count - validation_results["missing_albums_count"]) / max(band_metadata.albums_count, 1)) * 100, 1
-                ) if band_metadata.albums_count > 0 else 100.0,
+                    (len(band_metadata.albums) / max(validation_results["albums_count"], 1)) * 100, 1
+                ) if validation_results["albums_count"] > 0 else 100.0,
                 'has_metadata': band_metadata.has_metadata_saved(),  # Include has_metadata status
                 'has_analysis': band_metadata.analyze is not None,
                 'genre_count': len(band_metadata.genres),
@@ -1155,8 +1180,8 @@ def validate_band_metadata_tool(
             band_metadata = BandMetadata(**metadata)
             validation_results["schema_valid"] = True
             validation_results["fields_validated"] = list(metadata.keys())
-            validation_results["albums_count"] = len(band_metadata.albums)
-            validation_results["missing_albums_count"] = len(band_metadata.get_missing_albums())
+            validation_results["albums_count"] = len(band_metadata.albums) + len(band_metadata.albums_missing)
+            validation_results["missing_albums_count"] = len(band_metadata.albums_missing)
             
             # Validate each field type
             validation_results["field_types_correct"] = {
@@ -1182,7 +1207,7 @@ def validate_band_metadata_tool(
                 suggestions.append("'rate' fields must be between 0-10")
         
         # Check for unexpected fields
-        expected_fields = ["band_name", "formed", "genres", "origin", "members", "description", "albums", "analyze", "last_updated", "albums_count"]
+        expected_fields = ["band_name", "formed", "genres", "origin", "members", "description", "albums", "albums_missing", "analyze", "last_updated", "albums_count"]
         for field in metadata.keys():
             if field not in expected_fields:
                 validation_results["unexpected_fields"].append(field)

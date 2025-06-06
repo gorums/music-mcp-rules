@@ -332,16 +332,19 @@ class TestMetadataOperations:
         """Test save_band_analyze with analyze_missing_albums parameter."""
         band_name = "Missing Albums Test Band"
         
-        # Create metadata with some albums marked as missing
-        albums = [
-            Album(album_name="Local Album", year="2000", tracks_count=10, missing=False),
-            Album(album_name="Missing Album", year="2001", tracks_count=8, missing=True)
+        # Create metadata with separated albums arrays
+        local_albums = [
+            Album(album_name="Local Album", year="2000", track_count=10)
+        ]
+        missing_albums = [
+            Album(album_name="Missing Album", year="2001", track_count=8)
         ]
         metadata = BandMetadata(
             band_name=band_name,
             formed="1999",
             genres=["Test"],
-            albums=albums
+            albums=local_albums,
+            albums_missing=missing_albums
         )
         save_band_metadata(band_name, metadata)
         
@@ -452,6 +455,7 @@ class TestBandListOperations:
             BandIndexEntry(
                 name="Band A",
                 albums_count=3,
+                local_albums_count=2,
                 folder_path="Band A",
                 missing_albums_count=1,
                 has_metadata=True
@@ -459,6 +463,7 @@ class TestBandListOperations:
             BandIndexEntry(
                 name="Band B",
                 albums_count=2,
+                local_albums_count=2,
                 folder_path="Band B",
                 missing_albums_count=0,
                 has_metadata=False
@@ -514,6 +519,7 @@ class TestBandListOperations:
         test_band = BandIndexEntry(
             name="Test Band",
             albums_count=1,
+            local_albums_count=1,
             folder_path="Test Band",
             missing_albums_count=0,
             has_metadata=True
@@ -673,6 +679,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
             stats=CollectionStats(
                 total_bands=5,
                 total_albums=20,
+                total_local_albums=17,
                 total_missing_albums=3,
                 bands_with_metadata=3,
                 completion_percentage=85.0
@@ -681,6 +688,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
                 BandIndexEntry(
                     name="Alice in Chains",
                     albums_count=4,
+                    local_albums_count=3,
                     folder_path="Alice in Chains",
                     missing_albums_count=1,
                     has_metadata=True,
@@ -689,6 +697,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
                 BandIndexEntry(
                     name="Black Sabbath", 
                     albums_count=8,
+                    local_albums_count=8,
                     folder_path="Black Sabbath",
                     missing_albums_count=0,
                     has_metadata=True,
@@ -697,6 +706,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
                 BandIndexEntry(
                     name="Metallica",
                     albums_count=5,
+                    local_albums_count=3,
                     folder_path="Metallica", 
                     missing_albums_count=2,
                     has_metadata=False,
@@ -705,6 +715,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
                 BandIndexEntry(
                     name="Iron Maiden",
                     albums_count=3,
+                    local_albums_count=3,
                     folder_path="Iron Maiden",
                     missing_albums_count=0,
                     has_metadata=True,
@@ -713,6 +724,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
                 BandIndexEntry(
                     name="Pink Floyd",
                     albums_count=0,
+                    local_albums_count=0,
                     folder_path="Pink Floyd",
                     missing_albums_count=0,
                     has_metadata=False,
@@ -745,10 +757,12 @@ class TestEnhancedBandListOperations(unittest.TestCase):
             members=["Layne Staley", "Jerry Cantrell", "Mike Starr", "Sean Kinney"],
             description="Alternative metal/grunge band from Seattle",
             albums=[
-                Album(album_name="Facelift", missing=False, tracks_count=12, year="1990", genres=["Grunge"]),
-                Album(album_name="Dirt", missing=False, tracks_count=13, year="1992", genres=["Grunge"]),
-                Album(album_name="Alice in Chains", missing=False, tracks_count=12, year="1995", genres=["Grunge"]),
-                Album(album_name="Black Gives Way to Blue", missing=True, tracks_count=11, year="2009", genres=["Alternative Metal"])
+                Album(album_name="Facelift", track_count=12, year="1990", genres=["Grunge"]),
+                Album(album_name="Dirt", track_count=13, year="1992", genres=["Grunge"]),
+                Album(album_name="Alice in Chains", track_count=12, year="1995", genres=["Grunge"])
+            ],
+            albums_missing=[
+                Album(album_name="Black Gives Way to Blue", track_count=11, year="2009", genres=["Alternative Metal"])
             ]
         )
         alice_dir = self.test_dir / "Alice in Chains"
@@ -765,14 +779,14 @@ class TestEnhancedBandListOperations(unittest.TestCase):
             members=["Ozzy Osbourne", "Tony Iommi", "Geezer Butler", "Bill Ward"],
             description="Pioneering heavy metal band",
             albums=[
-                Album(album_name="Paranoid", missing=False, tracks_count=8, year="1970", genres=["Heavy Metal"]),
-                Album(album_name="Master of Reality", missing=False, tracks_count=8, year="1971", genres=["Heavy Metal"]),
-                Album(album_name="Vol. 4", missing=False, tracks_count=9, year="1972", genres=["Heavy Metal"]),
-                Album(album_name="Sabbath Bloody Sabbath", missing=False, tracks_count=8, year="1973", genres=["Heavy Metal"]),
-                Album(album_name="Sabotage", missing=False, tracks_count=8, year="1975", genres=["Heavy Metal"]),
-                Album(album_name="Technical Ecstasy", missing=False, tracks_count=8, year="1976", genres=["Heavy Metal"]),
-                Album(album_name="Never Say Die!", missing=False, tracks_count=9, year="1978", genres=["Heavy Metal"]),
-                Album(album_name="Heaven and Hell", missing=False, tracks_count=8, year="1980", genres=["Heavy Metal"])
+                Album(album_name="Paranoid", track_count=8, year="1970", genres=["Heavy Metal"]),
+                Album(album_name="Master of Reality", track_count=8, year="1971", genres=["Heavy Metal"]),
+                Album(album_name="Vol. 4", track_count=9, year="1972", genres=["Heavy Metal"]),
+                Album(album_name="Sabbath Bloody Sabbath", track_count=8, year="1973", genres=["Heavy Metal"]),
+                Album(album_name="Sabotage", track_count=8, year="1975", genres=["Heavy Metal"]),
+                Album(album_name="Technical Ecstasy", track_count=8, year="1976", genres=["Heavy Metal"]),
+                Album(album_name="Never Say Die!", track_count=9, year="1978", genres=["Heavy Metal"]),
+                Album(album_name="Heaven and Hell", track_count=8, year="1980", genres=["Heavy Metal"])
             ]
         )
         sabbath_dir = self.test_dir / "Black Sabbath"
@@ -789,9 +803,9 @@ class TestEnhancedBandListOperations(unittest.TestCase):
             members=["Bruce Dickinson", "Steve Harris", "Dave Murray", "Adrian Smith", "Janick Gers", "Nicko McBrain"],
             description="Legendary British heavy metal band",
             albums=[
-                Album(album_name="The Number of the Beast", missing=False, tracks_count=8, year="1982", genres=["Heavy Metal"]),
-                Album(album_name="Piece of Mind", missing=False, tracks_count=9, year="1983", genres=["Heavy Metal"]),
-                Album(album_name="Powerslave", missing=False, tracks_count=8, year="1984", genres=["Heavy Metal"])
+                Album(album_name="The Number of the Beast", track_count=8, year="1982", genres=["Heavy Metal"]),
+                Album(album_name="Piece of Mind", track_count=9, year="1983", genres=["Heavy Metal"]),
+                Album(album_name="Powerslave", track_count=8, year="1984", genres=["Heavy Metal"])
             ]
         )
         maiden_dir = self.test_dir / "Iron Maiden"
