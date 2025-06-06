@@ -264,9 +264,10 @@ def save_band_metadata_tool(
     - Duration format is flexible but should include time unit (min, h, etc.)
     - Genres should be specific and accurate music genres
     
-    ANALYZE DATA PRESERVATION:
-    =========================
+    DATA PRESERVATION:
+    ==================
     - Existing analyze data is always preserved when updating metadata
+    - Existing folder_structure data is always preserved when updating metadata
     - Use save_band_analyze_tool to add or update analysis data specifically
     """
     try:
@@ -313,7 +314,7 @@ def save_band_metadata_tool(
             }
         
         # Step 2: Save metadata with backup mechanism (handled by storage layer)
-        # Reason: Always preserve existing analyze data
+        # Reason: Always preserve existing analyze and folder_structure data
         storage_result = save_band_metadata(band_name, band_metadata)
         
         # Step 3: Sync with collection index
@@ -398,7 +399,7 @@ def save_band_metadata_tool(
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
-                'version': '1.2.0',  # Updated version for always preserve analyze behavior
+                'version': '1.3.0',  # Updated version for always preserve analyze and folder_structure behavior
                 'parameters_used': {
                     'band_name': band_name,
                     'metadata_fields': list(metadata.keys())
@@ -422,7 +423,7 @@ def save_band_metadata_tool(
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
-                'version': '1.2.0'
+                'version': '1.3.0'
             }
         }
 

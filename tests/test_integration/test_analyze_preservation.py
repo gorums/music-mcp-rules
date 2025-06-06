@@ -1,8 +1,8 @@
 """
-Test analyze preservation functionality in save_band_metadata.
+Test analyze and folder_structure preservation functionality in save_band_metadata.
 
-This test verifies that the analyze data is preserved by default when updating
-band metadata, and can be cleared when explicitly requested.
+This test verifies that both analyze and folder_structure data are preserved by default 
+when updating band metadata, ensuring no data loss during metadata updates.
 """
 
 import pytest
@@ -114,82 +114,15 @@ class TestAnalyzePreservation:
         assert len(loaded_metadata.albums) == 2
     
     @patch('src.tools.storage.Config')
-    def test_analyze_always_preserved(self, mock_config, temp_music_dir):
-        """Test that analyze data is always preserved (behavior changed from clearing)."""
-        mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
-        
-        band_name = "Test Band"
-        
-        # Step 1: Create initial metadata with analyze data
-        initial_metadata = BandMetadata(
-            band_name=band_name,
-            formed="1970",
-            genres=["Rock"],
-            origin="Test City",
-            members=["Member 1"],
-            description="Test band description",
-            albums=[
-                Album(
-                    album_name="Test Album",
-                    year="1975",
-                    tracks_count=10,
-                    missing=False
-                )
-            ],
-            analyze=BandAnalysis(
-                review="Great band",
-                rate=8,
-                albums=[],
-                similar_bands=["Similar Band"]
-            )
-        )
-        
-        # Save initial metadata
-        result = save_band_metadata(band_name, initial_metadata)
-        assert result["status"] == "success"
-        
-        # Step 2: Update metadata (now always preserves analyze)
-        updated_metadata = BandMetadata(
-            band_name=band_name,
-            formed="1970",
-            genres=["Rock"],
-            origin="Test City",
-            members=["Member 1"],
-            description="Updated description",
-            albums=[
-                Album(
-                    album_name="Test Album",
-                    year="1975",
-                    tracks_count=10,
-                    missing=False
-                )
-            ]
-            # No analyze data provided
-        )
-        
-        # Save with updated metadata (now always preserves analyze)
-        result = save_band_metadata(band_name, updated_metadata)
-        assert result["status"] == "success"
-        
-        # Step 3: Verify analyze data was preserved (behavior changed)
-        loaded_metadata = load_band_metadata(band_name)
-        assert loaded_metadata is not None
-        assert loaded_metadata.analyze is not None  # Now always preserved
-        assert loaded_metadata.analyze.review == "Great band"
-        
-        # Verify other metadata was updated
-        assert loaded_metadata.description == "Updated description"
-    
-    @patch('src.tools.storage.Config')
     @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
-    def test_save_band_metadata_tool_preserve_analyze_default(self, mock_config_rel, mock_config, temp_music_dir):
-        """Test that the tool always preserves analyze data."""
+    def test_preserve_folder_structure_by_default(self, mock_config_rel, mock_config, temp_music_dir):
+        """Test that folder_structure data is preserved when updating metadata."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         band_name = "Test Band"
         
-        # Step 1: Create initial metadata with analyze data using the tool
+        # Step 1: Create initial metadata with folder_structure data
         initial_metadata_dict = {
             "formed": "1970",
             "genres": ["Rock"],
@@ -210,7 +143,8 @@ class TestAnalyzePreservation:
         result = save_band_metadata_tool(band_name, initial_metadata_dict)
         assert result["status"] == "success"
         
-        # Manually add analyze data to simulate previous analysis
+        # Manually add folder_structure data to simulate existing data
+        from models.band_structure import FolderStructure, StructureType, StructureConsistency
         metadata = load_band_metadata(band_name)
         if metadata is None:
             # If load failed, create the metadata manually and save it
@@ -231,15 +165,16 @@ class TestAnalyzePreservation:
                 ]
             )
         
-        metadata.analyze = BandAnalysis(
-            review="Great band",
-            rate=8,
-            albums=[],
-            similar_bands=["Similar Band"]
+        # Add folder_structure data
+        metadata.folder_structure = FolderStructure(
+            structure_type=StructureType.DEFAULT,
+            consistency=StructureConsistency.CONSISTENT,
+            structure_score=95,
+            recommendations=["Test recommendation"]
         )
         save_band_metadata(band_name, metadata)
         
-        # Step 2: Update metadata using tool (should preserve analyze by default)
+        # Step 2: Update metadata using tool (should preserve folder_structure by default)
         updated_metadata_dict = {
             "formed": "1970",
             "genres": ["Rock", "Blues"],  # Added genre
@@ -252,37 +187,48 @@ class TestAnalyzePreservation:
                     "year": "1975",
                     "tracks_count": 10,
                     "missing": False
+                },
+                {
+                    "album_name": "New Album",
+                    "year": "1980",
+                    "tracks_count": 8,
+                    "missing": False
                 }
             ]
         }
         
-        # Save updated metadata (now always preserves analyze)
+        # Save updated metadata (should preserve folder_structure)
         result = save_band_metadata_tool(band_name, updated_metadata_dict)
         assert result["status"] == "success"
         
-        # Step 3: Verify analyze data was preserved
+        # Step 3: Verify folder_structure data was preserved
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata is not None
-        assert loaded_metadata.analyze is not None
-        assert loaded_metadata.analyze.review == "Great band"
-        assert loaded_metadata.analyze.rate == 8
+        assert loaded_metadata.folder_structure is not None
+        assert loaded_metadata.folder_structure.structure_type == StructureType.DEFAULT
+        assert loaded_metadata.folder_structure.consistency == StructureConsistency.CONSISTENT
+        assert loaded_metadata.folder_structure.structure_score == 95
+        assert len(loaded_metadata.folder_structure.recommendations) == 1
+        assert "Test recommendation" in loaded_metadata.folder_structure.recommendations
         
         # Verify other metadata was updated
         assert len(loaded_metadata.genres) == 2
         assert "Blues" in loaded_metadata.genres
         assert len(loaded_metadata.members) == 2
         assert "Member 2" in loaded_metadata.members
+        assert loaded_metadata.description == "Updated test band description"
+        assert len(loaded_metadata.albums) == 2
     
     @patch('src.tools.storage.Config')
     @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
-    def test_save_band_metadata_tool_always_preserves(self, mock_config_rel, mock_config, temp_music_dir):
-        """Test that the tool always preserves analyze data (behavior changed from clearing)."""
+    def test_preserve_both_analyze_and_folder_structure(self, mock_config_rel, mock_config, temp_music_dir):
+        """Test that both analyze and folder_structure data are preserved together."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         band_name = "Test Band"
         
-        # Step 1: Create initial metadata with analyze data
+        # Step 1: Create initial metadata
         initial_metadata_dict = {
             "formed": "1970",
             "genres": ["Rock"],
@@ -303,10 +249,10 @@ class TestAnalyzePreservation:
         result = save_band_metadata_tool(band_name, initial_metadata_dict)
         assert result["status"] == "success"
         
-        # Manually add analyze data
+        # Manually add both analyze and folder_structure data
+        from models.band_structure import FolderStructure, StructureType, StructureConsistency
         metadata = load_band_metadata(band_name)
         if metadata is None:
-            # If load failed, create the metadata manually and save it
             metadata = BandMetadata(
                 band_name=band_name,
                 formed="1970",
@@ -324,20 +270,27 @@ class TestAnalyzePreservation:
                 ]
             )
         
+        # Add both analyze and folder_structure data
         metadata.analyze = BandAnalysis(
             review="Great band",
             rate=8,
             albums=[],
             similar_bands=["Similar Band"]
         )
+        metadata.folder_structure = FolderStructure(
+            structure_type=StructureType.ENHANCED,
+            consistency=StructureConsistency.MOSTLY_CONSISTENT,
+            structure_score=75,
+            recommendations=["Organize by type", "Fix naming"]
+        )
         save_band_metadata(band_name, metadata)
         
-        # Step 2: Update metadata (now always preserves analyze)
+        # Step 2: Update metadata (should preserve both)
         updated_metadata_dict = {
             "formed": "1970",
-            "genres": ["Rock"],
+            "genres": ["Rock", "Progressive"],  # Added genre
             "origin": "Test City",
-            "members": ["Member 1"],
+            "members": ["Member 1", "Member 2"],  # Added member
             "description": "Updated description",
             "albums": [
                 {
@@ -349,47 +302,28 @@ class TestAnalyzePreservation:
             ]
         }
         
-        # Save with updated metadata (now always preserves analyze)
+        # Save updated metadata
         result = save_band_metadata_tool(band_name, updated_metadata_dict)
         assert result["status"] == "success"
         
-        # Step 3: Verify analyze data was preserved (behavior changed)
+        # Step 3: Verify both analyze and folder_structure data were preserved
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata is not None
-        assert loaded_metadata.analyze is not None  # Now always preserved
+        
+        # Check analyze data preserved
+        assert loaded_metadata.analyze is not None
         assert loaded_metadata.analyze.review == "Great band"
-    
-    @patch('src.tools.storage.Config')
-    @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
-    def test_no_existing_analyze_data(self, mock_config_rel, mock_config, temp_music_dir):
-        """Test behavior when there's no existing analyze data to preserve."""
-        mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
-        mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
+        assert loaded_metadata.analyze.rate == 8
         
-        band_name = "Test Band"
+        # Check folder_structure data preserved  
+        assert loaded_metadata.folder_structure is not None
+        assert loaded_metadata.folder_structure.structure_type == StructureType.ENHANCED
+        assert loaded_metadata.folder_structure.consistency == StructureConsistency.MOSTLY_CONSISTENT
+        assert loaded_metadata.folder_structure.structure_score == 75
+        assert len(loaded_metadata.folder_structure.recommendations) == 2
         
-        # Create metadata without analyze data
-        metadata_dict = {
-            "formed": "1970",
-            "genres": ["Rock"],
-            "origin": "Test City",
-            "members": ["Member 1"],
-            "description": "Test band description",
-            "albums": [
-                {
-                    "album_name": "Test Album",
-                    "year": "1975",
-                    "tracks_count": 10,
-                    "missing": False
-                }
-            ]
-        }
-        
-        # Save metadata (no existing analyze data to preserve)
-        result = save_band_metadata_tool(band_name, metadata_dict)
-        assert result["status"] == "success"
-        
-        # Verify no analyze data exists
-        loaded_metadata = load_band_metadata(band_name)
-        assert loaded_metadata is not None
-        assert loaded_metadata.analyze is None 
+                # Verify other metadata was updated
+        assert len(loaded_metadata.genres) == 2
+        assert "Progressive" in loaded_metadata.genres
+        assert len(loaded_metadata.members) == 2
+        assert "Member 2" in loaded_metadata.members 

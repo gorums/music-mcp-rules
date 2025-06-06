@@ -242,20 +242,27 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
-        # If preserve_analyze is True and file exists, load existing analyze data
+        # If file exists, preserve existing analyze and folder_structure data
         existing_analyze = None
+        existing_folder_structure = None
         if metadata_file.exists():
             try:
                 existing_metadata_dict = JSONStorage.load_json(metadata_file)
                 existing_metadata = BandMetadata(**existing_metadata_dict)
                 existing_analyze = existing_metadata.analyze
+                existing_folder_structure = existing_metadata.folder_structure
             except Exception:
                 # If loading fails, continue without preserving (file might be corrupted)
                 existing_analyze = None
+                existing_folder_structure = None
         
-        # If we should preserve analyze data and it exists, use it
+        # Preserve existing analyze data if it exists
         if existing_analyze is not None:
             metadata.analyze = existing_analyze
+            
+        # Preserve existing folder_structure data if it exists
+        if existing_folder_structure is not None:
+            metadata.folder_structure = existing_folder_structure
 
         # Update timestamp
         metadata.update_timestamp()
