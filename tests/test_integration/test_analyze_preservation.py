@@ -28,7 +28,7 @@ class TestAnalyzePreservation:
     
     @patch('src.tools.storage.Config')
     def test_preserve_analyze_by_default(self, mock_config, temp_music_dir):
-        """Test that analyze data is preserved by default when updating metadata."""
+        """Test that analyze data is always preserved when updating metadata."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         band_name = "Test Band"
@@ -92,10 +92,9 @@ class TestAnalyzePreservation:
             # Note: No analyze data provided
         )
         
-        # Save updated metadata with preserve_analyze=True (default)
-        result = save_band_metadata(band_name, updated_metadata, preserve_analyze=True)
+        # Save updated metadata (now always preserves analyze)
+        result = save_band_metadata(band_name, updated_metadata)
         assert result["status"] == "success"
-        assert result["analyze_preserved"] == True
         
         # Step 3: Verify analyze data was preserved
         loaded_metadata = load_band_metadata(band_name)
@@ -115,8 +114,8 @@ class TestAnalyzePreservation:
         assert len(loaded_metadata.albums) == 2
     
     @patch('src.tools.storage.Config')
-    def test_clear_analyze_when_requested(self, mock_config, temp_music_dir):
-        """Test that analyze data is cleared when preserve_analyze=False."""
+    def test_analyze_always_preserved(self, mock_config, temp_music_dir):
+        """Test that analyze data is always preserved (behavior changed from clearing)."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         band_name = "Test Band"
@@ -149,7 +148,7 @@ class TestAnalyzePreservation:
         result = save_band_metadata(band_name, initial_metadata)
         assert result["status"] == "success"
         
-        # Step 2: Update metadata with preserve_analyze=False
+        # Step 2: Update metadata (now always preserves analyze)
         updated_metadata = BandMetadata(
             band_name=band_name,
             formed="1970",
@@ -168,15 +167,15 @@ class TestAnalyzePreservation:
             # No analyze data provided
         )
         
-        # Save with preserve_analyze=False
-        result = save_band_metadata(band_name, updated_metadata, preserve_analyze=False)
+        # Save with updated metadata (now always preserves analyze)
+        result = save_band_metadata(band_name, updated_metadata)
         assert result["status"] == "success"
-        assert result["analyze_preserved"] == False
         
-        # Step 3: Verify analyze data was cleared
+        # Step 3: Verify analyze data was preserved (behavior changed)
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata is not None
-        assert loaded_metadata.analyze is None
+        assert loaded_metadata.analyze is not None  # Now always preserved
+        assert loaded_metadata.analyze.review == "Great band"
         
         # Verify other metadata was updated
         assert loaded_metadata.description == "Updated description"
@@ -184,7 +183,7 @@ class TestAnalyzePreservation:
     @patch('src.tools.storage.Config')
     @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
     def test_save_band_metadata_tool_preserve_analyze_default(self, mock_config_rel, mock_config, temp_music_dir):
-        """Test that the tool preserves analyze data by default."""
+        """Test that the tool always preserves analyze data."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -257,11 +256,9 @@ class TestAnalyzePreservation:
             ]
         }
         
-        # Save updated metadata (clear_analyze=False by default)
+        # Save updated metadata (now always preserves analyze)
         result = save_band_metadata_tool(band_name, updated_metadata_dict)
         assert result["status"] == "success"
-        assert result["file_operations"]["analyze_preserved"] == True
-        assert result["file_operations"]["analyze_action"] == "preserved"
         
         # Step 3: Verify analyze data was preserved
         loaded_metadata = load_band_metadata(band_name)
@@ -278,8 +275,8 @@ class TestAnalyzePreservation:
     
     @patch('src.tools.storage.Config')
     @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
-    def test_save_band_metadata_tool_clear_analyze_explicit(self, mock_config_rel, mock_config, temp_music_dir):
-        """Test that the tool clears analyze data when clear_analyze=True."""
+    def test_save_band_metadata_tool_always_preserves(self, mock_config_rel, mock_config, temp_music_dir):
+        """Test that the tool always preserves analyze data (behavior changed from clearing)."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -335,7 +332,7 @@ class TestAnalyzePreservation:
         )
         save_band_metadata(band_name, metadata)
         
-        # Step 2: Update metadata with clear_analyze=True
+        # Step 2: Update metadata (now always preserves analyze)
         updated_metadata_dict = {
             "formed": "1970",
             "genres": ["Rock"],
@@ -352,16 +349,15 @@ class TestAnalyzePreservation:
             ]
         }
         
-        # Save with clear_analyze=True
-        result = save_band_metadata_tool(band_name, updated_metadata_dict, clear_analyze=True)
+        # Save with updated metadata (now always preserves analyze)
+        result = save_band_metadata_tool(band_name, updated_metadata_dict)
         assert result["status"] == "success"
-        assert result["file_operations"]["analyze_preserved"] == False
-        assert result["file_operations"]["analyze_action"] == "cleared"
         
-        # Step 3: Verify analyze data was cleared
+        # Step 3: Verify analyze data was preserved (behavior changed)
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata is not None
-        assert loaded_metadata.analyze is None
+        assert loaded_metadata.analyze is not None  # Now always preserved
+        assert loaded_metadata.analyze.review == "Great band"
     
     @patch('src.tools.storage.Config')
     @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
@@ -392,8 +388,6 @@ class TestAnalyzePreservation:
         # Save metadata (no existing analyze data to preserve)
         result = save_band_metadata_tool(band_name, metadata_dict)
         assert result["status"] == "success"
-        assert result["file_operations"]["analyze_preserved"] == False
-        assert result["file_operations"]["analyze_action"] == "none_to_preserve"
         
         # Verify no analyze data exists
         loaded_metadata = load_band_metadata(band_name)

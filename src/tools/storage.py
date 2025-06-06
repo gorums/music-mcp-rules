@@ -221,7 +221,7 @@ class JSONStorage:
             raise StorageError(f"Failed to create backup: {e}")
 
 
-def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze: bool = True) -> Dict[str, Any]:
+def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]:
     """
     Save complete band metadata to .band_metadata.json file.
     
@@ -244,7 +244,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze:
         
         # If preserve_analyze is True and file exists, load existing analyze data
         existing_analyze = None
-        if preserve_analyze and metadata_file.exists():
+        if metadata_file.exists():
             try:
                 existing_metadata_dict = JSONStorage.load_json(metadata_file)
                 existing_metadata = BandMetadata(**existing_metadata_dict)
@@ -254,12 +254,9 @@ def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze:
                 existing_analyze = None
         
         # If we should preserve analyze data and it exists, use it
-        if preserve_analyze and existing_analyze is not None:
+        if existing_analyze is not None:
             metadata.analyze = existing_analyze
-        elif not preserve_analyze:
-            # Explicitly clear analyze data when not preserving
-            metadata.analyze = None
-        
+
         # Update timestamp
         metadata.update_timestamp()
         
@@ -274,8 +271,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata, preserve_analyze:
             "message": f"Band metadata saved for {band_name}",
             "file_path": str(metadata_file),
             "last_updated": metadata.last_updated,
-            "albums_count": metadata.albums_count,
-            "analyze_preserved": preserve_analyze and existing_analyze is not None
+            "albums_count": metadata.albums_count
         }
         
     except Exception as e:

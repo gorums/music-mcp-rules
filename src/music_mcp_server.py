@@ -173,8 +173,7 @@ def get_band_list_tool(
 @mcp.tool()
 def save_band_metadata_tool(
     band_name: str,
-    metadata: Dict[str, Any],
-    clear_analyze: bool = False
+    metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Save band metadata to the local storage. Chek very careful how is the metadata passed to the tool, check the examples too.
@@ -183,8 +182,6 @@ def save_band_metadata_tool(
     Args:
         band_name: The name of the band
         metadata: Complete metadata dictionary for the band
-        clear_analyze: If True, clears existing analyze data. If False (default), 
-                      preserves existing analyze data from previous saves.
         
     Returns:
         Dict containing the operation status
@@ -269,8 +266,7 @@ def save_band_metadata_tool(
     
     ANALYZE DATA PRESERVATION:
     =========================
-    - By default (clear_analyze=False), existing analyze data is preserved when updating metadata
-    - Only set clear_analyze=True if you want to remove existing band and album reviews/ratings
+    - Existing analyze data is always preserved when updating metadata
     - Use save_band_analyze_tool to add or update analysis data specifically
     """
     try:
@@ -317,9 +313,8 @@ def save_band_metadata_tool(
             }
         
         # Step 2: Save metadata with backup mechanism (handled by storage layer)
-        # Reason: Invert clear_analyze to preserve_analyze since storage function preserves by default
-        preserve_analyze = not clear_analyze
-        storage_result = save_band_metadata(band_name, band_metadata, preserve_analyze)
+        # Reason: Always preserve existing analyze data
+        storage_result = save_band_metadata(band_name, band_metadata)
         
         # Step 3: Sync with collection index
         collection_sync_results = {
@@ -387,8 +382,6 @@ def save_band_metadata_tool(
                 'last_updated': storage_result.get('last_updated', ''),
                 'last_metadata_saved': band_metadata.last_metadata_saved,  # Include the new timestamp
                 'file_size_bytes': 0,  # Could be enhanced to get actual file size
-                'analyze_preserved': storage_result.get('analyze_preserved', False),
-                'analyze_action': 'preserved' if storage_result.get('analyze_preserved', False) else ('cleared' if clear_analyze else 'none_to_preserve')
             },
             'collection_sync': collection_sync_results,
             'band_info': {
@@ -405,12 +398,10 @@ def save_band_metadata_tool(
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
-                'version': '1.1.0',  # Updated version for analyze preservation feature
+                'version': '1.2.0',  # Updated version for always preserve analyze behavior
                 'parameters_used': {
                     'band_name': band_name,
-                    'metadata_fields': list(metadata.keys()),
-                    'clear_analyze': clear_analyze,
-                    'preserve_analyze': preserve_analyze
+                    'metadata_fields': list(metadata.keys())
                 }
             }
         }
@@ -431,7 +422,7 @@ def save_band_metadata_tool(
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
-                'version': '1.1.0'
+                'version': '1.2.0'
             }
         }
 

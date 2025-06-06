@@ -255,8 +255,6 @@ Stores comprehensive metadata for a band including albums with type classificati
 |-----------|------|----------|-------------|
 | `band_name` | string | Yes | Name of the band |
 | `metadata` | object | Yes | Band metadata object with enhanced album schema |
-| `preserve_analyze` | boolean | No | Preserve existing analysis data (default: `true`) |
-| `clear_analyze` | boolean | No | Clear existing analysis data (default: `false`) |
 
 #### Enhanced Metadata Schema
 
@@ -328,7 +326,7 @@ Stores comprehensive metadata for a band including albums with type classificati
     "compliance_level": "excellent"
   },
   "analyze_preserved": true,
-  "analyze_action": "preserved_existing",
+  "analyze_action": "preserved",
   "validation": {
     "errors": [],
     "warnings": ["Album 'Ummagumma' missing year information"],
