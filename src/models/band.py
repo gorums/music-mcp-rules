@@ -89,7 +89,6 @@ class Album(BaseModel):
         duration: Album duration in format "67min"
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
-        folder_compliance: Optional folder compliance tracking
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -99,7 +98,6 @@ class Album(BaseModel):
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
-    folder_compliance: Optional[FolderCompliance] = Field(default=None, description="Folder compliance tracking")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:

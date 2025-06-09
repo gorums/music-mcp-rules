@@ -581,7 +581,6 @@ def _calculate_compliance_summary(albums: List[Dict]) -> Dict[str, Any]:
     Returns:
         Dictionary with compliance summary statistics
     """
-    # Compliance summary is no longer available since folder_compliance field has been removed
     return {'average_score': 0, 'compliant_albums': 0, 'total_albums': len(albums), 'compliance_percentage': 0}
 
 

@@ -21,25 +21,6 @@ from src.models.band import Album, AlbumType, FolderCompliance
 class TestFolderCompliance:
     """Test the FolderCompliance model."""
     
-    def test_folder_compliance_creation(self):
-        """Test creating a FolderCompliance instance."""
-        compliance = FolderCompliance(
-            has_year_prefix=True,
-            has_edition_suffix=True,
-            using_type_folders=False,
-            compliance_score=95,
-            issues=[],
-            recommended_path="2012 - Apocalyptic Love (Deluxe Edition)",
-            original_path="2012 - Apocalyptic Love (Deluxe Edition)",
-            needs_migration=False
-        )
-        
-        assert compliance.has_year_prefix is True
-        assert compliance.has_edition_suffix is True
-        assert compliance.compliance_score == 95
-        assert compliance.is_compliant() is True
-        assert compliance.get_compliance_level() == "excellent"
-    
     def test_compliance_levels(self):
         """Test compliance level determination."""
         test_cases = [
@@ -581,7 +562,6 @@ class TestIntegrationCompliance:
         assert len(report.issues) > 0  # Should have some issues
         assert len(report.recommendations) > 0
         
-        # Note: folder_compliance is no longer stored on Album model
         # Compliance validation still works through the validator
         
         # Generate collection report
@@ -624,7 +604,6 @@ class TestIntegrationCompliance:
         assert report.band_name == "Enhanced Band"
         assert report.total_albums == 3
         
-        # Note: folder_compliance is no longer stored on Album model
         # Compliance validation is done through the validator and stored in reports
 
 

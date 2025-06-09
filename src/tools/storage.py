@@ -703,7 +703,6 @@ def _filter_bands_by_album_type(bands: List[BandIndexEntry], album_type: str) ->
 
 def _filter_bands_by_compliance(bands: List[BandIndexEntry], compliance_level: str) -> List[BandIndexEntry]:
     """Filter bands by compliance level."""
-    # Compliance filtering is no longer supported since folder_compliance field has been removed
     return bands
 
 
@@ -741,7 +740,6 @@ def _sort_bands_enhanced(bands: List[BandIndexEntry], sort_by: str, sort_order: 
             return ((band.albums_count - band.missing_albums_count) / band.albums_count) * 100
         return sorted(bands, key=completion_percentage, reverse=reverse)
     elif sort_by == "compliance":
-        # Compliance sorting is no longer supported since folder_compliance field has been removed
         return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
     else:
         # Default to name sorting
