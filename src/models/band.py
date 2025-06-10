@@ -115,6 +115,9 @@ class Album(BaseModel):
         # Remove edition field if it's empty or None (meaning this is NOT an edition)
         if 'edition' in data and (not data['edition'] or data['edition'].strip() == ""):
             del data['edition']
+        # Remove folder_path field if it's empty or None
+        if 'folder_path' in data and (not data['folder_path'] or data['folder_path'].strip() == ""):
+            del data['folder_path']
         return data
 
     @field_validator('type')

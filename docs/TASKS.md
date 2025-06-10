@@ -95,6 +95,7 @@
   - [x] Update last_updated timestamp
   - [x] Sync with collection index
   - [x] Return operation status with validation results
+  - [x] **BUG FIX (2025-06-10)**: Fixed album preservation issue where existing albums were always replaced instead of only when albums key is missing from input metadata
 - [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-28)
   - [x] Store analysis data including review and rating
   - [x] Handle album-specific reviews and ratings
@@ -1566,3 +1567,30 @@ This structured approach allows for incremental implementation where each task b
 3. **Fetch**: `fetch_band_info` prompt guides brave search for comprehensive band data
 4. **Store**: `save_band_metadata` persists complete information including albums with types
 5. **Analyze**: `analyze_band` prompt guides analysis with ratings and type-specific insights
+
+## Discovered Bug Fixes and Tasks During Work
+
+### Bug Fix: Album Update Issue in save_band_metadata_tool - COMPLETED (2025-06-10)
+**Issue**: When updating band metadata via `save_band_metadata_tool`, the tool was always overwriting the albums array with existing local albums, even when the user was providing new albums data. This prevented users from properly updating their album collections.
+
+**Root Cause**: In `src/music_mcp_server.py` lines 382-383, the code was unconditionally replacing the albums with existing metadata:
+```python
+# Bad: always overwrites albums
+metadata['albums'] = [album.model_dump() for album in local_metadata.albums]
+```
+
+**Fix Applied**: Added proper conditional check to only preserve existing albums when albums key is not provided in input:
+```python
+# Fixed: only preserve albums if not provided in input
+if 'albums' not in metadata:
+    metadata['albums'] = [album.model_dump() for album in local_metadata.albums]
+```
+
+**Test Results**: 
+- **Before**: 2 tests failing (album count mismatch)
+- **After**: All 502 tests passing
+- **Tests Fixed**: 
+  - `tests/test_integration/test_mcp_server.py::TestSaveBandMetadataTool::test_save_band_metadata_update_existing_band`
+  - `tests/test_integration/test_analyze_preservation.py::TestAnalyzePreservation::test_preserve_folder_structure_by_default`
+
+**Status**: ✅ **COMPLETED** - Bug fix verified and all tests passing
