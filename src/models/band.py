@@ -104,6 +104,19 @@ class Album(BaseModel):
         """Serialize AlbumType enum to string value."""
         return value.value
 
+    def model_dump(self, **kwargs):
+        """
+        Custom model dump that excludes edition field for standard/regular releases.
+        
+        Only includes the edition field when the album IS an edition (Deluxe, Limited, etc.).
+        Removes the field when the album is NOT an edition (standard/regular release).
+        """
+        data = super().model_dump(**kwargs)
+        # Remove edition field if it's empty or None (meaning this is NOT an edition)
+        if 'edition' in data and (not data['edition'] or data['edition'].strip() == ""):
+            del data['edition']
+        return data
+
     @field_validator('type')
     @classmethod
     def validate_album_type(cls, v):
@@ -304,6 +317,37 @@ class BandMetadata(BaseModel):
         if duplicates:
             raise ValueError(f"Albums cannot exist in both local and missing arrays: {', '.join(duplicates)}")
         return self
+
+    def model_dump(self, **kwargs):
+        """
+        Custom model dump that properly handles Album serialization.
+        
+        Ensures that empty edition fields are excluded from Album objects
+        when serializing the BandMetadata to JSON.
+        """
+        data = super().model_dump(**kwargs)
+        
+        # Process albums array to remove empty edition fields
+        if 'albums' in data and data['albums']:
+            processed_albums = []
+            for album_data in data['albums']:
+                # Remove edition field if it's empty
+                if 'edition' in album_data and (not album_data['edition'] or album_data['edition'].strip() == ""):
+                    del album_data['edition']
+                processed_albums.append(album_data)
+            data['albums'] = processed_albums
+        
+        # Process albums_missing array to remove empty edition fields
+        if 'albums_missing' in data and data['albums_missing']:
+            processed_missing = []
+            for album_data in data['albums_missing']:
+                # Remove edition field if it's empty
+                if 'edition' in album_data and (not album_data['edition'] or album_data['edition'].strip() == ""):
+                    del album_data['edition']
+                processed_missing.append(album_data)
+            data['albums_missing'] = processed_missing
+        
+        return data
 
     def to_json(self) -> str:
         """

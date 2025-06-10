@@ -420,7 +420,32 @@ def save_band_metadata_tool(
                 'has_metadata': band_metadata.has_metadata_saved(),  # Include has_metadata status
                 'has_analysis': band_metadata.analyze is not None,
                 'genre_count': len(band_metadata.genres),
-                'members_count': len(band_metadata.members)
+                'members_count': len(band_metadata.members),
+                # Add detailed album information
+                'local_albums': [
+                    {
+                        'album_name': album.album_name,
+                        'year': album.year,
+                        'track_count': album.track_count,
+                        'type': album.type.value if hasattr(album.type, 'value') else str(album.type),
+                        'edition': album.edition,
+                        'duration': album.duration,
+                        'genres': album.genres
+                    }
+                    for album in band_metadata.albums
+                ],
+                'missing_albums': [
+                    {
+                        'album_name': album.album_name,
+                        'year': album.year,
+                        'track_count': album.track_count,
+                        'type': album.type.value if hasattr(album.type, 'value') else str(album.type),
+                        'edition': album.edition,
+                        'duration': album.duration,
+                        'genres': album.genres
+                    }
+                    for album in band_metadata.albums_missing
+                ]
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
