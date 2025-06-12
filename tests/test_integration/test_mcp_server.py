@@ -237,12 +237,9 @@ class TestSaveBandMetadataTool(unittest.TestCase):
             "albums": []
         }
         
-        # Mock update_collection_index to fail - patch both import paths
-        with patch('src.tools.storage.update_collection_index') as mock_update1, \
-             patch('tools.storage.update_collection_index') as mock_update2:
-            mock_update1.return_value = {"status": "error", "error": "Mock error"}
-            mock_update2.return_value = {"status": "error", "error": "Mock error"}
-            
+        # Patch at the module level where it's imported
+        with patch('src.music_mcp_server.update_collection_index') as mock_update:
+            mock_update.return_value = {"status": "error", "error": "Mock error"}
             result = save_band_metadata_tool(band_name, metadata)
         
         # Should still succeed in saving metadata
@@ -751,55 +748,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
         assert summary["average_album_rating"] == 6.5  # (9+4)/2
         assert summary["rating_range"]["min"] == 4
         assert summary["rating_range"]["max"] == 9
-
-    def test_save_band_analyze_with_missing_albums_parameter(self):
-        """Test analyze_missing_albums parameter functionality."""
-        from src.music_mcp_server import save_band_analyze_tool
         
-        band_name = "Missing Albums Test Band"
-        analysis = {
-            "review": "Testing missing albums functionality",
-            "rate": 8,
-            "albums": [
-                {
-                    "album_name": "Local Album",
-                    "review": "This album exists locally",
-                    "rate": 9
-                },
-                {
-                    "album_name": "Missing Album",
-                    "review": "This album is missing",
-                    "rate": 7
-                }
-            ],
-            "similar_bands": ["Similar Band 1", "Similar Band 2"]
-        }
-        
-        # Test with analyze_missing_albums=False (default behavior)
-        result_exclude = save_band_analyze_tool(band_name, analysis, analyze_missing_albums=False)
-        
-        assert result_exclude["status"] == "success"
-        assert "analyze_missing_albums parameter" not in result_exclude["message"] or "excluded" in result_exclude["message"]
-        
-        # Check tool info includes the parameter
-        tool_info_exclude = result_exclude["tool_info"]
-        assert tool_info_exclude["parameters_used"]["analyze_missing_albums"] is False
-        
-        # Test with analyze_missing_albums=True (include missing albums)
-        result_include = save_band_analyze_tool(band_name, analysis, analyze_missing_albums=True)
-        
-        assert result_include["status"] == "success"
-        assert "including" in result_include["message"] or "all albums" in result_include["message"]
-        
-        # Check tool info includes the parameter
-        tool_info_include = result_include["tool_info"]
-        assert tool_info_include["parameters_used"]["analyze_missing_albums"] is True
-        
-        # Verify both calls have same validation results since input is identical
-        assert result_exclude["validation_results"]["albums_analyzed"] == result_include["validation_results"]["albums_analyzed"]
-        assert result_exclude["validation_results"]["similar_bands_count"] == result_include["validation_results"]["similar_bands_count"]
-
-
 class TestSaveCollectionInsightTool(unittest.TestCase):
     """Test the enhanced save_collection_insight_tool with comprehensive validation and sync."""
 

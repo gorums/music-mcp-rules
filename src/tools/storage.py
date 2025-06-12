@@ -285,7 +285,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         raise StorageError(f"Failed to save band metadata for {band_name}: {e}")
 
 
-def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_albums: bool = False) -> Dict[str, Any]:
+def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
     """
     Save band analysis data with reviews and ratings, with optional missing album inclusion.
     
@@ -296,7 +296,6 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_al
     Args:
         band_name: Name of the band
         analysis: BandAnalysis instance to save
-        analyze_missing_albums: If True, includes analysis for missing albums too. Default False.
         
     Returns:
         Dict with operation status and details
@@ -324,46 +323,14 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_al
         filtered_album_analysis = []
         excluded_count = 0
         
-        # If no existing metadata or no albums in metadata, include all analysis
-        if not metadata.albums:
-            # No existing album metadata, so include all album analysis
-            for album_analysis in analysis.albums:
-                # Create new AlbumAnalysis without album_name for storage
-                filtered_analysis = AlbumAnalysis(
-                    album_name=album_analysis.album_name,  # Don't store album name in final analysis
-                    review=album_analysis.review,
-                    rate=album_analysis.rate
-                )
-                filtered_album_analysis.append(filtered_analysis)
-        else:
-            # Filter based on existing metadata and analyze_missing_albums setting
-            if analyze_missing_albums:
-                # Include all albums (both local and missing)
-                for album_analysis in analysis.albums:
-                    # Create new AlbumAnalysis without album_name for storage
-                    filtered_analysis = AlbumAnalysis(
-                        album_name=album_analysis.album_name,  # Don't store album name in final analysis
-                        review=album_analysis.review,
-                        rate=album_analysis.rate
-                    )
-                    filtered_album_analysis.append(filtered_analysis)
-            else:
-                # Filter out missing albums (original behavior)
-                local_albums = metadata.get_local_albums()  # Get albums that are not missing
-                local_album_names = {album.album_name.lower() for album in local_albums}
-                
-                for album_analysis in analysis.albums:
-                    # Check if the album exists locally (not missing)
-                    if album_analysis.album_name.lower() in local_album_names:
-                        # Create new AlbumAnalysis without album_name for storage
-                        filtered_analysis = AlbumAnalysis(
-                            album_name=album_analysis.album_name,  # Don't store album name in final analysis
-                            review=album_analysis.review,
-                            rate=album_analysis.rate
-                        )
-                        filtered_album_analysis.append(filtered_analysis)
-                    else:
-                        excluded_count += 1
+        for album_analysis in analysis.albums:
+            # Create new AlbumAnalysis without album_name for storage
+            filtered_analysis = AlbumAnalysis(
+                album_name=album_analysis.album_name,  # Don't store album name in final analysis
+                review=album_analysis.review,
+                rate=album_analysis.rate
+            )
+            filtered_album_analysis.append(filtered_analysis)                 
         
         # Create filtered analysis with the processed album reviews
         filtered_analysis = BandAnalysis(
@@ -385,12 +352,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_al
         filtered_albums_count = len(filtered_album_analysis)
         
         # Create appropriate message based on settings
-        if analyze_missing_albums and excluded_count == 0:
-            message = f"Band analysis saved for {band_name} including missing albums"
-        elif analyze_missing_albums and excluded_count > 0:
-            message = f"Band analysis saved for {band_name} including all albums"
-        else:
-            message = f"Band analysis saved for {band_name} (excluded {excluded_count} missing albums)"
+        message = f"Band analysis saved for {band_name} including all albums"
         
         return {
             "status": "success",
@@ -401,7 +363,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_al
             "albums_excluded": excluded_count,
             "similar_bands_count": len(filtered_analysis.similar_bands),
             "last_updated": metadata.last_updated,
-            "analyze_missing_albums": analyze_missing_albums
+            "analyze_missing_albums": True
         }
         
     except Exception as e:

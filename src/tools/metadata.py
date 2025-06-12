@@ -30,14 +30,13 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
     return _save_band_metadata(band_name, metadata)
 
 
-def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_albums: bool = False) -> Dict[str, Any]:
+def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
     """
     Save band analysis data with reviews and ratings.
     
     Args:
         band_name: Name of the band
         analysis: BandAnalysis instance to save
-        analyze_missing_albums: If True, includes analysis for missing albums too. Default False.
         
     Returns:
         Dict with operation status and details
@@ -45,7 +44,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis, analyze_missing_al
     Raises:
         StorageError: If save operation fails
     """
-    return _save_band_analyze(band_name, analysis, analyze_missing_albums)
+    return _save_band_analyze(band_name, analysis)
 
 
 def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:

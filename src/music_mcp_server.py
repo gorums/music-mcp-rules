@@ -15,7 +15,7 @@ from fastmcp import FastMCP
 
 # Import tool implementations - using absolute imports
 from tools.scanner import scan_music_folders as scanner_scan_music_folders
-from tools.storage import get_band_list, save_band_metadata, save_band_analyze
+from tools.storage import get_band_list, save_band_metadata, save_band_analyze, load_band_metadata, load_collection_index, update_collection_index
 
 # Import resource implementations - using absolute imports
 from resources.band_info import get_band_info_markdown
@@ -334,7 +334,6 @@ def save_band_metadata_tool(
     try:
         # Import required models and functions
         from models.band import BandMetadata
-        from tools.storage import update_collection_index, load_collection_index, load_band_metadata
         from models.collection import BandIndexEntry
         
         # Step 1: Data validation against enhanced schema
@@ -441,6 +440,7 @@ def save_band_metadata_tool(
             if index_update_result.get("status") == "success":
                 collection_sync_results["index_updated"] = True
             else:
+                collection_sync_results["index_updated"] = False
                 collection_sync_results["index_errors"].append("Failed to update collection index")
                 
         except Exception as e:
@@ -530,8 +530,7 @@ def save_band_metadata_tool(
 @mcp.tool()
 def save_band_analyze_tool(
     band_name: str,    
-    analysis: Dict[str, Any],
-    analyze_missing_albums: bool = False,
+    analysis: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Save band analysis data including reviews, ratings, and similar bands.
@@ -540,7 +539,7 @@ def save_band_analyze_tool(
     - Overall band review and rating
     - Album-specific reviews and ratings (1-10 scale)
     - Similar bands information
-    - Optionally includes or excludes analysis for missing albums
+    - Always includes analysis for all albums (both local and missing)
     - Merges with existing metadata preserving structure
     - Validates analyze section structure
     - Updates collection statistics
@@ -548,7 +547,6 @@ def save_band_analyze_tool(
     Args:
         band_name: The name of the band        
         analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands 
-        analyze_missing_albums: If True, includes analysis for missing albums too. Default False.
         
     Returns:
         Dict containing comprehensive operation status with validation results, 
@@ -573,8 +571,7 @@ def save_band_analyze_tool(
     
     MISSING ALBUMS FILTERING:
     =========================
-    - By default (analyze_missing_albums=False): Analysis is only saved for albums that exist locally
-    - When analyze_missing_albums=True: Analysis is saved for all albums, including missing ones
+    - Analysis is always saved for all albums, including both local and missing albums
     
     RATING VALIDATION:
     ==================
@@ -605,7 +602,6 @@ def save_band_analyze_tool(
     try:
         # Import required models
         from models.band import BandAnalysis, AlbumAnalysis
-        from tools.storage import update_collection_index, load_collection_index
         
         # Prepare comprehensive response structure
         response = {
@@ -647,8 +643,7 @@ def save_band_analyze_tool(
                 "version": "1.0.0",
                 "parameters_used": {
                     "band_name": band_name,
-                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else [],
-                    "analyze_missing_albums": analyze_missing_albums
+                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else []
                 }
             }
         }
@@ -764,7 +759,7 @@ def save_band_analyze_tool(
         
         # Call storage function
         try:
-            storage_result = save_band_analyze(band_name, band_analysis, analyze_missing_albums)
+            storage_result = save_band_analyze(band_name, band_analysis)
             
             # Update response with storage results
             response["message"] = storage_result.get("message", f"Analysis saved for {band_name}")
@@ -790,7 +785,6 @@ def save_band_analyze_tool(
                 for band_entry in index.bands:
                     if band_entry.name == band_name:
                         # Load current metadata to get accurate album counts
-                        from tools.storage import load_band_metadata
                         current_metadata = load_band_metadata(band_name)
                         if current_metadata:
                             # Calculate proper album counts from metadata
@@ -860,16 +854,10 @@ def save_band_analyze_tool(
         }
         
         # Final success message with filtering information
-        if analyze_missing_albums:
-            if albums_excluded > 0:
-                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (including missing albums)"
-            else:
-                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (all albums included)"
+        if albums_excluded > 0:
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (including missing albums)"
         else:
-            if albums_excluded > 0:
-                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands ({albums_excluded} missing albums excluded)"
-            else:
-                response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands"
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (all albums included)"
         
         return response
         

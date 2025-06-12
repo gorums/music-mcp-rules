@@ -100,7 +100,7 @@ class TestMetadataFunctions:
         assert result["status"] == "success"
         assert result["band_rating"] == 8
         assert result["albums_analyzed"] == 2
-        mock_save.assert_called_once_with(band_name, analysis, False)
+        mock_save.assert_called_once_with(band_name, analysis)
 
     @patch('src.tools.metadata._save_band_analyze')
     def test_save_band_analyze_error(self, mock_save):
