@@ -1491,6 +1491,67 @@ This structured approach allows for incremental implementation where each task b
 
 **Implementation Priority**: LOW - Documentation updates after implementation is complete.
 
+### Task 7.9: Similar Bands Separation by Collection Presence - PRIORITY HIGH
+- [ ] **Update Band Analysis Model**
+  - [ ] Modify `BandAnalysis` model in `src/models/band.py` to have separate arrays:
+    - [ ] `similar_bands: List[str]` - Similar bands that exist in the local collection
+    - [ ] `similar_bands_missing: List[str]` - Similar bands that don't exist in the local collection
+  - [ ] Remove the current single `similar_bands` array or make it a computed property
+  - [ ] Add `total_similar_bands_count` property to return `len(similar_bands) + len(similar_bands_missing)`
+  - [ ] Add validation to prevent bands appearing in both arrays
+  - [ ] Maintain backward compatibility for reading existing JSON files
+  
+- [ ] **Update save_band_analyze_tool**
+  - [ ] Modify tool to check if each similar band exists in the collection index
+  - [ ] Automatically separate similar bands into appropriate arrays based on collection presence
+  - [ ] Add band existence check against collection index during saving
+  - [ ] Update tool response to show similar bands statistics (in collection vs not in collection)
+  - [ ] Add option to specify bands explicitly for each array if desired
+  - [ ] Maintain backward compatibility for tools using old schema format
+
+- [ ] **Update Resources and Display**
+  - [ ] Modify `band_info` resource to display similar bands in separate sections:
+    - [ ] "Similar Bands in Your Collection" section with links to local bands
+    - [ ] "Similar Bands Not in Your Collection" section with discovery suggestions
+  - [ ] Update band information display with appropriate badges or indicators
+  - [ ] Add collection completion suggestions based on missing similar bands
+  - [ ] Include acquisition recommendations for highest-rated missing similar bands
+
+- [ ] **Update analyze_band Prompt**
+  - [ ] Update prompt to explain the separation of similar bands
+  - [ ] Add guidance for recommending bands based on collection presence
+  - [ ] Include instructions for ranking similar bands by relevance
+  - [ ] Update output format examples to match new schema
+
+- [ ] **Testing and Quality Assurance**
+  - [ ] Create unit tests for updated `BandAnalysis` model
+  - [ ] Update tool tests for similar bands separation functionality
+  - [ ] Test backward compatibility with existing metadata
+  - [ ] Verify collection index integration accuracy
+  - [ ] Ensure no similar band appears in both arrays
+  - [ ] Test edge cases (empty collection, all bands in collection, etc.)
+
+**Implementation Priority**: HIGH - This feature enhances discovery and collection management with minimal schema changes.
+
+**Key Benefits**:
+- Clearly distinguishes between similar bands you already have vs. ones to discover
+- Enhances band recommendations with actionable acquisition suggestions
+- Improves collection exploration by highlighting related bands already in your library
+- Provides better collection completion guidance based on musical connections
+- Creates a musical connection graph across your collection for advanced insights
+
+**Example Schema**:
+```json
+{
+  "analyze": {
+    "review": "Progressive rock pioneers known for conceptual works...",
+    "rate": 9,
+    "similar_bands": ["King Crimson", "Genesis", "Yes"],  // These bands exist in your collection
+    "similar_bands_missing": ["Camel", "Gentle Giant", "Van der Graaf Generator"]  // These bands are not in your collection
+  }
+}
+```
+
 ## Phase 7 Implementation Strategy
 
 ### Implementation Order (Critical Path):
@@ -1502,6 +1563,7 @@ This structured approach allows for incremental implementation where each task b
 6. **Task 7.7**: Comprehensive testing (QUALITY ASSURANCE)
 7. **Task 7.6**: Update analysis features (ENHANCEMENT)
 8. **Task 7.8**: Update documentation (DOCUMENTATION)
+9. **Task 7.9**: Similar Bands Separation (DISCOVERY)
 
 ### Key Benefits of Separated Albums Schema:
 
