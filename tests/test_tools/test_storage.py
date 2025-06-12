@@ -1030,4 +1030,60 @@ class TestEnhancedBandListOperations(unittest.TestCase):
         # Check bands without metadata have no_cache status
         bands_without_metadata = [band for band in result['bands'] if not band['has_metadata']]
         for band in bands_without_metadata:
-            self.assertEqual(band['cache_status'], 'no_cache') 
+            self.assertEqual(band['cache_status'], 'no_cache')
+
+    def test_album_details_filter_local_only(self):
+        """Test get_band_list with album_details_filter='local' only returns local albums in album details."""
+        # Setup: Band with both local and missing albums
+        band_name = "FilterTestBand"
+        local_album = Album(album_name="Local Album", year="2000", track_count=10)
+        missing_album = Album(album_name="Missing Album", year="2001", track_count=0)
+        metadata = BandMetadata(band_name=band_name, albums=[local_album], albums_missing=[missing_album])
+        save_band_metadata(band_name, metadata)
+        band_entry = BandIndexEntry(name=band_name, albums_count=2, local_albums_count=1, folder_path=band_name, missing_albums_count=1, has_metadata=True)
+        index = CollectionIndex(bands=[band_entry])
+        update_collection_index(index)
+        result = get_band_list(include_albums=True, album_details_filter="local")
+        assert result["status"] == "success"
+        assert len(result["bands"]) == 1
+        albums = result["bands"][0]["albums"]
+        assert len(albums) == 1
+        assert albums[0]["album_name"] == "Local Album"
+        assert albums[0]["missing"] is False
+
+    def test_album_details_filter_missing_only(self):
+        """Test get_band_list with album_details_filter='missing' only returns missing albums in album details."""
+        band_name = "FilterTestBand2"
+        local_album = Album(album_name="Local Album", year="2000", track_count=10)
+        missing_album = Album(album_name="Missing Album", year="2001", track_count=0)
+        metadata = BandMetadata(band_name=band_name, albums=[local_album], albums_missing=[missing_album])
+        save_band_metadata(band_name, metadata)
+        band_entry = BandIndexEntry(name=band_name, albums_count=2, local_albums_count=1, folder_path=band_name, missing_albums_count=1, has_metadata=True)
+        index = CollectionIndex(bands=[band_entry])
+        update_collection_index(index)
+        result = get_band_list(include_albums=True, album_details_filter="missing")
+        assert result["status"] == "success"
+        assert len(result["bands"]) == 1
+        albums = result["bands"][0]["albums"]
+        assert len(albums) == 1
+        assert albums[0]["album_name"] == "Missing Album"
+        assert albums[0]["missing"] is True
+
+    def test_album_details_filter_all(self):
+        """Test get_band_list with album_details_filter=None returns both local and missing albums."""
+        band_name = "FilterTestBand3"
+        local_album = Album(album_name="Local Album", year="2000", track_count=10)
+        missing_album = Album(album_name="Missing Album", year="2001", track_count=0)
+        metadata = BandMetadata(band_name=band_name, albums=[local_album], albums_missing=[missing_album])
+        save_band_metadata(band_name, metadata)
+        band_entry = BandIndexEntry(name=band_name, albums_count=2, local_albums_count=1, folder_path=band_name, missing_albums_count=1, has_metadata=True)
+        index = CollectionIndex(bands=[band_entry])
+        update_collection_index(index)
+        result = get_band_list(include_albums=True, album_details_filter=None)
+        assert result["status"] == "success"
+        assert len(result["bands"]) == 1
+        albums = result["bands"][0]["albums"]
+        assert len(albums) == 2
+        names = {a["album_name"] for a in albums}
+        assert "Local Album" in names
+        assert "Missing Album" in names 

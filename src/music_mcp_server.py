@@ -93,7 +93,8 @@ def get_band_list_tool(
     sort_order: str = "asc", 
     page: int = 1,
     page_size: int = 50,
-    include_albums: bool = False
+    include_albums: bool = False,
+    album_details_filter: Optional[str] = None  # 'local', 'missing', or None
 ) -> Dict[str, Any]:
     """
     Get a list of all discovered bands with enhanced filtering, sorting, and pagination.
@@ -105,6 +106,7 @@ def get_band_list_tool(
     - Paginate results for large collections
     - Include detailed album information and analysis data
     - Show cached metadata status and last updated info
+    - Filter album details to show only local or only missing albums
     
     Args:
         search_query: Search term to filter bands by name or album name
@@ -116,6 +118,7 @@ def get_band_list_tool(
         page: Page number for pagination (starts at 1)
         page_size: Number of results per page (1-100)
         include_albums: If True, include detailed album information for each band
+        album_details_filter: If 'local', only include local albums in album details; if 'missing', only missing albums; None for all
     
     Returns:
         Dict containing filtered and paginated band list with metadata including:
@@ -125,6 +128,7 @@ def get_band_list_tool(
         - collection_summary: Overall collection statistics
         - filters_applied: Summary of filters that were applied
         - sort: Information about the applied sorting
+        - album_details_filter: Album details filter applied
     """
     try:
         result = get_band_list(
@@ -136,14 +140,15 @@ def get_band_list_tool(
             sort_order=sort_order,
             page=page,
             page_size=page_size,
-            include_albums=include_albums
+            include_albums=include_albums,
+            album_details_filter=album_details_filter
         )
         
         # Add tool-specific metadata
         if result.get('status') == 'success':
             result['tool_info'] = {
                 'tool_name': 'get_band_list',
-                'version': '1.0.0',
+                'version': '1.1.0',
                 'parameters_used': {
                     'search_query': search_query,
                     'filter_genre': filter_genre,
@@ -153,10 +158,11 @@ def get_band_list_tool(
                     'sort_order': sort_order,
                     'page': page,
                     'page_size': page_size,
-                    'include_albums': include_albums
+                    'include_albums': include_albums,
+                    'album_details_filter': album_details_filter
                 }
             }
-            
+            result['album_details_filter'] = album_details_filter
         return result
         
     except Exception as e:
@@ -166,7 +172,7 @@ def get_band_list_tool(
             'error': f"Tool execution failed: {str(e)}",
             'tool_info': {
                 'tool_name': 'get_band_list',
-                'version': '1.0.0'
+                'version': '1.1.0'
             }
         }
 

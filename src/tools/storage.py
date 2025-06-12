@@ -435,7 +435,8 @@ def get_band_list(
     sort_order: str = "asc",
     page: int = 1,
     page_size: int = 50,
-    include_albums: bool = False
+    include_albums: bool = False,
+    album_details_filter: Optional[str] = None  # 'local', 'missing', or None
 ) -> Dict[str, Any]:
     """
     Get a list of all discovered bands with enhanced filtering, sorting, and pagination.
@@ -453,6 +454,7 @@ def get_band_list(
         page: Page number for pagination (1-based)
         page_size: Number of results per page (1-100)
         include_albums: Include album details for each band
+        album_details_filter: If 'local', only include local albums in album details; if 'missing', only missing albums; None for all
         
     Returns:
         Dict containing filtered and paginated band list with enhanced metadata
@@ -539,7 +541,7 @@ def get_band_list(
         # Build detailed band information
         bands_info = []
         for band_entry in paginated_bands:
-            band_info = _build_band_info(band_entry, include_albums)
+            band_info = _build_band_info(band_entry, include_albums, album_details_filter)
             bands_info.append(band_info)
         
         return {
@@ -643,23 +645,20 @@ def _sort_bands(bands: List[BandIndexEntry], sort_by: str, sort_order: str) -> L
 
 
 def _filter_bands_by_album_type(bands: List[BandIndexEntry], album_type: str) -> List[BandIndexEntry]:
-    """Filter bands that contain albums of specified type."""
+    """Filter bands that contain albums of specified type (local or missing)."""
     filtered_bands = []
-    
     for band in bands:
         try:
             metadata = load_band_metadata(band.name)
-            if metadata and metadata.albums:
-                # Check if any album matches the type
-                for album in metadata.albums:
+            if metadata:
+                # Check both local and missing albums
+                for album in (metadata.albums or []) + (metadata.albums_missing or []):
                     album_type_str = album.type.value if hasattr(album.type, 'value') else str(album.type)
                     if album_type.lower() == album_type_str.lower():
                         filtered_bands.append(band)
                         break
         except Exception:
-            # Skip bands with corrupted metadata
             continue
-    
     return filtered_bands
 
 
@@ -708,13 +707,14 @@ def _sort_bands_enhanced(bands: List[BandIndexEntry], sort_by: str, sort_order: 
         return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
 
 
-def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -> Dict[str, Any]:
+def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False, album_details_filter: Optional[str] = None) -> Dict[str, Any]:
     """
     Build detailed band information dictionary with enhanced metadata.
     
     Args:
         band_entry: BandIndexEntry to build info from
         include_albums: Whether to include detailed album information
+        album_details_filter: If 'local', only include local albums in album details; if 'missing', only missing albums; None for all
         
     Returns:
         Dictionary with enhanced band information
@@ -777,38 +777,39 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False) -
                 }
             
             # Include detailed album information if requested
-            if include_albums and metadata.albums:
-                # Add metadata flag for backward compatibility
+            if include_albums and (metadata.albums or metadata.albums_missing):
                 band_info["metadata"] = True
-                
                 album_details = []
-                
                 # Add local albums (found in folder structure)
-                for album in metadata.albums:
-                    album_detail = {
-                        "album_name": album.album_name,
-                        "year": album.year,
-                        "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
-                        "edition": album.edition,
-                        "track_count": album.track_count,
-                        "missing": False,  # Albums in albums array are local (not missing)
-                        "folder_path": album.folder_path
-                    }
-                    album_details.append(album_detail)
-                
+                if album_details_filter in (None, "local"):
+                    for album in metadata.albums:
+                        if album_details_filter == "missing":
+                            continue
+                        album_detail = {
+                            "album_name": album.album_name,
+                            "year": album.year,
+                            "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
+                            "edition": album.edition,
+                            "track_count": album.track_count,
+                            "missing": False,
+                            "folder_path": album.folder_path
+                        }
+                        album_details.append(album_detail)
                 # Add missing albums (not found in folder structure)
-                for album in metadata.albums_missing:
-                    album_detail = {
-                        "album_name": album.album_name,
-                        "year": album.year,
-                        "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
-                        "edition": album.edition,
-                        "track_count": album.track_count,
-                        "missing": True,  # Albums in albums_missing array are missing
-                        "folder_path": album.folder_path
-                    }
-                    album_details.append(album_detail)
-                
+                if album_details_filter in (None, "missing"):
+                    for album in metadata.albums_missing:
+                        if album_details_filter == "local":
+                            continue
+                        album_detail = {
+                            "album_name": album.album_name,
+                            "year": album.year,
+                            "type": album.type.value if hasattr(album.type, 'value') else str(album.type),
+                            "edition": album.edition,
+                            "track_count": album.track_count,
+                            "missing": True,
+                            "folder_path": album.folder_path
+                        }
+                        album_details.append(album_detail)
                 band_info["albums"] = album_details
                 
     except Exception as e:
