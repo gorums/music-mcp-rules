@@ -66,14 +66,13 @@ def scan_music_folders() -> Dict:
         
         # Load existing collection index to detect changes
         collection_index = _load_or_create_collection_index(music_root)
-        initial_stats = collection_index.get_summary_stats()
         
-        # Get current filesystem state
+        # Get current filesystem state vs existing index state
         current_band_folders = _discover_band_folders(music_root)
         current_band_names = {folder.name for folder in current_band_folders}
         existing_band_names = {band.name for band in collection_index.bands}
         
-        # Initialize scan results with change tracking
+        # Initialize scan results tracking structure
         scan_results = {
             'bands_discovered': len(current_band_folders),
             'bands_added': len(current_band_names - existing_band_names),
@@ -88,64 +87,73 @@ def scan_music_folders() -> Dict:
             'bands': []
         }
         
-        # Remove bands that no longer exist
+        # Process removed bands (exist in index but not in filesystem)
         removed_bands = existing_band_names - current_band_names
         for band_name in removed_bands:
             if collection_index.remove_band(band_name):
                 scan_results['changes_detected'].append(f"Removed band: {band_name}")
                 logging.info(f"Removed band from index: {band_name}")
         
-        # Scan all current band folders
+        # Scan all current band folders and detect changes
         logging.info(f"Scanning {len(current_band_folders)} band folders")
         
         for band_folder in current_band_folders:
             try:
+                # Scan individual band folder for albums and tracks
                 band_result = _scan_band_folder(band_folder, music_root)
-                if band_result:
-                    scan_results['bands'].append(band_result)
-                    scan_results['albums_discovered'] += band_result['albums_count']
-                    scan_results['total_tracks'] += band_result['total_tracks']
+                if not band_result:
+                    continue
                     
-                    # Check if this is a new or updated band
-                    existing_entry = collection_index.get_band(band_result['band_name'])
-                    if existing_entry is None:
+                # Add band results to overall scan results
+                scan_results['bands'].append(band_result)
+                scan_results['albums_discovered'] += band_result['albums_count']
+                scan_results['total_tracks'] += band_result['total_tracks']
+                
+                # Detect if this is a new band or an updated existing band
+                existing_entry = collection_index.get_band(band_result['band_name'])
+                if existing_entry is None:
+                    # This is a completely new band
+                    scan_results['changes_detected'].append(
+                        f"Added new band: {band_result['band_name']} ({band_result['albums_count']} albums)"
+                    )
+                else:
+                    # Check for changes in existing band (album count differences)
+                    if existing_entry.albums_count != band_result['albums_count']:
+                        album_diff = band_result['albums_count'] - existing_entry.albums_count
+                        scan_results['bands_updated'] += 1
                         scan_results['changes_detected'].append(
-                            f"Added new band: {band_result['band_name']} ({band_result['albums_count']} albums)"
+                            f"Updated band: {band_result['band_name']} (album change: {album_diff:+d})"
                         )
-                    else:
-                        # Check for album count changes
-                        if existing_entry.albums_count != band_result['albums_count']:
-                            album_diff = band_result['albums_count'] - existing_entry.albums_count
-                            scan_results['bands_updated'] += 1
-                            scan_results['changes_detected'].append(
-                                f"Updated band: {band_result['band_name']} (album change: {album_diff:+d})"
-                            )
-                    
-                    # Update collection index - preserve existing entry data
-                    band_entry = _create_band_index_entry(band_result, music_root, existing_entry)
-                    collection_index.add_band(band_entry)
-                    
+                
+                # Update collection index with current band state
+                band_entry = _create_band_index_entry(band_result, music_root, existing_entry)
+                collection_index.add_band(band_entry)
+                
             except Exception as e:
                 error_msg = f"Error scanning band folder {band_folder}: {str(e)}"
                 logging.warning(error_msg)
                 scan_results['scan_errors'].append(error_msg)
         
-        # Calculate missing albums from collection stats
+        # Calculate missing albums from updated collection stats
         scan_results['missing_albums'] = sum(band.missing_albums_count for band in collection_index.bands)
         
-        # Determine if changes were made
-        changes_made = (scan_results['bands_added'] + scan_results['bands_removed'] + scan_results['bands_updated']) > 0
+        # Determine if any changes were detected and need to be saved
+        changes_made = (
+            scan_results['bands_added'] + 
+            scan_results['bands_removed'] + 
+            scan_results['bands_updated']
+        ) > 0
         
-        # Save updated collection index
+        # Save updated collection index with all changes
         _save_collection_index(collection_index, music_root)
         
-        # Calculate final statistics
-        final_stats = collection_index.get_summary_stats()
-        
-        logging.info(f"Comprehensive scan completed: {scan_results['bands_discovered']} total bands, "
-                    f"{scan_results['bands_added']} added, {scan_results['bands_removed']} removed, "
-                    f"{scan_results['bands_updated']} updated, {scan_results['albums_discovered']} albums, "
-                    f"{scan_results['total_tracks']} tracks")
+        # Log comprehensive scan summary
+        logging.info(
+            f"Comprehensive scan completed: {scan_results['bands_discovered']} total bands, "
+            f"{scan_results['bands_added']} added, {scan_results['bands_removed']} removed, "
+            f"{scan_results['bands_updated']} updated, {scan_results['albums_discovered']} albums, "
+            f"{scan_results['total_tracks']} tracks"
+        )
         
         return {
             'status': 'success',
