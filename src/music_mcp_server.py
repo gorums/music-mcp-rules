@@ -20,6 +20,7 @@ from tools.storage import get_band_list, save_band_metadata, save_band_analyze, 
 # Import resource implementations - using absolute imports
 from resources.band_info import get_band_info_markdown
 from resources.collection_summary import get_collection_summary
+from resources.advanced_analytics import get_advanced_analytics_markdown
 
 # Import prompt implementations - using absolute imports
 from prompts.fetch_band_info import get_fetch_band_info_prompt
@@ -1347,6 +1348,473 @@ def validate_band_metadata_tool(
             }
         }
 
+@mcp.tool()
+def advanced_search_albums_tool(
+    album_types: Optional[str] = None,
+    year_min: Optional[int] = None,
+    year_max: Optional[int] = None,
+    decades: Optional[str] = None,
+    editions: Optional[str] = None,
+    genres: Optional[str] = None,
+    bands: Optional[str] = None,
+    has_rating: Optional[bool] = None,
+    min_rating: Optional[int] = None,
+    max_rating: Optional[int] = None,
+    is_local: Optional[bool] = None,
+    track_count_min: Optional[int] = None,
+    track_count_max: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Perform advanced search across all albums with comprehensive filtering options.
+    
+    This tool provides powerful search capabilities across your entire music collection.
+    You can combine multiple filters to find exactly what you're looking for.
+    All parameters are optional - omit any you don't need.
+    
+    PARAMETER DETAILS WITH EXAMPLES:
+    
+    album_types (str, optional):
+        Valid values: "Album", "EP", "Live", "Demo", "Compilation", "Instrumental", "Split", "Single"
+        Use comma-separated values for multiple types
+        Examples:
+        - "EP" - Find only EPs
+        - "Live,Demo" - Find Live albums and Demo recordings
+        - "Album,Compilation" - Find standard albums and compilations
+        
+    year_min/year_max (int, optional):
+        Range: 1950-2030
+        Examples:
+        - year_min=1980 - Albums from 1980 onwards
+        - year_max=1990 - Albums up to 1990
+        - year_min=1975, year_max=1985 - Albums from 1975-1985
+        
+    decades (str, optional):
+        Valid formats: "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"
+        Use comma-separated values for multiple decades
+        Examples:
+        - "1980s" - All albums from the 1980s
+        - "1970s,1980s" - Albums from 70s and 80s
+        
+    editions (str, optional):
+        Common values: "Deluxe Edition", "Limited Edition", "Remastered", "Anniversary Edition", "Special Edition"
+        Use comma-separated values for multiple editions
+        Examples:
+        - "Deluxe Edition" - Only Deluxe editions
+        - "Limited Edition,Special Edition" - Limited or Special editions
+        - "Remastered" - Remastered albums
+        
+    genres (str, optional):
+        Use exact genre names from your collection
+        Use comma-separated values for multiple genres
+        Examples:
+        - "Heavy Metal" - Only Heavy Metal bands
+        - "Rock,Hard Rock" - Rock and Hard Rock bands
+        - "Thrash Metal,Death Metal" - Metal subgenres
+        
+    bands (str, optional):
+        Use exact band names from your collection
+        Use comma-separated values for multiple bands
+        Examples:
+        - "Metallica" - Only Metallica albums
+        - "Iron Maiden,Judas Priest" - Albums from both bands
+        - "Pink Floyd,Led Zeppelin,The Beatles" - Classic rock bands
+        
+    has_rating (bool, optional):
+        Examples:
+        - has_rating=true - Only albums that have been rated
+        - has_rating=false - Only albums without ratings
+        - Omit to include both rated and unrated albums
+        
+    min_rating/max_rating (int, optional):
+        Range: 1-10
+        Examples:
+        - min_rating=8 - Albums rated 8 or higher
+        - max_rating=6 - Albums rated 6 or lower
+        - min_rating=7, max_rating=9 - Albums rated 7, 8, or 9
+        
+    is_local (bool, optional):
+        Examples:
+        - is_local=true - Only albums you have locally
+        - is_local=false - Only missing albums (in metadata but not found)
+        - Omit to include both local and missing albums
+        
+    track_count_min/track_count_max (int, optional):
+        Examples:
+        - track_count_min=10 - Albums with 10+ tracks
+        - track_count_max=6 - Albums with 6 or fewer tracks (EPs/Singles)
+        - track_count_min=8, track_count_max=12 - Albums with 8-12 tracks
+    
+    USAGE EXAMPLES:
+    
+    1. Find all EPs from the 1980s:
+       album_types="EP", decades="1980s"
+       
+    2. Find highly rated live albums:
+       album_types="Live", min_rating=8
+       
+    3. Find missing deluxe editions:
+       editions="Deluxe Edition", is_local=false
+       
+    4. Find short albums (likely EPs) by specific bands:
+       bands="Metallica,Iron Maiden", track_count_max=7
+       
+    5. Find unrated albums from the 90s to review:
+       decades="1990s", has_rating=false
+       
+    6. Find all demo recordings:
+       album_types="Demo"
+       
+    7. Complex search - Metal EPs from 80s with good ratings:
+       album_types="EP", decades="1980s", genres="Heavy Metal,Thrash Metal", min_rating=7
+     
+     EXACT JSON EXAMPLE FOR MCP CLIENT:
+     To find all EPs and Live albums from the 1980s with ratings of 7 or higher, send:
+     {
+       "album_types": "EP,Live",
+       "decades": "1980s",
+       "min_rating": 7
+     }
+     
+     To find missing Deluxe editions by Metallica:
+     {
+       "bands": "Metallica",
+       "editions": "Deluxe Edition",
+       "is_local": false
+     }
+     
+     To find all demo recordings:
+     {
+       "album_types": "Demo"
+     }
+     
+     To find albums from 1975-1985 with 8+ tracks:
+     {
+       "year_min": 1975,
+       "year_max": 1985,
+       "track_count_min": 8
+     }
+     
+     Returns:
+        Dict containing search results:
+        - status: 'success' or 'error'
+        - results: Dict mapping band names to matching albums (empty dict if no matches)
+        - filters_applied: Summary of filters used in the search
+        - total_matching_albums: Total number of albums found across all bands
+        - total_matching_bands: Number of bands that had matching albums
+        - search_statistics: Detailed statistics about search performance and results
+        - tool_info: Metadata about the tool execution
+    """
+    try:
+        from models.analytics import AdvancedSearchEngine, AlbumSearchFilters
+        from models.band import AlbumType
+        
+        # Parse comma-separated strings into lists
+        def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
+            if not value:
+                return None
+            return [item.strip() for item in value.split(',') if item.strip()]
+        
+        # Convert comma-separated strings to lists
+        album_types_list = parse_comma_separated(album_types)
+        decades_list = parse_comma_separated(decades)
+        editions_list = parse_comma_separated(editions)
+        genres_list = parse_comma_separated(genres)
+        bands_list = parse_comma_separated(bands)
+        
+        # Convert string album types to AlbumType enums
+        album_type_enums = None
+        if album_types_list:
+            try:
+                album_type_enums = [AlbumType(album_type) for album_type in album_types_list]
+            except ValueError as e:
+                return {
+                    'status': 'error',
+                    'error': f"Invalid album type: {str(e)}. Valid types are: {[t.value for t in AlbumType]}"
+                }
+        
+        # Create search filters
+        filters = AlbumSearchFilters(
+            album_types=album_type_enums,
+            year_min=year_min,
+            year_max=year_max,
+            decades=decades_list,
+            editions=editions_list,
+            genres=genres_list,
+            bands=bands_list,
+            has_rating=has_rating,
+            min_rating=min_rating,
+            max_rating=max_rating,
+            is_local=is_local,
+            track_count_min=track_count_min,
+            track_count_max=track_count_max
+        )
+        
+        # Load all band metadata for searching
+        collection_index = load_collection_index()
+        band_metadata = {}
+        
+        for band_entry in collection_index.bands:
+            try:
+                metadata = load_band_metadata(band_entry.name)
+                if metadata:
+                    band_metadata[band_entry.name] = metadata
+            except Exception as e:
+                logger.warning(f"Could not load metadata for band {band_entry.name}: {str(e)}")
+        
+        # Perform search
+        search_results = AdvancedSearchEngine.search_albums(band_metadata, filters)
+        
+        # Calculate statistics
+        total_matching_albums = sum(len(albums) for albums in search_results.values())
+        total_matching_bands = len(search_results)
+        
+        # Generate search statistics
+        search_statistics = {
+            'total_albums_searched': sum(
+                len(metadata.albums) + len(metadata.albums_missing) 
+                for metadata in band_metadata.values()
+            ),
+            'total_bands_searched': len(band_metadata),
+            'match_rate': round((total_matching_albums / max(sum(len(metadata.albums) + len(metadata.albums_missing) for metadata in band_metadata.values()), 1)) * 100, 2),
+            'bands_with_matches': total_matching_bands,
+            'albums_per_band': round(total_matching_albums / max(total_matching_bands, 1), 2) if total_matching_bands > 0 else 0
+        }
+        
+        # Summarize filters applied
+        filters_applied = {}
+        if album_types:
+            filters_applied['album_types'] = album_types
+        if year_min or year_max:
+            filters_applied['year_range'] = f"{year_min or 'any'} - {year_max or 'any'}"
+        if decades:
+            filters_applied['decades'] = decades
+        if editions:
+            filters_applied['editions'] = editions
+        if genres:
+            filters_applied['genres'] = genres
+        if bands:
+            filters_applied['bands'] = bands
+        if has_rating is not None:
+            filters_applied['has_rating'] = has_rating
+        if min_rating or max_rating:
+            filters_applied['rating_range'] = f"{min_rating or 1} - {max_rating or 10}"
+        if is_local is not None:
+            filters_applied['album_status'] = 'local' if is_local else 'missing'
+        if track_count_min or track_count_max:
+            filters_applied['track_count_range'] = f"{track_count_min or 'any'} - {track_count_max or 'any'}"
+        
+        # Convert results to serializable format
+        serializable_results = {}
+        for band_name, albums in search_results.items():
+            serializable_results[band_name] = [album.model_dump() for album in albums]
+        
+        return {
+            'status': 'success',
+            'results': serializable_results,
+            'filters_applied': filters_applied,
+            'total_matching_albums': total_matching_albums,
+            'total_matching_bands': total_matching_bands,
+            'search_statistics': search_statistics,
+            'tool_info': {
+                'tool_name': 'advanced_search_albums',
+                'version': '1.0.0',
+                'search_timestamp': load_collection_index().last_scan
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in advanced_search_albums tool: {str(e)}")
+        return {
+            'status': 'error',
+            'error': f"Advanced search failed: {str(e)}",
+            'tool_info': {
+                'tool_name': 'advanced_search_albums',
+                'version': '1.0.0'
+            }
+        }
+
+@mcp.tool()
+def analyze_collection_insights_tool() -> Dict[str, Any]:
+    """
+    Generate comprehensive collection analytics and insights.
+    
+    This tool performs deep analysis of your entire music collection and provides actionable insights.
+    No parameters needed - it analyzes your complete collection automatically.
+    
+    WHAT THIS TOOL ANALYZES:
+    
+    1. Collection Maturity Assessment:
+       - Beginner: 1-9 bands, 1-24 albums, 1-2 album types
+       - Intermediate: 10-24 bands, 25-74 albums, 3-4 album types  
+       - Advanced: 25-49 bands, 75-199 albums, 5-6 album types
+       - Expert: 50-99 bands, 200-499 albums, 6-7 album types
+       - Master: 100+ bands, 500+ albums, 7-8 album types
+    
+    2. Album Type Distribution Analysis:
+       - Compares your collection against ideal ratios
+       - Ideal: Album 55%, EP 15%, Demo 10%, Live 8%, Compilation 5%, Instrumental 4%, Split 2%, Single 1%
+       - Identifies missing or underrepresented album types
+       - Calculates type diversity score (0-100)
+    
+    3. Collection Health Metrics (0-100 scores):
+       - Overall Health: Composite score of all factors
+       - Type Diversity: How well-balanced your album types are
+       - Genre Diversity: Variety of musical genres represented
+       - Completion Score: Ratio of local vs missing albums
+       - Organization Score: Folder structure and naming compliance
+       - Quality Score: Based on ratings and analysis data
+    
+    4. Edition Analysis:
+       - Tracks Deluxe, Limited, Anniversary, Remastered editions
+       - Identifies upgrade opportunities (Standard → Deluxe)
+       - Calculates edition prevalence percentages
+    
+    5. Personalized Recommendations:
+       - Missing album type suggestions for each band
+       - Edition upgrade opportunities
+       - Organization improvement suggestions
+       - Collection completion strategies
+    
+    6. Value and Rarity Assessment:
+       - Collection value score based on rare items
+       - Limited editions, early albums, demos boost value
+       - Instrumental and split releases add rarity points
+    
+    7. Discovery Potential:
+       - Identifies opportunities for music discovery
+       - Based on collection patterns and similar band networks
+       - Suggests expansion directions
+    
+    8. Pattern Analysis:
+       - Decade distribution (which eras you prefer)
+       - Genre trends and preferences
+       - Band completion rates (how complete each band's discography is)
+       - Collection growth patterns
+    
+    EXAMPLE INSIGHTS YOU'LL GET:
+    - "Your collection is Expert level with strong Metal representation"
+    - "You're missing EPs for 12 bands - consider adding Metallica's 'Creeping Death EP'"
+    - "85% of your albums are local, 15% missing - good completion rate"
+    - "Your collection value is High due to 23 limited editions and 15 demo recordings"
+    - "Type diversity: 78/100 - well-balanced but could use more Live albums"
+    - "Discovery potential: High - 47 similar bands identified for expansion"
+    
+    WHEN TO USE THIS TOOL:
+    - After scanning your collection for the first time
+    - To get recommendations for collection improvement
+    - To track your collection's growth and health over time
+    - To identify gaps in your collection
+    - To understand your music preferences and patterns
+    - Before planning music purchases or acquisitions
+    
+    Returns:
+        Dict containing comprehensive collection insights:
+        - status: 'success' or 'error' 
+        - insights: Complete analytics object with all detailed analysis
+        - collection_maturity: Your collection's maturity level (Beginner to Master)
+        - health_summary: Key health metrics and top recommendations
+        - type_analysis_summary: Album type distribution vs ideal ratios
+        - recommendations_summary: Top recommendations by category with counts
+        - analytics_metadata: Analysis details (bands analyzed, timestamp, etc.)
+    """
+    try:
+        from models.analytics import CollectionAnalyzer
+        
+        # Load collection index and band metadata
+        collection_index = load_collection_index()
+        band_metadata = {}
+        
+        # Load metadata for all bands
+        for band_entry in collection_index.bands:
+            try:
+                metadata = load_band_metadata(band_entry.name)
+                if metadata:
+                    band_metadata[band_entry.name] = metadata
+            except Exception as e:
+                logger.warning(f"Could not load metadata for band {band_entry.name}: {str(e)}")
+        
+        if not band_metadata:
+            return {
+                'status': 'error',
+                'error': 'No band metadata available for analysis. Try scanning your collection first.'
+            }
+        
+        # Perform comprehensive analysis
+        insights = CollectionAnalyzer.analyze_collection(collection_index, band_metadata)
+        
+        # Create summary sections for easy consumption
+        health_summary = {
+            'overall_health': insights.health_metrics.get_health_level(),
+            'overall_score': insights.health_metrics.overall_score,
+            'key_strengths': insights.health_metrics.strengths[:3],
+            'main_weaknesses': insights.health_metrics.weaknesses[:3],
+            'top_recommendations': insights.health_metrics.recommendations[:5]
+        }
+        
+        type_analysis_summary = {
+            'dominant_types': insights.type_analysis.dominant_types,
+            'missing_types': insights.type_analysis.missing_types,
+            'diversity_score': insights.type_analysis.type_diversity_score,
+            'album_to_ep_ratio': insights.type_analysis.album_to_ep_ratio,
+            'live_percentage': insights.type_analysis.live_percentage,
+            'demo_percentage': insights.type_analysis.demo_percentage
+        }
+        
+        recommendations_summary = {
+            'type_recommendations_count': len(insights.type_recommendations),
+            'high_priority_type_recs': [
+                rec.model_dump() for rec in insights.type_recommendations 
+                if rec.priority == "High"
+            ][:5],
+            'edition_upgrades_count': len(insights.edition_upgrades),
+            'organization_recommendations': insights.organization_recommendations[:5]
+        }
+        
+        # Convert insights to serializable format
+        insights_dict = insights.model_dump()
+        
+        return {
+            'status': 'success',
+            'insights': insights_dict,
+            'collection_maturity': insights.collection_maturity.value,
+            'health_summary': health_summary,
+            'type_analysis_summary': type_analysis_summary,
+            'recommendations_summary': recommendations_summary,
+            'analytics_metadata': {
+                'total_bands_analyzed': len(band_metadata),
+                'total_albums_analyzed': sum(
+                    len(metadata.albums) + len(metadata.albums_missing) 
+                    for metadata in band_metadata.values()
+                ),
+                'analysis_timestamp': insights.generated_at,
+                'collection_scan_date': collection_index.last_scan
+            },
+            'tool_info': {
+                'tool_name': 'analyze_collection_insights',
+                'version': '1.0.0',
+                'analysis_features': [
+                    'type_distribution_analysis',
+                    'health_metrics_scoring',
+                    'maturity_assessment',
+                    'recommendation_generation',
+                    'value_scoring',
+                    'discovery_potential',
+                    'organization_analysis'
+                ]
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_collection_insights tool: {str(e)}")
+        return {
+            'status': 'error',
+            'error': f"Collection analysis failed: {str(e)}",
+            'tool_info': {
+                'tool_name': 'analyze_collection_insights',
+                'version': '1.0.0'
+            }
+        }
+
 # Register resources
 @mcp.resource("band://info/{band_name}")
 def band_info_resource(band_name: str) -> str:
@@ -1378,6 +1846,30 @@ def collection_summary_resource() -> str:
     except Exception as e:
         logger.error(f"Error in collection_summary resource: {str(e)}")
         return f"Error retrieving collection summary: {str(e)}"
+
+@mcp.resource("collection://analytics")
+def advanced_analytics_resource() -> str:
+    """
+    Get advanced collection analytics with comprehensive insights in markdown format.
+    
+    This resource provides:
+    - Collection maturity assessment (Beginner to Master)
+    - Album type distribution analysis vs. ideal distributions
+    - Edition prevalence and upgrade opportunities
+    - Collection health metrics and scoring
+    - Type-specific recommendations for missing albums
+    - Discovery potential and value assessment
+    - Organization recommendations and patterns
+    - Decade distribution and genre trend analysis
+    
+    Returns:
+        Markdown-formatted advanced analytics and insights
+    """
+    try:
+        return get_advanced_analytics_markdown()
+    except Exception as e:
+        logger.error(f"Error in advanced_analytics resource: {str(e)}")
+        return f"Error retrieving advanced analytics: {str(e)}"
 
 # Register prompts
 @mcp.prompt()

@@ -127,23 +127,280 @@ music_root/
 
 Once connected to an MCP client, you'll have access to:
 
-### Tools (6 tools)
-- `scan_music_folders` - Intelligent scanning with incremental updates
-- `get_band_list_tool` - Advanced filtering, sorting, and pagination
-- `save_band_metadata_tool` - Store comprehensive band information
+### Tools (8 tools)
+- `scan_music_folders` - Intelligent scanning with incremental updates and album type detection
+- `get_band_list_tool` - Advanced filtering, sorting, and pagination with album type support
+- `save_band_metadata_tool` - Store comprehensive band information with album types and editions
 - `save_band_analyze_tool` - Store analysis with reviews and ratings
-- `save_collection_insight_tool` - Store collection-wide insights
+- `save_collection_insight_tool` - Store collection-wide insights and recommendations
 - `validate_band_metadata_tool` - Dry-run validation without saving
+- **`advanced_search_albums_tool`** - Advanced search with 13 filter parameters (types, years, editions, ratings, etc.)
+- **`analyze_collection_insights_tool`** - Comprehensive collection analytics with maturity assessment
 
-### Resources (2 resources)
-- `band://info/{band_name}` - Detailed band information in markdown
-- `collection://summary` - Collection overview and statistics
+### Resources (3 resources)
+- `band://info/{band_name}` - Detailed band information in markdown with type organization
+- `collection://summary` - Collection overview and statistics with enhanced analytics
+- **`collection://analytics`** - Advanced collection analytics with health metrics and recommendations
 
 ### Prompts (4 prompts)
-- `fetch_band_info` - Intelligent band information fetching
-- `analyze_band` - Comprehensive band analysis with ratings
+- `fetch_band_info` - Intelligent band information fetching using external sources
+- `analyze_band` - Comprehensive band analysis with ratings and similar bands
 - `compare_bands` - Multi-band comparison analysis
 - `collection_insights` - Generate collection insights and recommendations
+
+## 💬 Example Prompts for MCP Clients
+
+Here are example prompts you can use in your MCP client (like Claude Desktop) to interact with the Music Collection MCP Server:
+
+### 🔍 **Collection Scanning & Management**
+
+**Initial setup and scanning:**
+```
+Scan my music collection to discover all bands and albums.
+```
+
+**Get an overview of my collection:**
+```
+Show me a summary of my music collection with statistics.
+```
+
+**List bands with filtering:**
+```
+Show me all bands that have missing albums, sorted by name.
+```
+
+```
+List all Heavy Metal bands in my collection that have metadata.
+```
+
+### 🔍 **Advanced Album Search (New!)**
+
+**Important:** Use exact parameter names and values from the tool documentation. All parameters are optional. Use comma-separated strings for multiple values.
+
+**Search by album types (exact values required):**
+```
+Use advanced_search_albums_tool with album_types="EP" to find all EPs.
+```
+```
+Search using album_types="Live,Demo" for live albums and demo recordings.
+```
+```
+Find standard albums and compilations with album_types="Album,Compilation".
+```
+
+**Search by year ranges and decades:**
+```
+Find 1980s albums using decades="1980s".
+```
+```
+Search albums from 1975-1985 using year_min=1975 and year_max=1985.
+```
+```
+Find recent albums with year_min=2000.
+```
+
+**Search by ratings (1-10 scale):**
+```
+Find highly rated albums using min_rating=8.
+```
+```
+Search for unrated albums from the 90s using decades="1990s" and has_rating=false.
+```
+```
+Find albums rated 7-9 using min_rating=7 and max_rating=9.
+```
+
+**Search by specific bands (use exact band names):**
+```
+Search Metallica's discography using bands="Metallica".
+```
+```
+Find albums by classic metal bands using bands="Iron Maiden,Judas Priest,Black Sabbath".
+```
+
+**Search by genres (use exact genre names from your collection):**
+```
+Find heavy metal albums using genres="Heavy Metal".
+```
+```
+Search multiple metal genres using genres="Thrash Metal,Death Metal,Black Metal".
+```
+
+**Search for special editions (use exact edition names):**
+```
+Find deluxe editions using editions="Deluxe Edition".
+```
+```
+Search for special releases using editions="Limited Edition,Anniversary Edition,Remastered".
+```
+
+**Search by availability status:**
+```
+Find missing albums (in metadata but not found locally) using is_local=false.
+```
+```
+Search only albums you have locally using is_local=true.
+```
+
+**Search by track count (useful for finding EPs vs albums):**
+```
+Find short releases (EPs/Singles) using track_count_max=6.
+```
+```
+Find full albums using track_count_min=8 and track_count_max=15.
+```
+
+**Complex multi-parameter searches:**
+```
+Find metal EPs from the 1980s with good ratings using:
+album_types="EP", decades="1980s", genres="Heavy Metal,Thrash Metal", min_rating=7
+```
+```
+Search for missing deluxe editions by specific bands using:
+bands="Metallica,Iron Maiden", editions="Deluxe Edition", is_local=false
+```
+```
+Find highly rated live albums from metal bands using:
+album_types="Live", genres="Heavy Metal", min_rating=8, is_local=true
+```
+
+### 📊 **Collection Analytics & Insights (New!)**
+
+**Comprehensive collection analysis:**
+```
+Run the analyze_collection_insights_tool to give me a complete analysis of my music collection including health score and maturity level.
+```
+
+**Get collection recommendations:**
+```
+Analyze my collection and tell me what album types I'm missing and should consider adding.
+```
+
+**Check collection health:**
+```
+Use the collection insights tool to analyze my collection's organization health and give me improvement recommendations.
+```
+
+**View advanced analytics report:**
+```
+Show me the collection://analytics resource for a detailed report of my collection analytics.
+```
+
+### 📝 **Band Information & Metadata**
+
+**Get detailed band information:**
+```
+Show me detailed information about Pink Floyd including their albums and any analysis.
+```
+
+**Fetch external band information:**
+```
+Use the fetch_band_info prompt to find comprehensive information about Led Zeppelin including their discography.
+```
+
+**Save band metadata:**
+```
+Save this metadata for The Beatles: formed in 1960, from Liverpool, genres include Rock and Pop, members include John Lennon, Paul McCartney, George Harrison, and Ringo Starr.
+```
+
+### 🎯 **Band Analysis & Reviews**
+
+**Analyze a specific band:**
+```
+Use the analyze_band prompt to create a comprehensive analysis of Queen including ratings and similar bands.
+```
+
+**Compare multiple bands:**
+```
+Use the compare_bands prompt to compare The Beatles, The Rolling Stones, and Led Zeppelin in terms of musical style, influence, and commercial success.
+```
+
+**Save band analysis with ratings:**
+```
+Save an analysis for Iron Maiden: rate the band 9/10, rate "The Number of the Beast" album 10/10, similar bands include Judas Priest and Black Sabbath.
+```
+
+### 🔍 **Resource Access**
+
+**View band details:**
+```
+Show me the band://info/Metallica resource with their complete information.
+```
+
+**Collection summary:**
+```
+Display the collection://summary resource showing my collection statistics.
+```
+
+**Advanced analytics:**
+```
+Show me the collection://analytics resource for comprehensive collection insights.
+```
+
+### ⚙️ **Data Validation & Management**
+
+**Validate metadata before saving:**
+```
+Validate this band metadata for AC/DC before saving: formed 1973, from Australia, genre Hard Rock, members include Angus Young and Brian Johnson.
+```
+
+**Save collection insights:**
+```
+Save insights about my collection: 75% completion rate, strong in Rock genres, missing more Live albums, recommended to add more EPs.
+```
+
+### 🎵 **Album Type Specific Searches**
+
+**Find missing album types:**
+```
+Search for bands that have Albums but are missing EPs or Live recordings.
+```
+
+**Discover rare album types:**
+```
+Use advanced search to find all Demo, Instrumental, and Split releases in my collection.
+```
+
+**Edition analysis:**
+```
+Find all standard albums that have Deluxe or Limited Edition versions available.
+```
+
+### 📈 **Collection Improvement**
+
+**Get personalized recommendations:**
+```
+Based on my collection analysis, what specific albums or album types should I prioritize adding next?
+```
+
+**Organization improvement:**
+```
+Analyze my collection's folder structure and compliance, then suggest organization improvements.
+```
+
+**Collection goals:**
+```
+Help me set collection goals based on my current collection maturity level and missing album types.
+```
+
+### 🔄 **Combined Workflows**
+
+**Complete collection assessment:**
+```
+Please:
+1. Run collection insights analysis for overall health
+2. Use advanced search to find all albums rated 9 or higher
+3. Suggest missing album types based on my top-rated bands
+```
+
+**Discovery workflow:**
+```
+Analyze my collection, identify my favorite genres and highest-rated bands, then search for similar bands I might be missing.
+```
+
+---
+
+**💡 Tip:** The MCP client will automatically call the appropriate tools based on your natural language requests. You can be as specific or as general as you like - the server will understand your intent and provide comprehensive results!
 
 ## Configuration
 

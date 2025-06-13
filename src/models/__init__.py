@@ -52,6 +52,20 @@ from .compliance import (
     ComplianceValidator
 )
 
+from .analytics import (
+    CollectionMaturityLevel,
+    RecommendationType,
+    TypeRecommendation,
+    EditionUpgrade,
+    CollectionHealthMetrics,
+    TypeAnalysis,
+    EditionAnalysis,
+    AdvancedCollectionInsights,
+    AlbumSearchFilters,
+    CollectionAnalyzer,
+    AdvancedSearchEngine
+)
+
 # Rebuild models to resolve forward references
 BandMetadata.model_rebuild()
 
@@ -95,5 +109,18 @@ __all__ = [
     'ComplianceIssueType',
     'ComplianceIssue',
     'BandComplianceReport',
-    'ComplianceValidator'
+    'ComplianceValidator',
+    
+    # Advanced analytics
+    'CollectionMaturityLevel',
+    'RecommendationType',
+    'TypeRecommendation',
+    'EditionUpgrade',
+    'CollectionHealthMetrics',
+    'TypeAnalysis',
+    'EditionAnalysis',
+    'AdvancedCollectionInsights',
+    'AlbumSearchFilters',
+    'CollectionAnalyzer',
+    'AdvancedSearchEngine'
 ] 
