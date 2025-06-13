@@ -257,7 +257,6 @@ def _generate_analysis_section(analysis) -> str:
     if analysis.albums:
         section.append("### Album Reviews")
         section.append("")
-        
         for album_analysis in analysis.albums:
             section.append(f"#### {album_analysis.album_name}")
             if album_analysis.rate > 0:
@@ -267,11 +266,19 @@ def _generate_analysis_section(analysis) -> str:
                 section.append(album_analysis.review)
             section.append("")
     
-    # Similar bands
-    if analysis.similar_bands:
-        section.append("### Similar Artists")
+    # Similar bands in collection
+    if getattr(analysis, 'similar_bands', []):
+        section.append("### Similar Bands in Your Collection 🗂️")
         similar_bands_list = ", ".join(f"`{band}`" for band in analysis.similar_bands)
         section.append(similar_bands_list)
+        section.append("")
+    # Similar bands not in collection
+    if getattr(analysis, 'similar_bands_missing', []):
+        section.append("### Similar Bands Not in Your Collection 🔍")
+        similar_bands_missing_list = ", ".join(f"`{band}`" for band in analysis.similar_bands_missing)
+        section.append(similar_bands_missing_list)
+        section.append("")
+        section.append("> 💡 *Consider exploring or acquiring these bands to complete your collection of related artists!*\n")
     
     return "\n".join(section)
 

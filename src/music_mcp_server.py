@@ -638,8 +638,13 @@ def save_band_analyze_tool(
                 "band_name": band_name,
                 "overall_rating": 0,
                 "albums_analyzed": 0,
+                "albums_analyzed_input": 0,
+                "albums_analyzed_saved": 0,
+                "albums_excluded": 0,
                 "albums_with_ratings": 0,
                 "similar_bands_count": 0,
+                "similar_bands_in_collection": 0,
+                "similar_bands_missing": 0,
                 "has_review": False,
                 "average_album_rating": 0.0,
                 "rating_range": {"min": 0, "max": 0}
@@ -728,18 +733,40 @@ def save_band_analyze_tool(
                         except Exception as e:
                             validation_errors.append(f"Album {i}: validation failed - {str(e)}")
         
-        # Check optional similar_bands field
+        # Check optional similar_bands and similar_bands_missing fields
         similar_bands = []
+        similar_bands_missing = []
         if "similar_bands" in analysis:
             if not isinstance(analysis["similar_bands"], list):
                 validation_errors.append("Field 'similar_bands' must be a list")
             else:
-                for i, band in enumerate(analysis["similar_bands"]):
-                    if not isinstance(band, str):
-                        validation_errors.append(f"Similar band {i}: must be a string")
-                    else:
-                        similar_bands.append(band)
-        
+                similar_bands = [b for b in analysis["similar_bands"] if isinstance(b, str)]
+        if "similar_bands_missing" in analysis:
+            if not isinstance(analysis["similar_bands_missing"], list):
+                validation_errors.append("Field 'similar_bands_missing' must be a list")
+            else:
+                similar_bands_missing = [b for b in analysis["similar_bands_missing"] if isinstance(b, str)]
+
+        # If only similar_bands is provided, split into present/missing using collection index
+        if similar_bands and not similar_bands_missing:
+            collection_index = load_collection_index()
+            collection_band_names = set()
+            if collection_index:
+                collection_band_names = {b.name.lower() for b in collection_index.bands}
+            in_collection = []
+            missing = []
+            for band in similar_bands:
+                if band.lower() in collection_band_names:
+                    in_collection.append(band)
+                else:
+                    missing.append(band)
+            similar_bands = in_collection
+            similar_bands_missing = missing
+
+        # Validate no duplicates between arrays
+        if set(b.lower() for b in similar_bands).intersection(b.lower() for b in similar_bands_missing):
+            validation_errors.append("A band cannot appear in both similar_bands and similar_bands_missing.")
+
         # If validation errors, return early
         if validation_errors:
             response["status"] = "error"
@@ -753,7 +780,8 @@ def save_band_analyze_tool(
                 review=analysis["review"],
                 rate=analysis["rate"],
                 albums=albums_analysis,
-                similar_bands=similar_bands
+                similar_bands=similar_bands,
+                similar_bands_missing=similar_bands_missing
             )
             response["validation_results"]["schema_valid"] = True
             response["validation_results"]["fields_validated"] = list(analysis.keys())
@@ -793,15 +821,14 @@ def save_band_analyze_tool(
                         # Load current metadata to get accurate album counts
                         current_metadata = load_band_metadata(band_name)
                         if current_metadata:
-                            # Calculate proper album counts from metadata
-                            total_albums = len(current_metadata.albums)
-                            missing_albums = len(current_metadata.get_missing_albums())
-                            
-                            # Ensure missing count doesn't exceed total (validation constraint)
-                            missing_albums = min(missing_albums, total_albums)
+                            # Calculate proper album counts from metadata using new separated schema
+                            total_albums = current_metadata.albums_count  # Total albums (local + missing)
+                            local_albums = current_metadata.local_albums_count  # Local albums only
+                            missing_albums = current_metadata.missing_albums_count  # Missing albums only
                             
                             # Update band entry with accurate data
                             band_entry.albums_count = total_albums
+                            band_entry.local_albums_count = local_albums
                             band_entry.missing_albums_count = missing_albums
                             band_entry.has_analysis = True
                             band_entry.last_updated = current_metadata.last_updated
@@ -826,7 +853,9 @@ def save_band_analyze_tool(
         # Build validation results summary (use original input for validation stats)
         response["validation_results"]["overall_rating"] = band_analysis.rate
         response["validation_results"]["albums_analyzed"] = len(band_analysis.albums)
-        response["validation_results"]["similar_bands_count"] = len(band_analysis.similar_bands)
+        response["validation_results"]["similar_bands_count"] = band_analysis.total_similar_bands_count  # Total count (in collection + missing)
+        response["validation_results"]["similar_bands_in_collection"] = len(band_analysis.similar_bands)
+        response["validation_results"]["similar_bands_missing"] = len(band_analysis.similar_bands_missing)
         
         # Calculate rating distribution
         rating_counts = {}
@@ -850,7 +879,9 @@ def save_band_analyze_tool(
             "albums_analyzed_saved": albums_analyzed_final,      # Actually saved count (duplicate for compatibility)
             "albums_excluded": albums_excluded,                  # Excluded missing albums
             "albums_with_ratings": albums_with_ratings,
-            "similar_bands_count": len(band_analysis.similar_bands),
+            "similar_bands_count": band_analysis.total_similar_bands_count,  # Total count (in collection + missing)
+            "similar_bands_in_collection": len(band_analysis.similar_bands),
+            "similar_bands_missing": len(band_analysis.similar_bands_missing),
             "has_review": len(band_analysis.review.strip()) > 0,
             "average_album_rating": round(sum(album_ratings) / len(album_ratings), 1) if album_ratings else 0.0,
             "rating_range": {
@@ -861,9 +892,9 @@ def save_band_analyze_tool(
         
         # Final success message with filtering information
         if albums_excluded > 0:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (including missing albums)"
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {band_analysis.total_similar_bands_count} similar bands (including missing albums)"
         else:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {len(band_analysis.similar_bands)} similar bands (all albums included)"
+            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {band_analysis.total_similar_bands_count} similar bands (all albums included)"
         
         return response
         

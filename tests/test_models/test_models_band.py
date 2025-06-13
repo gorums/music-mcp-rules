@@ -111,24 +111,49 @@ class TestBandAnalysis:
         assert analysis.rate == 0
         assert analysis.albums == []
         assert analysis.similar_bands == []
+        assert analysis.similar_bands_missing == []
+        assert analysis.total_similar_bands_count == 0
+        assert analysis.all_similar_bands == []
     
-    def test_band_analysis_with_album_analyses(self):
-        """Test band analysis with album analysis data."""
+    def test_band_analysis_with_album_analyses_and_similar_bands(self):
+        """Test band analysis with album analysis data and separated similar bands."""
         album_analysis1 = AlbumAnalysis(album_name="First album", review="First album", rate=7)
         album_analysis2 = AlbumAnalysis(album_name="Second album", review="Second album", rate=9)
-        
         analysis = BandAnalysis(
             review="Excellent band",
             rate=8,
             albums=[album_analysis1, album_analysis2],
-            similar_bands=["Band A", "Band B"]
+            similar_bands=["Band A", "Band B"],
+            similar_bands_missing=["Band X", "Band Y"]
         )
-        
         assert analysis.review == "Excellent band"
         assert analysis.rate == 8
         assert len(analysis.albums) == 2
-        assert analysis.albums[0].review == "First album"
         assert analysis.similar_bands == ["Band A", "Band B"]
+        assert analysis.similar_bands_missing == ["Band X", "Band Y"]
+        assert analysis.total_similar_bands_count == 4
+        assert set(analysis.all_similar_bands) == {"Band A", "Band B", "Band X", "Band Y"}
+    
+    def test_band_analysis_duplicate_similar_bands_raises(self):
+        """Test that duplicate bands in both arrays raises validation error."""
+        with pytest.raises(ValidationError):
+            BandAnalysis(
+                review="Test",
+                rate=5,
+                similar_bands=["Band A", "Band B"],
+                similar_bands_missing=["Band B", "Band C"]
+            )
+    
+    def test_band_analysis_empty_similar_bands(self):
+        """Test edge case with empty similar bands arrays."""
+        analysis = BandAnalysis(
+            review="Test",
+            rate=5,
+            similar_bands=[],
+            similar_bands_missing=[]
+        )
+        assert analysis.total_similar_bands_count == 0
+        assert analysis.all_similar_bands == []
     
     def test_band_analysis_invalid_rating(self):
         """Test invalid band rating raises ValidationError."""

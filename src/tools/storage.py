@@ -319,25 +319,53 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
         else:
             metadata = BandMetadata(band_name=band_name)
         
+        # Load collection index for similar bands separation
+        collection_index = load_collection_index()
+        collection_band_names = set()
+        if collection_index:
+            collection_band_names = {b.name.lower() for b in collection_index.bands}
+        
+        # Separate similar bands into in-collection and missing
+        similar_bands_in_collection = []
+        similar_bands_missing = []
+        # Backward compatibility: if only similar_bands is present
+        if hasattr(analysis, 'similar_bands') and not hasattr(analysis, 'similar_bands_missing'):
+            for band in getattr(analysis, 'similar_bands', []):
+                if band.lower() in collection_band_names:
+                    similar_bands_in_collection.append(band)
+                else:
+                    similar_bands_missing.append(band)
+        else:
+            for band in getattr(analysis, 'similar_bands', []):
+                if band.lower() in collection_band_names:
+                    similar_bands_in_collection.append(band)
+                else:
+                    similar_bands_missing.append(band)
+            for band in getattr(analysis, 'similar_bands_missing', []):
+                if band.lower() in collection_band_names:
+                    if band not in similar_bands_in_collection:
+                        similar_bands_in_collection.append(band)
+                else:
+                    similar_bands_missing.append(band)
+        
         # Filter album analysis based on analyze_missing_albums parameter
         filtered_album_analysis = []
         excluded_count = 0
-        
         for album_analysis in analysis.albums:
-            # Create new AlbumAnalysis without album_name for storage
             filtered_analysis = AlbumAnalysis(
-                album_name=album_analysis.album_name,  # Don't store album name in final analysis
+                album_name=album_analysis.album_name,
                 review=album_analysis.review,
                 rate=album_analysis.rate
             )
-            filtered_album_analysis.append(filtered_analysis)                 
+            filtered_album_analysis.append(filtered_analysis)
         
-        # Create filtered analysis with the processed album reviews
+        # Create filtered analysis with separated similar bands
         filtered_analysis = BandAnalysis(
             review=analysis.review,
             rate=analysis.rate,
             albums=filtered_album_analysis,
-            similar_bands=analysis.similar_bands
+            similar_bands=similar_bands_in_collection,
+            similar_bands_missing=similar_bands_missing
         )
         
         # Update analysis section
@@ -361,7 +389,9 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
             "band_rating": filtered_analysis.rate,
             "albums_analyzed": filtered_albums_count,
             "albums_excluded": excluded_count,
-            "similar_bands_count": len(filtered_analysis.similar_bands),
+            "similar_bands_count": filtered_analysis.total_similar_bands_count,
+            "similar_bands_in_collection": len(filtered_analysis.similar_bands),
+            "similar_bands_missing": len(filtered_analysis.similar_bands_missing),
             "last_updated": metadata.last_updated,
             "analyze_missing_albums": True
         }

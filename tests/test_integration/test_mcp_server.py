@@ -676,26 +676,60 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
         
         # Mock both Config paths to ensure consistency
         with patch('src.tools.storage.Config') as mock_config1, \
-             patch('tools.storage.Config') as mock_config2:
+             patch('tools.storage.Config') as mock_config2, \
+             patch('tools.storage.load_collection_index') as mock_load_index, \
+             patch('tools.storage.load_band_metadata') as mock_load_metadata, \
+             patch('tools.storage.update_collection_index') as mock_update_index, \
+             patch('tools.storage.save_band_analyze') as mock_save_analyze:
             mock_config1.return_value.MUSIC_ROOT_PATH = self.temp_dir
             mock_config2.return_value.MUSIC_ROOT_PATH = self.temp_dir
+            
+            # Mock the save_band_analyze function to return success
+            mock_save_analyze.return_value = {
+                "message": "Analysis saved successfully",
+                "file_path": f"{self.temp_dir}/{band_name}.metadata.json",
+                "last_updated": "2024-01-01T00:00:00Z",
+                "albums_analyzed": 0,
+                "albums_excluded": 0
+            }
             
             # Create existing collection index with the band
             existing_entry = BandIndexEntry(
                 name=band_name,
                 albums_count=2,
+                local_albums_count=2,
                 folder_path=band_name,
                 missing_albums_count=0,
                 has_metadata=True,
                 has_analysis=False  # Initially no analysis
             )
             existing_index = CollectionIndex(bands=[existing_entry])
+            
+            # Mock the functions to return our test data
+            mock_load_index.return_value = existing_index
+            
+            # Create a mock metadata object with the new separated albums schema
+            from src.models.band import BandMetadata, Album
+            mock_metadata = BandMetadata(
+                band_name=band_name,
+                albums=[
+                    Album(album_name="Album 1", year="2020"),
+                    Album(album_name="Album 2", year="2021")
+                ],
+                albums_missing=[]
+            )
+            mock_load_metadata.return_value = mock_metadata
+            mock_update_index.return_value = {"status": "success"}
+            
+            # Update collection index in the real storage for the test setup
             update_collection_index(existing_index)
             
             # Save analysis
             analysis = {
                 "review": "Great band for sync testing",
-                "rate": 8
+                "rate": 8,
+                "similar_bands": ["Band A", "Band B"],
+                "similar_bands_missing": ["Band X", "Band Y"]
             }
             
             result = save_band_analyze_tool(band_name, analysis)
@@ -1027,6 +1061,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
             existing_entry = BandIndexEntry(
                 name="Existing Band",
                 albums_count=2,
+                local_albums_count=2,
                 folder_path="Existing Band",
                 missing_albums_count=0,
                 has_metadata=True

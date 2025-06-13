@@ -257,7 +257,7 @@ class TestAnalysisSection:
     """Test analysis section generation."""
     
     def test_complete_analysis_section(self):
-        """Test analysis section with full information."""
+        """Test complete analysis section with all components."""
         analysis = BandAnalysis(
             review="Excellent progressive rock band with innovative sound.",
             rate=9,
@@ -281,9 +281,10 @@ class TestAnalysisSection:
         assert "#### The Wall" in result
         assert "**Rating: 10/10**" in result
         assert "Masterpiece rock opera" in result
-        assert "### Similar Artists" in result
+        assert "### Similar Bands in Your Collection" in result
         assert "`Yes`" in result
         assert "`Genesis`" in result
+        assert "`King Crimson`" in result
     
     def test_minimal_analysis_section(self):
         """Test analysis section with minimal information."""
@@ -301,6 +302,62 @@ class TestAnalysisSection:
         assert "Good band" in result
         assert "### Album Reviews" not in result
         assert "### Similar Artists" not in result
+    
+    def test_complete_analysis_section_with_separated_similar_bands(self):
+        """Test analysis section with both similar_bands and similar_bands_missing."""
+        analysis = BandAnalysis(
+            review="Great band with excellent music",
+            rate=9,
+            albums=[
+                AlbumAnalysis(album_name="Test Album", review="Fantastic album", rate=10)
+            ],
+            similar_bands=["Band A", "Band B"],
+            similar_bands_missing=["Band X", "Band Y"]
+        )
+        result = _generate_analysis_section(analysis)
+        assert "### Similar Bands in Your Collection" in result
+        assert "Band A" in result and "Band B" in result
+        assert "### Similar Bands Not in Your Collection" in result
+        assert "Band X" in result and "Band Y" in result
+        assert "💡" in result  # acquisition suggestion
+    
+    def test_analysis_section_only_in_collection(self):
+        """Test analysis section with only similar_bands (in collection)."""
+        analysis = BandAnalysis(
+            review="Test",
+            rate=7,
+            similar_bands=["Band A"],
+            similar_bands_missing=[]
+        )
+        result = _generate_analysis_section(analysis)
+        assert "### Similar Bands in Your Collection" in result
+        assert "Band A" in result
+        assert "### Similar Bands Not in Your Collection" not in result
+    
+    def test_analysis_section_only_missing(self):
+        """Test analysis section with only similar_bands_missing (not in collection)."""
+        analysis = BandAnalysis(
+            review="Test",
+            rate=7,
+            similar_bands=[],
+            similar_bands_missing=["Band X"]
+        )
+        result = _generate_analysis_section(analysis)
+        assert "### Similar Bands Not in Your Collection" in result
+        assert "Band X" in result
+        assert "### Similar Bands in Your Collection" not in result
+    
+    def test_analysis_section_no_similar_bands(self):
+        """Test analysis section with no similar bands at all."""
+        analysis = BandAnalysis(
+            review="Test",
+            rate=7,
+            similar_bands=[],
+            similar_bands_missing=[]
+        )
+        result = _generate_analysis_section(analysis)
+        assert "### Similar Bands in Your Collection" not in result
+        assert "### Similar Bands Not in Your Collection" not in result
 
 
 class TestStatisticsSection:

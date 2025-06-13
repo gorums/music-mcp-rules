@@ -245,12 +245,14 @@ class BandAnalysis(BaseModel):
         review: Overall band review
         rate: Overall band rating (1-10 scale)
         albums: List of album analysis data
-        similar_bands: List of similar band names
+        similar_bands: List of similar band names that exist in the local collection
+        similar_bands_missing: List of similar band names not in the local collection
     """
     review: str = Field(default="", description="Overall band review")
     rate: int = Field(default=0, ge=0, le=10, description="Overall band rating (1-10 scale)")
     albums: List[AlbumAnalysis] = Field(default_factory=list, description="Album-specific analysis")
-    similar_bands: List[str] = Field(default_factory=list, description="Names of similar bands")
+    similar_bands: List[str] = Field(default_factory=list, description="Names of similar bands in the local collection")
+    similar_bands_missing: List[str] = Field(default_factory=list, description="Names of similar bands not in the local collection")
 
     @field_validator('rate')
     @classmethod
@@ -259,6 +261,26 @@ class BandAnalysis(BaseModel):
         if v < 0 or v > 10:
             raise ValueError('Rating must be between 0-10 (0 = unrated)')
         return v
+
+    @model_validator(mode='after')
+    def validate_no_duplicate_similar_bands(self):
+        """Ensure no band exists in both similar_bands and similar_bands_missing arrays."""
+        local = {b.lower() for b in self.similar_bands}
+        missing = {b.lower() for b in self.similar_bands_missing}
+        duplicates = local.intersection(missing)
+        if duplicates:
+            raise ValueError(f"Bands cannot exist in both similar_bands and similar_bands_missing: {', '.join(duplicates)}")
+        return self
+
+    @property
+    def all_similar_bands(self) -> List[str]:
+        """Return all similar bands (in collection and missing)."""
+        return self.similar_bands + self.similar_bands_missing
+
+    @property
+    def total_similar_bands_count(self) -> int:
+        """Return the total number of similar bands (in collection + missing)."""
+        return len(self.similar_bands) + len(self.similar_bands_missing)
 
 
 class BandMetadata(BaseModel):
