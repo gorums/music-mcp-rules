@@ -245,7 +245,9 @@ class TestCollectionAnalyzer:
         for rec in recommendations:
             assert isinstance(rec, TypeRecommendation)
             assert rec.band_name in self.test_band_metadata.keys()
-            assert isinstance(rec.album_type, AlbumType)
+            # album_type is now serialized as string due to use_enum_values=True
+            assert isinstance(rec.album_type, str)
+            assert rec.album_type in [at.value for at in AlbumType]
             assert rec.priority in ["High", "Medium", "Low"]
             assert 0 <= rec.likelihood <= 1
     

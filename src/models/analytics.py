@@ -6,7 +6,7 @@ for music collections. It analyzes album distribution, edition prevalence, and g
 personalized insights and recommendations.
 """
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import List, Dict, Optional, Any, Tuple, Union, Set
 from datetime import datetime, timedelta
 from enum import Enum
@@ -46,6 +46,8 @@ class TypeRecommendation(BaseModel):
     """
     Recommendation for a specific album type for a band.
     """
+    model_config = ConfigDict(use_enum_values=True)
+    
     band_name: str = Field(..., description="Name of the band")
     album_type: AlbumType = Field(..., description="Recommended album type")
     priority: str = Field(..., description="Priority level: High, Medium, Low")
@@ -130,6 +132,8 @@ class AdvancedCollectionInsights(BaseModel):
     """
     Advanced collection insights and analytics.
     """
+    model_config = ConfigDict(use_enum_values=True)
+    
     generated_at: str = Field(default_factory=lambda: datetime.now().isoformat(), description="Generation timestamp")
     collection_maturity: CollectionMaturityLevel = Field(default=CollectionMaturityLevel.BEGINNER, description="Collection maturity level")
     health_metrics: CollectionHealthMetrics = Field(default_factory=CollectionHealthMetrics, description="Health assessment")
@@ -155,6 +159,8 @@ class AlbumSearchFilters(BaseModel):
     """
     Advanced search filters for albums.
     """
+    model_config = ConfigDict(use_enum_values=True)
+    
     album_types: Optional[List[AlbumType]] = Field(default=None, description="Filter by album types")
     year_min: Optional[int] = Field(default=None, ge=1950, le=2030, description="Minimum year")
     year_max: Optional[int] = Field(default=None, ge=1950, le=2030, description="Maximum year")

@@ -104,14 +104,16 @@ class TestMusicDirectoryScanner:
     @pytest.fixture
     def mock_config(self):
         """Mock configuration for testing."""
-        with patch('src.tools.scanner.config') as mock:
-            mock.MUSIC_ROOT_PATH = "/test/music"
-            mock.CACHE_DURATION_DAYS = 30
-            yield mock
+        with patch('src.tools.scanner.Config') as mock_config_class:
+            mock_config = mock_config_class.return_value
+            mock_config.MUSIC_ROOT_PATH = "/test/music"
+            mock_config.CACHE_DURATION_DAYS = 30
+            yield mock_config
 
-    @patch('src.tools.scanner.config')
-    def test_scan_music_folders_success(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config')
+    def test_scan_music_folders_success(self, mock_config_class, temp_music_dir):
         """Test successful comprehensive scan of music folders."""
+        mock_config = mock_config_class.return_value
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         result = scan_music_folders()
@@ -121,8 +123,9 @@ class TestMusicDirectoryScanner:
         assert result['results']['bands_discovered'] == 3  # Beatles, Pink Floyd, Empty Band
         assert result['results']['albums_discovered'] == 3  # 2 Beatles + 1 Pink Floyd + 0 Empty Band
         
-    @patch('src.tools.scanner.config')
-    def test_scan_music_folders_new_collection(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config')
+    def test_scan_music_folders_new_collection(self, mock_config_class, temp_music_dir):
+        mock_config = mock_config_class.return_value
         """Test comprehensive scan on a new collection."""
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -135,8 +138,9 @@ class TestMusicDirectoryScanner:
         assert result['results']['bands_removed'] == 0
         assert result['results']['bands_updated'] == 0
         
-    @patch('src.tools.scanner.config')
-    def test_scan_music_folders_no_changes(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config')
+    def test_scan_music_folders_no_changes(self, mock_config_class, temp_music_dir):
+        mock_config = mock_config_class.return_value
         """Test comprehensive scan when no changes have occurred."""
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -154,8 +158,9 @@ class TestMusicDirectoryScanner:
         assert second_result['results']['bands_removed'] == 0
         # bands_updated might be > 0 due to metadata sync differences
         
-    @patch('src.tools.scanner.config')
-    def test_scan_music_folders_new_band_added(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config')
+    def test_scan_music_folders_new_band_added(self, mock_config_class, temp_music_dir):
+        mock_config = mock_config_class.return_value
         """Test comprehensive scan when a new band is added."""
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -177,8 +182,9 @@ class TestMusicDirectoryScanner:
         # Check that the new band was detected (allow for other updates)
         assert any("Added new band: Led Zeppelin" in change for change in result['results']['changes_detected'])
         
-    @patch('src.tools.scanner.config') 
-    def test_scan_music_folders_band_removed(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config') 
+    def test_scan_music_folders_band_removed(self, mock_config_class, temp_music_dir):
+        mock_config = mock_config_class.return_value
         """Test comprehensive scan when a band is removed."""
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         
@@ -197,8 +203,9 @@ class TestMusicDirectoryScanner:
         assert result['results']['bands_removed'] == 1
         assert "Removed band: Pink Floyd" in result['results']['changes_detected']
         
-    @patch('src.tools.scanner.config')
-    def test_scan_music_folders_band_updated(self, mock_config, temp_music_dir):
+    @patch('src.tools.scanner.Config')
+    def test_scan_music_folders_band_updated(self, mock_config_class, temp_music_dir):
+        mock_config = mock_config_class.return_value
         """Test comprehensive scan when a band folder is modified."""
         mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
         

@@ -8,7 +8,7 @@ and folder organization recommendations for music collections.
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import re
 
 from .band import Album, AlbumType, FolderCompliance
@@ -69,6 +69,8 @@ class ComplianceIssue(BaseModel):
         impact_score: Numerical impact on compliance score
         album_path: Path to the album with the issue
     """
+    model_config = ConfigDict(use_enum_values=True)
+    
     issue_type: ComplianceIssueType = Field(..., description="Type of compliance issue")
     severity: str = Field(..., description="Severity level")
     description: str = Field(..., description="Description of the issue")
@@ -94,6 +96,8 @@ class BandComplianceReport(BaseModel):
         compliance_distribution: Distribution of compliance scores
         analysis_metadata: Additional analysis information
     """
+    model_config = ConfigDict(use_enum_values=True)
+    
     band_name: str = Field(..., description="Band name")
     overall_compliance_score: int = Field(default=0, ge=0, le=100, description="Overall compliance score")
     compliance_level: ComplianceLevel = Field(default=ComplianceLevel.CRITICAL, description="Overall compliance level")
@@ -425,7 +429,8 @@ class ComplianceValidator:
         counts = {issue_type.value: 0 for issue_type in ComplianceIssueType}
         
         for issue in issues:
-            counts[issue.issue_type.value] += 1
+            # issue.issue_type is now a string due to use_enum_values=True
+            counts[issue.issue_type] += 1
         
         return counts
     

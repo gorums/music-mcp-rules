@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 
-from tools.storage import load_band_metadata, StorageError
-from models import BandMetadata, Album, AlbumAnalysis
+from src.tools.storage import load_band_metadata, StorageError
+from src.models import BandMetadata, Album, AlbumAnalysis
 
 logger = logging.getLogger(__name__)
 

@@ -21,7 +21,7 @@ try:
 except ImportError:
     HAS_FCNTL = False
 
-from models import (
+from src.models import (
     BandMetadata, 
     BandAnalysis, 
     CollectionIndex, 
@@ -29,7 +29,7 @@ from models import (
     BandIndexEntry,
     AlbumAnalysis
 )
-from config import Config
+from src.config import Config
 
 
 class StorageError(Exception):

@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Set, Any
 from datetime import datetime, timedelta
 
-from config import config
-from models import (
+from src.config import Config
+from src.models import (
     Album, BandMetadata, BandIndexEntry, CollectionIndex,
     AlbumType, FolderCompliance, AlbumFolderParser, 
     BandStructureDetector, ComplianceValidator
@@ -56,6 +56,7 @@ def scan_music_folders() -> Dict:
     """
     try:
         # Validate music root path
+        config = Config()
         music_root = Path(config.MUSIC_ROOT_PATH)
         if not music_root.exists():
             raise ValueError(f"Music root path does not exist: {music_root}")
@@ -168,7 +169,7 @@ def scan_music_folders() -> Dict:
         return {
             'status': 'error',
             'error': error_msg,
-            'collection_path': str(config.MUSIC_ROOT_PATH) if config.MUSIC_ROOT_PATH else 'Not set'
+            'collection_path': str(Config().MUSIC_ROOT_PATH) if Config().MUSIC_ROOT_PATH else 'Not set'
         }
 
 
@@ -757,7 +758,7 @@ def _detect_missing_albums(collection_index: CollectionIndex) -> int:
         Total number of missing albums detected
     """
     total_missing = 0
-    music_root = Path(config.MUSIC_ROOT_PATH)
+    music_root = Path(Config().MUSIC_ROOT_PATH)
     
     for band_entry in collection_index.bands:
         if not band_entry.has_metadata:

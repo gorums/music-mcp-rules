@@ -220,7 +220,8 @@ class TestStressConcurrentOperations(unittest.TestCase):
                 start_time = time.time()
                 
                 # Patch config for this worker
-                with patch('src.tools.scanner.config') as mock_config:
+                with patch('src.tools.scanner.Config') as mock_config_class:
+                    mock_config = mock_config_class.return_value
                     mock_config.MUSIC_ROOT_PATH = self.temp_dir
                     result = scan_music_folders()
                 
@@ -419,7 +420,8 @@ class TestStressConcurrentOperations(unittest.TestCase):
             for i in range(operations_per_type):
                 try:
                     start_time = time.time()
-                    with patch('src.tools.scanner.config') as mock_config:
+                    with patch('src.tools.scanner.Config') as mock_config_class:
+                        mock_config = mock_config_class.return_value
                         mock_config.MUSIC_ROOT_PATH = self.temp_dir
                         result = scan_music_folders()
                     scan_time = time.time() - start_time

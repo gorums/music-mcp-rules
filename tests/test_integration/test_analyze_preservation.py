@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from src.models.band import BandMetadata, BandAnalysis, AlbumAnalysis, Album
 from src.tools.storage import save_band_metadata, load_band_metadata
-from src.music_mcp_server import save_band_metadata_tool
+from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
 
 
 class TestAnalyzePreservation:

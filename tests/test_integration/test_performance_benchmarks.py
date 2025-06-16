@@ -27,8 +27,9 @@ class TestPerformanceBenchmarks(unittest.TestCase):
     def setUp(self):
         """Set up test environment with large collection."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.scanner.config')
-        self.mock_config = self.config_patch.start()
+        self.config_patch = patch('src.tools.scanner.Config')
+        self.mock_config_class = self.config_patch.start()
+        self.mock_config = self.mock_config_class.return_value
         self.mock_config.MUSIC_ROOT_PATH = self.temp_dir
 
     def tearDown(self):

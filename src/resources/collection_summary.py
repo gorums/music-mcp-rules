@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from tools.storage import load_collection_index, StorageError
-from models.collection import CollectionIndex, CollectionStats, CollectionInsight
+from src.tools.storage import load_collection_index, StorageError
+from src.models.collection import CollectionIndex, CollectionStats, CollectionInsight
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ def _generate_statistics_section(index: CollectionIndex) -> str:
 
 def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
     """Generate enhanced statistics including album types and compliance."""
-    from tools.storage import load_band_metadata
+    from src.tools.storage import load_band_metadata
     
     section = ["## 🎯 Enhanced Collection Analysis"]
     

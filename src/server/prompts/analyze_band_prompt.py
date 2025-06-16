@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""
+Music Collection MCP Server - Analyze Band Prompt
+
+This module contains the analyze_band_prompt implementation.
+"""
+
+import logging
+from typing import Any, Dict, List, Optional
+
+from ..core import mcp
+
+# Import prompt implementation - using absolute imports
+from src.prompts.analyze_band import get_analyze_band_prompt
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+@mcp.prompt()
+def analyze_band_prompt(
+    band_name: str = "",
+    albums: List[str] = None,
+    analyze_missing_albums: bool = False,
+    analysis_scope: str = "full"
+) -> Dict[str, Any]:
+    """
+    Prompt template for comprehensive band analysis.
+    
+    This prompt guides the creation of detailed band analysis including reviews,
+    ratings, and similar bands identification. It supports different analysis scopes
+    and can include both local and missing albums in the analysis.
+    
+    Args:
+        band_name: Name of the band to analyze (optional parameter for dynamic prompts)
+        albums: List of albums to include in analysis (optional)
+        analyze_missing_albums: If True, include analysis for missing albums too
+        analysis_scope: Scope of analysis - "basic", "full", or "albums_only"
+    
+    Returns:
+        Prompt template dictionary with:
+        - name: Prompt identifier
+        - description: Prompt description
+        - messages: List of prompt messages with analysis instructions
+        - arguments: Prompt arguments schema
+        
+    Analysis Scopes:
+        - "basic": Essential analysis (overall band review and rating)
+        - "full": Complete analysis including album-by-album reviews and ratings
+        - "albums_only": Focus on album-specific analysis only
+        
+    Output Format:
+        The prompt generates instructions for creating analysis data in JSON format
+        compatible with the BandAnalysis schema, including 1-10 rating scale
+        and similar bands identification with collection presence detection.
+    """
+    try:
+        return get_analyze_band_prompt(band_name, albums, analyze_missing_albums, analysis_scope)
+    except Exception as e:
+        logger.error(f"Error in analyze_band prompt: {str(e)}")
+        return {
+            'name': 'analyze_band',
+            'description': 'Error loading prompt template', 
+            'messages': [{'role': 'user', 'content': f'Error: {str(e)}'}],
+            'arguments': []
+        } 

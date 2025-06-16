@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 from pathlib import Path
 import json
 
-from src.music_mcp_server import save_band_metadata_tool
+from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
 from src.models.band import BandMetadata, Album, BandAnalysis, AlbumAnalysis
 from src.models.collection import CollectionIndex, BandIndexEntry
 
@@ -388,7 +388,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_simple_success(self):
         """Test successful analysis save with basic schema."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Pink Floyd"
         analysis = {
@@ -456,7 +456,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_minimal_valid(self):
         """Test analysis save with minimal required fields only."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "The Beatles"
         analysis = {
@@ -484,7 +484,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_complex_multiple_albums(self):
         """Test analysis with multiple albums and varied ratings."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Led Zeppelin"
         analysis = {
@@ -544,7 +544,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_missing_required_fields(self):
         """Test validation failure with missing required fields."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Test Band"
         analysis = {
@@ -566,7 +566,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_invalid_rating_values(self):
         """Test validation failure with invalid rating values."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Test Band"
         analysis = {
@@ -592,7 +592,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_invalid_album_structure(self):
         """Test validation failure with invalid album structure."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Test Band"
         analysis = {
@@ -625,7 +625,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_invalid_parameters(self):
         """Test validation failure with invalid input parameters."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         # Test invalid band_name
         result1 = save_band_analyze_tool("", {"review": "test", "rate": 5})
@@ -644,7 +644,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_invalid_field_types(self):
         """Test validation with incorrect field types."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Test Band"
         analysis = {
@@ -668,7 +668,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_collection_sync(self):
         """Test collection index sync when analysis is saved."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         from src.tools.storage import update_collection_index
         from src.models.collection import CollectionIndex, BandIndexEntry
         
@@ -744,7 +744,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
 
     def test_save_band_analyze_unrated_albums(self):
         """Test analysis with mix of rated and unrated albums."""
-        from src.music_mcp_server import save_band_analyze_tool
+        from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
         
         band_name = "Mixed Rating Band"
         analysis = {
@@ -798,7 +798,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_simple_success(self):
         """Test successful collection insights save with basic schema."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": [
@@ -862,7 +862,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_minimal_valid(self):
         """Test minimal valid insights with only required fields."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "collection_health": "Excellent"
@@ -889,7 +889,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_comprehensive_data(self):
         """Test comprehensive insights with all fields populated."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": [
@@ -938,7 +938,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_invalid_parameters(self):
         """Test handling of invalid input parameters."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         # Test with None insights
         result = save_collection_insight_tool(None)
@@ -957,7 +957,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_invalid_field_types(self):
         """Test handling of invalid field types."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": "should be list not string",
@@ -979,7 +979,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_invalid_list_contents(self):
         """Test handling of lists with invalid content types."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": ["Valid insight", 123, "Another valid insight"],  # Mixed types
@@ -999,7 +999,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_invalid_health_status(self):
         """Test handling of invalid collection health status."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": ["Valid insight"],
@@ -1020,7 +1020,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_partial_fields(self):
         """Test insights with only some fields populated."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": ["Collection analysis complete"],
@@ -1047,7 +1047,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_existing_collection_merge(self):
         """Test merging insights with existing collection index."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         from src.models.collection import CollectionIndex, BandIndexEntry
         from src.tools.storage import update_collection_index
         
@@ -1086,7 +1086,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
 
     def test_save_collection_insight_tool_info(self):
         """Test tool info is correctly populated."""
-        from src.music_mcp_server import save_collection_insight_tool
+        from src.server.tools.save_collection_insight_tool import save_collection_insight_tool
         
         insights = {
             "insights": ["Test insight"],

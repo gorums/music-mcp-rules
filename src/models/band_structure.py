@@ -8,7 +8,7 @@ structure consistency scoring, and recommendations for folder organization impro
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 import re
 
 from .band import AlbumType
@@ -67,6 +67,11 @@ class FolderStructure(BaseModel):
         recommendations: List of specific improvement recommendations
         issues: List of identified structure issues
     """
+    model_config = ConfigDict(
+        # Serialize enums by value to eliminate Pydantic serialization warnings
+        use_enum_values=True
+    )
+    
     structure_type: StructureType = Field(default=StructureType.UNKNOWN, description="Primary structure type")
     consistency: StructureConsistency = Field(default=StructureConsistency.UNKNOWN, description="Structure consistency level")
     consistency_score: int = Field(default=0, ge=0, le=100, description="Consistency score (0-100)")
