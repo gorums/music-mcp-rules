@@ -1612,3 +1612,322 @@ if 'albums' not in metadata:
   - `tests/test_integration/test_analyze_preservation.py::TestAnalyzePreservation::test_preserve_folder_structure_by_default`
 
 **Status**: ✅ **COMPLETED** - Bug fix verified and all tests passing
+
+## Phase 8: Code Refactoring and Quality Improvements
+
+### Task 8.1: Break Down Monolithic Server File - PRIORITY HIGH
+- [ ] **Architecture Refactoring**
+  - [ ] Split `src/music_mcp_server.py` (~2000 lines) into focused modules
+  - [ ] Create `src/server/` directory structure
+  - [ ] Create `src/server/core.py` for server initialization and configuration
+  - [ ] Create `src/server/tool_handlers.py` for all MCP tool implementations
+  - [ ] Create `src/server/resource_handlers.py` for all MCP resource implementations
+  - [ ] Create `src/server/prompt_handlers.py` for all MCP prompt implementations
+  - [ ] Ensure each new file is under 300 lines
+  - [ ] Preserve all existing MCP functionality
+  - [ ] Maintain clear separation between MCP protocol and business logic
+
+**Estimated Effort**: Large
+**Dependencies**: None
+**Success Criteria**: 
+- Each new file under 300 lines
+- All MCP functionality preserved
+- Tools isolated into individual handler functions
+- Clear separation between MCP protocol and business logic
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.2: Create Base Tool Handler Classes - PRIORITY HIGH
+- [ ] **Code Organization Enhancement**
+  - [ ] Create `src/server/base_handlers.py` with abstract base classes
+  - [ ] Implement `BaseToolHandler` abstract class with common patterns
+  - [ ] Implement `BaseResourceHandler` abstract class for resources
+  - [ ] Implement `BasePromptHandler` abstract class for prompts
+  - [ ] Update all tool implementations to inherit from base classes
+  - [ ] Standardize error handling patterns across all tools
+  - [ ] Standardize response formatting across all tools
+  - [ ] Reduce code duplication in tool implementations
+
+**Estimated Effort**: Medium
+**Dependencies**: Task 8.1 (Break Down Monolithic Server File)
+**Success Criteria**: 
+- Common error handling patterns across all tools
+- Consistent response formatting
+- Reduced code duplication in tool implementations
+- All tools inherit from base classes
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.3: Standardize Exception Handling - PRIORITY HIGH
+- [ ] **Error Handling Improvement**
+  - [ ] Create `src/exceptions.py` with unified exception hierarchy
+  - [ ] Create `src/server/error_handlers.py` for error response management
+  - [ ] Define custom exceptions: `MusicMCPError`, `StorageError`, `ValidationError`, `ScanningError`
+  - [ ] Implement consistent error response format across all modules
+  - [ ] Update all tool, resource, and prompt implementations
+  - [ ] Add proper error propagation and logging
+  - [ ] Ensure client-friendly error messages
+  - [ ] Add error categorization and severity levels
+
+**Estimated Effort**: Medium
+**Dependencies**: None
+**Success Criteria**: 
+- Consistent exception types across all modules
+- Standardized error response format
+- Proper error propagation and logging
+- Client-friendly error messages
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.4: Implement Dependency Injection for Configuration - PRIORITY HIGH
+- [ ] **Configuration Management Enhancement**
+  - [ ] Enhance `src/config.py` for dependency injection
+  - [ ] Create `src/server/dependencies.py` for dependency management
+  - [ ] Replace direct Config() instantiation with dependency injection
+  - [ ] Update `src/tools/scanner.py` to use injected config
+  - [ ] Update `src/tools/storage.py` to use injected config
+  - [ ] Update all modules that directly import and use config
+  - [ ] Ensure single config instance throughout the application
+  - [ ] Make configuration easily testable with mocking
+
+**Estimated Effort**: Medium
+**Dependencies**: None
+**Success Criteria**: 
+- Single config instance throughout the application
+- Easily testable with config mocking
+- Clear dependency relationships
+- No direct Config() imports in business logic
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.5: Improve Import Management - PRIORITY MEDIUM
+- [ ] **Import Organization**
+  - [ ] Standardize import patterns across all modules
+  - [ ] Fix circular dependencies in models
+  - [ ] Update `src/models/__init__.py` for cleaner exports
+  - [ ] Update `src/tools/__init__.py` for proper module interface
+  - [ ] Update `src/resources/__init__.py` for resource exports
+  - [ ] Update `src/prompts/__init__.py` for prompt exports
+  - [ ] Use consistent import patterns (prefer absolute imports)
+  - [ ] Proper TYPE_CHECKING usage for forward references
+
+**Estimated Effort**: Small
+**Dependencies**: None
+**Success Criteria**: 
+- Consistent import patterns (prefer absolute imports)
+- No circular dependencies
+- Proper TYPE_CHECKING usage for forward references
+- Clean module interfaces
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.6: Abstract Storage Layer with Interfaces - PRIORITY MEDIUM
+- [ ] **Storage Architecture Enhancement**
+  - [ ] Create `src/storage/` directory
+  - [ ] Create `src/storage/interfaces.py` with storage interfaces
+  - [ ] Create `src/storage/json_storage.py` (refactor from tools/storage.py)
+  - [ ] Create `src/storage/base.py` with base storage classes
+  - [ ] Update `src/tools/storage.py` to use interfaces
+  - [ ] Create clear interfaces for all storage operations
+  - [ ] Make storage operations easily mockable for testing
+  - [ ] Design for future storage backend extensibility
+
+**Estimated Effort**: Medium
+**Dependencies**: None
+**Success Criteria**: 
+- Clear interfaces for all storage operations
+- Easy to mock for testing
+- Extensible for future storage backends
+- No direct storage implementation dependencies in business logic
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.7: Complete Type Annotation Coverage - PRIORITY MEDIUM
+- [ ] **Type Safety Enhancement**
+  - [ ] Add comprehensive type annotations to `src/tools/scanner.py`
+  - [ ] Add full type coverage to `src/server/tool_handlers.py` (new file)
+  - [ ] Review and enhance type annotations in all modules
+  - [ ] Ensure proper Generic type usage where applicable
+  - [ ] Handle Optional types properly throughout codebase
+  - [ ] Run mypy validation and fix all type errors
+  - [ ] Document type requirements in contribution guidelines
+
+**Estimated Effort**: Small
+**Dependencies**: None
+**Success Criteria**: 
+- 100% type annotation coverage
+- Proper Generic type usage
+- Optional types properly handled
+- mypy passes without errors
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.8: Implement Caching Strategy - PRIORITY MEDIUM
+- [ ] **Performance Enhancement**
+  - [ ] Create `src/cache/` directory
+  - [ ] Create `src/cache/manager.py` for cache management
+  - [ ] Create `src/cache/strategies.py` for different caching strategies
+  - [ ] Integrate caching with `src/tools/storage.py`
+  - [ ] Add configurable cache expiration
+  - [ ] Implement memory-efficient caching for large collections
+  - [ ] Add cache invalidation strategies
+  - [ ] Create cache performance monitoring
+
+**Estimated Effort**: Medium
+**Dependencies**: Task 8.6 (Abstract Storage Layer)
+**Success Criteria**: 
+- Configurable cache expiration
+- Memory-efficient caching
+- Cache invalidation strategies
+- Performance improvements for large collections
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.9: Enhance Test Coverage and Organization - PRIORITY MEDIUM
+- [ ] **Testing Enhancement**
+  - [ ] Create `tests/test_server/` directory
+  - [ ] Create `tests/test_server/test_tool_handlers.py` for tool handler tests
+  - [ ] Create `tests/test_server/test_base_handlers.py` for base class tests
+  - [ ] Create `tests/test_exceptions.py` for exception handling tests
+  - [ ] Create `tests/utils/` directory for test utilities
+  - [ ] Add integration tests for complete workflows
+  - [ ] Create test utilities for common operations
+  - [ ] Ensure fast test execution (under 30 seconds)
+
+**Estimated Effort**: Medium
+**Dependencies**: Task 8.2 (Base Tool Handler Classes)
+**Success Criteria**: 
+- 80%+ test coverage on new modules
+- Integration tests for complete workflows
+- Test utilities for common operations
+- Fast test execution (under 30 seconds)
+**Breaking Changes**: None (internal testing only)
+
+### Task 8.10: Standardize Logging and Monitoring - PRIORITY MEDIUM
+- [ ] **Observability Enhancement**
+  - [ ] Create `src/logging/` directory
+  - [ ] Create `src/logging/config.py` for logging configuration
+  - [ ] Create `src/logging/formatters.py` for log formatting
+  - [ ] Implement structured logging with consistent format
+  - [ ] Add configurable log levels per module
+  - [ ] Add performance monitoring logs
+  - [ ] Remove all print statements from production code
+  - [ ] Create log analysis and monitoring tools
+
+**Estimated Effort**: Small
+**Dependencies**: None
+**Success Criteria**: 
+- Structured logging with consistent format
+- Configurable log levels
+- Performance monitoring logs
+- No print statements in production code
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.11: Refactor Large Functions - PRIORITY LOW
+- [ ] **Code Modularity Enhancement**
+  - [ ] Identify functions longer than 50 lines in `src/tools/scanner.py`
+  - [ ] Identify functions longer than 50 lines in `src/tools/storage.py`
+  - [ ] Break down large functions into smaller, focused functions
+  - [ ] Ensure each function has single responsibility
+  - [ ] Add clear function names and docstrings
+  - [ ] Maintain functionality and performance
+  - [ ] Create helper functions for common operations
+
+**Estimated Effort**: Small
+**Dependencies**: None
+**Success Criteria**: 
+- No functions longer than 50 lines
+- Each function has single responsibility
+- Clear function names and docstrings
+- Maintained functionality and performance
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.12: Optimize File System Operations - PRIORITY LOW
+- [ ] **Performance Optimization**
+  - [ ] Analyze performance bottlenecks in `src/tools/scanner.py`
+  - [ ] Optimize file system scanning algorithms
+  - [ ] Optimize file operations in `src/tools/storage.py`
+  - [ ] Implement progress reporting for long operations
+  - [ ] Reduce memory usage during large collection scanning
+  - [ ] Add performance benchmarks and monitoring
+  - [ ] Optimize for collections with 10,000+ albums
+
+**Estimated Effort**: Small
+**Dependencies**: None
+**Success Criteria**: 
+- 20%+ performance improvement for large collections
+- Reduced memory usage during scanning
+- Progress reporting for long operations
+- No functionality regression
+**Breaking Changes**: None (internal refactoring only)
+
+### Task 8.13: Standardize Response Formats - PRIORITY LOW
+- [ ] **API Consistency Enhancement**
+  - [ ] Create `src/server/response_formatters.py` for response formatting
+  - [ ] Ensure consistent response structure across all endpoints
+  - [ ] Standardize error responses
+  - [ ] Add proper metadata to all responses
+  - [ ] Create client-friendly response formats
+  - [ ] Update all tool, resource, and prompt implementations
+  - [ ] Document response format standards
+
+**Estimated Effort**: Small
+**Dependencies**: Task 8.2 (Base Tool Handler Classes)
+**Success Criteria**: 
+- Consistent response structure across all endpoints
+- Standardized error responses
+- Proper metadata in all responses
+- Client-friendly response formats
+**Breaking Changes**: None (internal refactoring only)
+
+## Refactoring Implementation Plan
+
+### Phase 8.1 (Immediate - Next 2 weeks)
+1. **Task 8.1**: Break Down Monolithic Server File
+2. **Task 8.3**: Standardize Exception Handling
+3. **Task 8.4**: Implement Dependency Injection for Configuration
+
+### Phase 8.2 (Medium-term - Next 4 weeks)
+4. **Task 8.2**: Create Base Tool Handler Classes
+5. **Task 8.6**: Abstract Storage Layer with Interfaces
+6. **Task 8.5**: Improve Import Management
+
+### Phase 8.3 (Long-term - Next 6 weeks)
+7. **Task 8.7**: Complete Type Annotation Coverage
+8. **Task 8.8**: Implement Caching Strategy
+9. **Task 8.9**: Enhance Test Coverage and Organization
+
+### Phase 8.4 (Polish - Next 8 weeks)
+10. **Task 8.10**: Standardize Logging and Monitoring
+11. **Task 8.11**: Refactor Large Functions
+12. **Task 8.12**: Optimize File System Operations
+13. **Task 8.13**: Standardize Response Formats
+
+## Code Quality Metrics Target
+
+- **Functions**: Maximum 50 lines each
+- **Classes**: Maximum 300 lines each  
+- **Modules**: Maximum 500 lines each
+- **Cyclomatic Complexity**: Maximum 10 per function
+- **Test Coverage**: Minimum 80% for new code
+- **Type Coverage**: 100% for all public APIs
+
+## Refactoring Benefits
+
+### Maintainability
+- **Reduced Complexity**: Smaller, focused modules easier to understand and modify
+- **Clear Responsibilities**: Each module has single, well-defined purpose
+- **Consistent Patterns**: Standardized error handling and response formatting
+- **Better Testing**: Isolated components easier to test and mock
+
+### Performance
+- **Optimized Operations**: Improved file system and storage operations
+- **Efficient Caching**: Smart caching strategies for large collections
+- **Reduced Memory Usage**: Optimized scanning and processing algorithms
+- **Faster Development**: Cleaner code reduces development time
+
+### Reliability
+- **Better Error Handling**: Consistent exception management across all components
+- **Type Safety**: Complete type annotations prevent runtime errors
+- **Comprehensive Testing**: Higher test coverage ensures system reliability
+- **Dependency Management**: Clear dependencies reduce coupling and improve stability
+
+### Extensibility
+- **Modular Architecture**: Easy to add new features without affecting existing code
+- **Interface-Based Design**: Storage and handler interfaces support future enhancements
+- **Plugin Architecture**: Base classes enable easy extension of tools and resources
+- **Configuration Management**: Flexible configuration system supports various deployment scenarios
+
+This refactoring plan transforms the codebase into a maintainable, testable, and extensible system while preserving all existing functionality and ensuring backward compatibility.

@@ -1966,23 +1966,21 @@ def collection_insights_prompt() -> Dict[str, Any]:
 
 def main():
     """Main entry point for the MCP server."""
-    # Remove startup message to minimize output
+    logger.info("Starting Music Collection MCP Server...")
     
     try:
-        # Try to run the MCP server
-        mcp.run()
+        # Initialize server with proper lifecycle management
+        with mcp:
+            logger.info("MCP Server initialized successfully")
+            # Server will run until interrupted
+            mcp.run()
     except KeyboardInterrupt:
-        pass  # Silently handle user interruption
+        logger.info("Server shutdown requested by user")
     except Exception as e:
         logger.error(f"Server error: {str(e)}")
-        # In development mode, keep server alive even if no client connects
-        try:
-            # Keep the process alive
-            while True:
-                import time
-                time.sleep(60)  # Sleep for 60 seconds at a time
-        except KeyboardInterrupt:
-            pass  # Silently handle user interruption
+        raise
+    finally:
+        logger.info("Music Collection MCP Server stopped")
 
 if __name__ == "__main__":
     main()
