@@ -13,7 +13,17 @@ import traceback
 from datetime import datetime, timezone
 
 # Import standardized exception handling
-from ..exceptions import MusicMCPError, ErrorSeverity, ErrorCategory
+import sys
+import os
+from pathlib import Path
+
+# Add src directory to path if not already there
+current_dir = Path(__file__).parent
+src_dir = current_dir.parent
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+from exceptions import MusicMCPError, ErrorSeverity, ErrorCategory
 from .error_handlers import (
     ErrorResponseManager, 
     ToolErrorHandler, 

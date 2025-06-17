@@ -97,6 +97,7 @@
   - [x] Return operation status with validation results
   - [x] **BUG FIX (2025-06-10)**: Fixed album preservation issue where existing albums were always replaced instead of only when albums key is missing from input metadata
   - [x] **BUG FIX (2025-01-28)**: Fixed technical issue with save_band_metadata_tool where dict object was incorrectly treated as having BandMetadata attributes, causing "'dict' object has no attribute 'folder_structure'" errors. Added proper type checking and exception handling for metadata loading operations.
+  - [x] **BUG FIX (2025-01-30)**: Fixed last_metadata_saved field not being updated when saving metadata. Updated save_band_metadata function in storage.py to call update_metadata_saved_timestamp() instead of just update_timestamp(), ensuring that the last_metadata_saved field is properly set with the current timestamp when metadata is saved via save_band_metadata_tool.
 - [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-28)
   - [x] Store analysis data including review and rating
   - [x] Handle album-specific reviews and ratings

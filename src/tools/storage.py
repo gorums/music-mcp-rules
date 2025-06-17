@@ -298,11 +298,11 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
             except Exception as e:
                 logger.warning(f"Could not set folder_structure data for {band_name}: {e}")
 
-        # Update timestamp
+        # Update timestamp and metadata saved timestamp
         try:
-            metadata.update_timestamp()
+            metadata.update_metadata_saved_timestamp()  # This also calls update_timestamp()
         except Exception as e:
-            logger.warning(f"Could not update timestamp for {band_name}: {e}")
+            logger.warning(f"Could not update metadata saved timestamp for {band_name}: {e}")
         
         # Convert to dict for JSON serialization
         metadata_dict = metadata.model_dump()

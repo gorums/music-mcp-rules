@@ -23,9 +23,9 @@ def main():
         server_main()
         
     except KeyboardInterrupt:
-        print("\n⏹️  Server stopped by user")
+        print("\n[STOP] Server stopped by user")
     except Exception as e:
-        print(f"❌ Error starting MCP server: {e}")
+        print(f"[ERROR] Error starting MCP server: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

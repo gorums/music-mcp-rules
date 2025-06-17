@@ -10,8 +10,19 @@ import logging
 from typing import Any, Dict, Optional, Union
 from datetime import datetime, timezone
 import traceback
+import logging
 
-from ..exceptions import (
+import sys
+import os
+from pathlib import Path
+
+# Add src directory to path if not already there
+current_dir = Path(__file__).parent
+src_dir = current_dir.parent
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
+
+from exceptions import (
     MusicMCPError, 
     ErrorSeverity, 
     ErrorCategory,

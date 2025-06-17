@@ -283,6 +283,31 @@ class TestMetadataOperations:
         # Timestamp should be updated
         assert result["last_updated"] != original_timestamp
 
+    def test_save_band_metadata_updates_last_metadata_saved(self):
+        """Test that saving metadata updates last_metadata_saved timestamp."""
+        band_name = "Test Band"
+        metadata = BandMetadata(band_name=band_name)
+        
+        # Initially last_metadata_saved should be None
+        assert metadata.last_metadata_saved is None
+        assert metadata.has_metadata_saved() is False
+        
+        # Save the metadata
+        result = save_band_metadata(band_name, metadata)
+        
+        # Verify the result indicates success
+        assert result["status"] == "success"
+        
+        # Load the metadata back and verify last_metadata_saved was set
+        loaded_metadata = load_band_metadata(band_name)
+        assert loaded_metadata is not None
+        assert loaded_metadata.last_metadata_saved is not None
+        assert loaded_metadata.has_metadata_saved() is True
+        
+        # Verify it's a valid ISO timestamp
+        from datetime import datetime
+        datetime.fromisoformat(loaded_metadata.last_metadata_saved)
+
     def test_save_band_analyze_new_metadata(self):
         """Test saving analysis for band without existing metadata."""
         band_name = "New Band"

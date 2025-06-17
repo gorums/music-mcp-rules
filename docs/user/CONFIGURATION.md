@@ -68,7 +68,7 @@ export ENABLE_STRUCTURE_ANALYSIS=true
 export COMPLIANCE_THRESHOLD=75
 
 # Windows PowerShell
-$env:MUSIC_ROOT_PATH = "D:\Music"
+$env:MUSIC_ROOT_PATH = "C:\Music"
 $env:CACHE_DURATION_DAYS = 30
 $env:LOG_LEVEL = "INFO"
 $env:ENABLE_TYPE_DETECTION = "true"
@@ -76,7 +76,7 @@ $env:ENABLE_STRUCTURE_ANALYSIS = "true"
 $env:COMPLIANCE_THRESHOLD = 75
 
 # Windows Command Prompt
-set MUSIC_ROOT_PATH=D:\Music
+set MUSIC_ROOT_PATH=C:\Music
 set CACHE_DURATION_DAYS=30
 set LOG_LEVEL=INFO
 set ENABLE_TYPE_DETECTION=true
@@ -98,7 +98,7 @@ MUSIC_ROOT_PATH="/mnt/nas/music"
 MUSIC_ROOT_PATH="/Volumes/MusicDrive/Collection"
 
 # Windows
-MUSIC_ROOT_PATH="D:\Music"
+MUSIC_ROOT_PATH="C:\Music"
 MUSIC_ROOT_PATH="\\NAS\Music"
 MUSIC_ROOT_PATH="C:\Users\User\Music"
 

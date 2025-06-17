@@ -99,7 +99,7 @@ docker run -d --name music-mcp-container \
 
 # Windows - Enhanced Features Enabled
 docker run -d --name music-mcp-container \
-  -v "D:\Music:/music" \
+  -v "C:\Music:/music" \
   -e "MUSIC_ROOT_PATH=/music" \
   -e "CACHE_DURATION_DAYS=30" \
   -e "ENABLE_TYPE_DETECTION=true" \
