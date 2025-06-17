@@ -193,23 +193,23 @@ Save comprehensive information for Metallica: formed 1981 in Los Angeles, Califo
 **Save metadata for multiple bands at once:**
 
 ```
-Save metadata for these classic rock bands:
-- Led Zeppelin: formed 1968, England, Hard Rock/Blues Rock, members Jimmy Page, Robert Plant, John Paul Jones, John Bonham
-- Deep Purple: formed 1968, England, Hard Rock/Heavy Metal, key members Ian Gillan, Ritchie Blackmore, Jon Lord
-- Black Sabbath: formed 1968, Birmingham England, Heavy Metal, members Tony Iommi, Ozzy Osbourne, Geezer Butler, Bill Ward
+Research and save metadata for these classic rock bands: Led Zeppelin, Deep Purple, Black Sabbath
 ```
 
 ```
-Batch save thrash metal band information:
-Metallica (formed 1981, Los Angeles), Slayer (formed 1981, Huntington Park), Megadeth (formed 1983, Los Angeles), Anthrax (formed 1981, New York). All are considered part of the Big Four of Thrash Metal.
+Find comprehensive information and save metadata for the Big Four of Thrash Metal: Metallica, Slayer, Megadeth, Anthrax
 ```
 
 ```
-Save information for these progressive rock pioneers:
-- Yes: formed 1968, London, Progressive Rock, known for complex compositions and virtuoso musicianship
-- Genesis: formed 1967, England, Progressive Rock transitioning to Pop Rock, notable for theatrical live performances
-- King Crimson: formed 1968, London, Progressive Rock/Experimental, influential in developing heavy metal and alternative rock
-- Emerson Lake & Palmer: formed 1970, England, Progressive Rock, known for keyboard-driven compositions and classical influences
+Research and save metadata for these progressive rock pioneers: Yes, Genesis, King Crimson, Emerson Lake & Palmer
+```
+
+```
+Look up and save metadata for these influential metal bands: Iron Maiden, Judas Priest, Motorhead, Saxon
+```
+
+```
+Research and batch save information for these punk rock bands: The Ramones, Sex Pistols, The Clash, Dead Kennedys
 ```
 
 ### 🎯 **Band Analysis & Reviews**
