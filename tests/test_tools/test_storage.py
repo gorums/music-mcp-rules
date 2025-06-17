@@ -30,6 +30,7 @@ from src.tools.storage import (
     update_collection_index,
     cleanup_backups
 )
+from src.exceptions import DataError
 from src.models import (
     BandMetadata,
     BandAnalysis,
@@ -197,7 +198,7 @@ class TestJSONStorage:
             with open(file_path, 'w') as f:
                 f.write("{invalid json content")
             
-            with pytest.raises(StorageError, match="Invalid JSON"):
+            with pytest.raises(DataError, match="Invalid JSON"):
                 JSONStorage.load_json(file_path)
 
     def test_create_backup(self):
@@ -624,7 +625,7 @@ class TestErrorHandling:
         with patch('src.tools.storage.JSONStorage.save_json', side_effect=PermissionError("Access denied")):
             metadata = BandMetadata(band_name="Test Band")
             
-            with pytest.raises(StorageError, match="Failed to save band metadata"):
+            with pytest.raises(StorageError, match="Storage save band metadata failed"):
                 save_band_metadata("Test Band", metadata)
 
     def test_load_metadata_corrupted_file(self):

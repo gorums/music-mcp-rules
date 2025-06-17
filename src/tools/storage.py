@@ -32,13 +32,17 @@ from src.models import (
 )
 from src.config import Config
 
+# Import standardized exceptions
+from src.exceptions import (
+    StorageError, 
+    ValidationError, 
+    DataError,
+    create_storage_error,
+    wrap_exception
+)
+
 # Configure logging
 logger = logging.getLogger(__name__)
-
-
-class StorageError(Exception):
-    """Base exception for storage operations."""
-    pass
 
 
 class AtomicFileWriter:
@@ -166,7 +170,7 @@ class JSONStorage:
                 with AtomicFileWriter(file_path, backup=backup) as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            raise StorageError(f"Failed to save JSON to {file_path}: {e}")
+            raise create_storage_error("save", str(file_path), e)
     
     @staticmethod
     def load_json(file_path: Path) -> Dict[str, Any]:
@@ -184,14 +188,24 @@ class JSONStorage:
         """
         try:
             if not file_path.exists():
-                raise StorageError(f"File not found: {file_path}")
+                raise StorageError(
+                    f"File not found: {file_path}",
+                    file_path=str(file_path),
+                    operation="load",
+                    user_message=f"The requested data file does not exist: {file_path.name}"
+                )
             
             with open(file_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except json.JSONDecodeError as e:
-            raise StorageError(f"Invalid JSON in {file_path}: {e}")
+            raise DataError(
+                f"Invalid JSON in {file_path}: {e}",
+                data_type="JSON",
+                data_source=str(file_path),
+                user_message=f"The data file is corrupted or contains invalid JSON: {file_path.name}"
+            )
         except Exception as e:
-            raise StorageError(f"Failed to load JSON from {file_path}: {e}")
+            raise create_storage_error("load", str(file_path), e)
     
     @staticmethod
     def file_exists(file_path: Path) -> bool:
@@ -244,7 +258,12 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
     try:
         # Validate input parameter type for safety
         if not isinstance(metadata, BandMetadata):
-            raise StorageError(f"metadata parameter must be BandMetadata instance, got {type(metadata)}")
+            raise ValidationError(
+                f"metadata parameter must be BandMetadata instance, got {type(metadata)}",
+                field_name="metadata",
+                field_value=str(type(metadata)),
+                user_message="Invalid metadata format provided. Expected BandMetadata object."
+            )
             
         config = Config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
@@ -300,7 +319,12 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         }
         
     except Exception as e:
-        raise StorageError(f"Failed to save band metadata for {band_name}: {e}")
+        if isinstance(e, (StorageError, ValidationError, DataError)):
+            # Re-raise our standardized exceptions
+            raise
+        else:
+            # Wrap generic exceptions
+            raise create_storage_error("save band metadata", band_name, e)
 
 
 def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:

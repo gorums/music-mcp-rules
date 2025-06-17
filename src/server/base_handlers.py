@@ -12,6 +12,15 @@ from dataclasses import dataclass
 import traceback
 from datetime import datetime, timezone
 
+# Import standardized exception handling
+from ..exceptions import MusicMCPError, ErrorSeverity, ErrorCategory
+from .error_handlers import (
+    ErrorResponseManager, 
+    ToolErrorHandler, 
+    ResourceErrorHandler, 
+    PromptErrorHandler
+)
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -61,6 +70,8 @@ class BaseHandler(ABC):
         self.handler_name = handler_name
         self.version = version
         self.logger = logging.getLogger(f"{__name__}.{handler_name}")
+        # Initialize error response manager for standardized error handling
+        self.error_manager = ErrorResponseManager(handler_name, self.logger)
     
     def _create_handler_info(self, **kwargs) -> Dict[str, Any]:
         """Create standardized handler info metadata."""
@@ -78,7 +89,7 @@ class BaseHandler(ABC):
     
     def _handle_exception(self, e: Exception, context: str = "") -> HandlerResponse:
         """
-        Standardized exception handling.
+        Standardized exception handling using the new error response system.
         
         Args:
             e: The exception that occurred
@@ -87,16 +98,19 @@ class BaseHandler(ABC):
         Returns:
             Standardized error response
         """
-        error_msg = f"{context}: {str(e)}" if context else str(e)
+        # Use the error manager for standardized handling
+        error_response = self.error_manager.handle_exception(e, context)
         
-        # Log the full traceback for debugging
-        self.logger.error(f"Error in {self.handler_name}: {error_msg}")
-        self.logger.debug(f"Full traceback: {traceback.format_exc()}")
-        
+        # Convert to HandlerResponse format for backward compatibility
         return HandlerResponse(
-            status='error',
-            error=error_msg,
-            handler_info=self._create_handler_info(error_occurred=True)
+            status=error_response['status'],
+            error=error_response['error'],
+            handler_info=self._create_handler_info(
+                error_occurred=True,
+                error_type=error_response.get('error_type'),
+                severity=error_response.get('severity'),
+                category=error_response.get('category')
+            )
         )
     
     def _validate_required_params(self, params: Dict[str, Any], required: List[str]) -> Optional[HandlerResponse]:
@@ -138,6 +152,8 @@ class BaseToolHandler(BaseHandler):
             version: Version of the tool
         """
         super().__init__(tool_name, version)
+        # Initialize specialized tool error handler
+        self.tool_error_handler = ToolErrorHandler(tool_name, version)
     
     @abstractmethod
     def _execute_tool(self, **kwargs) -> Any:
@@ -179,8 +195,12 @@ class BaseToolHandler(BaseHandler):
             return response.to_dict()
             
         except Exception as e:
-            response = self._handle_exception(e, "Tool execution failed")
-            return response.to_dict()
+            # Use specialized tool error handler
+            return self.tool_error_handler.create_tool_error_response(
+                e, "Tool execution failed", 
+                tool_mode='execution',
+                parameters_used=kwargs
+            )
     
     def _create_tool_info(self, **kwargs) -> Dict[str, Any]:
         """Create tool-specific metadata."""
@@ -202,6 +222,8 @@ class BaseResourceHandler(BaseHandler):
             version: Version of the resource
         """
         super().__init__(resource_name, version)
+        # Initialize specialized resource error handler
+        self.resource_error_handler = ResourceErrorHandler(resource_name, version)
     
     @abstractmethod
     def _get_resource_content(self, **kwargs) -> str:
@@ -230,10 +252,10 @@ class BaseResourceHandler(BaseHandler):
             return self._get_resource_content(**kwargs)
             
         except Exception as e:
-            self.logger.error(f"Error in {self.handler_name} resource: {str(e)}")
-            
-            # Return markdown-formatted error
-            return self._format_error_content(str(e), **kwargs)
+            # Use specialized resource error handler
+            return self.resource_error_handler.create_resource_error_content(
+                e, "Resource content generation failed", **kwargs
+            )
     
     def _format_error_content(self, error_message: str, **kwargs) -> str:
         """
@@ -270,6 +292,8 @@ class BasePromptHandler(BaseHandler):
             version: Version of the prompt
         """
         super().__init__(prompt_name, version)
+        # Initialize specialized prompt error handler
+        self.prompt_error_handler = PromptErrorHandler(prompt_name, version)
     
     @abstractmethod
     def _generate_prompt(self, **kwargs) -> Dict[str, Any]:
@@ -298,21 +322,10 @@ class BasePromptHandler(BaseHandler):
             return self._generate_prompt(**kwargs)
             
         except Exception as e:
-            self.logger.error(f"Error in {self.handler_name} prompt: {str(e)}")
-            
-            # Return error prompt template
-            return {
-                'name': self.handler_name,
-                'description': f'Error loading {self.handler_name} prompt template',
-                'messages': [
-                    {
-                        'role': 'user', 
-                        'content': f'Error generating prompt: {str(e)}\n\nPlease check your parameters and try again.'
-                    }
-                ],
-                'arguments': [],
-                'handler_info': self._create_handler_info(error_occurred=True)
-            }
+            # Use specialized prompt error handler
+            return self.prompt_error_handler.create_prompt_error_template(
+                e, "Prompt generation failed", **kwargs
+            )
 
 
 # Utility functions for common response patterns
