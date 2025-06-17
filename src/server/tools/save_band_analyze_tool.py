@@ -6,9 +6,11 @@ This module contains the save_band_analyze_tool implementation.
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
 from src.tools.storage import save_band_analyze, load_collection_index, update_collection_index, load_band_metadata
@@ -17,146 +19,64 @@ from src.models.band import BandAnalysis, AlbumAnalysis
 # Configure logging
 logger = logging.getLogger(__name__)
 
-@mcp.tool()
-def save_band_analyze_tool(
-    band_name: str,    
-    analysis: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Save band analysis data including reviews, ratings, and similar bands.
+
+class SaveBandAnalyzeHandler(BaseToolHandler):
+    """Handler for the save_band_analyze tool."""
     
-    This tool stores comprehensive analysis data for a band:
-    - Overall band review and rating
-    - Album-specific reviews and ratings (1-10 scale)
-    - Similar bands information
-    - Always includes analysis for all albums (both local and missing)
-    - Merges with existing metadata preserving structure
-    - Validates analyze section structure
-    - Updates collection statistics
+    def __init__(self):
+        super().__init__("save_band_analyze", "1.0.0")
     
-    Args:
-        band_name: The name of the band        
-        analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands 
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the band analysis saving logic."""
+        band_name = kwargs.get('band_name')
+        analysis = kwargs.get('analysis')
         
-    Returns:
-        Dict containing comprehensive operation status with validation results, 
-        file operations, collection sync, and analysis summary
-    
-    ANALYSIS SCHEMA:
-    ================
-    The analysis parameter must be a dictionary with the following structure:
-    
-    REQUIRED FIELDS:
-    ================
-    - review (string): Overall band review text
-    - rate (integer): Overall band rating from 1-10 (0 = unrated)
-    
-    OPTIONAL FIELDS FOR EACH ALBUM:
-    ================
-    - albums (array): Per-album analysis objects with:
-        - album_name (string, REQUIRED): Name of the album (used for filtering missing albums)
-        - review (string): Album review text
-        - rate (integer): Album rating 1-10 (0 = unrated)
-    - similar_bands (array of strings): Names of similar/related bands
-    
-    MISSING ALBUMS FILTERING:
-    =========================
-    - Analysis is always saved for all albums, including both local and missing albums
-    
-    RATING VALIDATION:
-    ==================
-    - All ratings must be integers between 0-10
-    - 0 means unrated/no rating given
-    - 1-10 represents actual ratings (1=lowest, 10=highest)
-    
-    EXAMPLE ANALYSIS:
-    =================
-    {
-        "review": "Legendary progressive rock band known for conceptual albums...",
-        "rate": 9,
-        "albums": [
-            {
-                "album_name": "The Dark Side of the Moon",  // REQUIRED
-                "review": "Masterpiece of progressive rock with innovative sound design...",
-                "rate": 10
-            },
-            {
-                "album_name": "The Wall",  // REQUIRED
-                "review": "Epic rock opera exploring themes of isolation...",
-                "rate": 9
-            }
-        ],
-        "similar_bands": ["King Crimson", "Genesis", "Yes", "Led Zeppelin"]
-    }
-    """
-    try:
-        # Prepare comprehensive response structure
+        # Initialize response structure
         response = {
-            "status": "success",
-            "message": "",
-            "validation_results": {
-                "schema_valid": False,
-                "validation_errors": [],
-                "fields_validated": [],
-                "overall_rating": 0,
-                "albums_analyzed": 0,
-                "similar_bands_count": 0,
-                "rating_distribution": {}
+            'status': 'success',
+            'message': '',
+            'validation_results': {
+                'schema_valid': False,
+                'validation_errors': [],
+                'overall_rating': 0,
+                'albums_analyzed': 0,
+                'similar_bands_count': 0,
+                'similar_bands_in_collection': 0,
+                'similar_bands_missing': 0,
+                'rating_distribution': {},
+                'fields_validated': []
             },
-            "file_operations": {
-                "metadata_file": "",
-                "backup_created": False,
-                "last_updated": "",
-                "file_size_bytes": 0,
-                "merged_with_existing": False
+            'analysis_summary': {},
+            'collection_sync': {
+                'band_entry_found': False,
+                'index_updated': False,
+                'index_errors': []
             },
-            "collection_sync": {
-                "index_updated": False,
-                "index_errors": [],
-                "band_entry_found": False
-            },
-            "analysis_summary": {
-                "band_name": band_name,
-                "overall_rating": 0,
-                "albums_analyzed": 0,
-                "albums_analyzed_input": 0,
-                "albums_analyzed_saved": 0,
-                "albums_excluded": 0,
-                "albums_with_ratings": 0,
-                "similar_bands_count": 0,
-                "similar_bands_in_collection": 0,
-                "similar_bands_missing": 0,
-                "has_review": False,
-                "average_album_rating": 0.0,
-                "rating_range": {"min": 0, "max": 0}
-            },
-            "tool_info": {
-                "tool_name": "save_band_analyze",
-                "version": "1.0.0",
-                "parameters_used": {
-                    "band_name": band_name,
-                    "analysis_fields": list(analysis.keys()) if isinstance(analysis, dict) else []
-                }
+            'file_operations': {
+                'metadata_file': '',
+                'backup_created': False,
+                'last_updated': '',
+                'merged_with_existing': False
             }
         }
         
-        # Validate input parameters
-        if not band_name or not isinstance(band_name, str):
-            response["status"] = "error"
-            response["message"] = "Invalid band_name parameter: must be non-empty string"
-            response["validation_results"]["validation_errors"].append("band_name is required and must be a string")
+        # Parameter validation - return message field for errors
+        if not band_name or not isinstance(band_name, str) or band_name.strip() == "":
+            response['status'] = 'error'
+            response['message'] = 'Invalid band_name parameter: must be a non-empty string'
             return response
             
         if not analysis or not isinstance(analysis, dict):
-            response["status"] = "error" 
-            response["message"] = "Invalid analysis parameter: must be non-empty dictionary"
-            response["validation_results"]["validation_errors"].append("analysis is required and must be a dictionary")
+            response['status'] = 'error'
+            response['message'] = 'Invalid analysis parameter: must be a dictionary'
             return response
         
-        # Validate and convert analysis data to BandAnalysis object
+        band_name = band_name.strip()
+        
+        # Validation errors collection
         validation_errors = []
         
-        # Check required fields
+        # Validate required fields
         if "review" not in analysis:
             validation_errors.append("Missing required field: 'review'")
         elif not isinstance(analysis["review"], str):
@@ -166,10 +86,10 @@ def save_band_analyze_tool(
             validation_errors.append("Missing required field: 'rate'")
         elif not isinstance(analysis["rate"], int):
             validation_errors.append("Field 'rate' must be an integer")
-        elif analysis["rate"] < 0 or analysis["rate"] > 10:
-            validation_errors.append("Field 'rate' must be between 0-10")
+        elif analysis["rate"] < 1 or analysis["rate"] > 10:
+            validation_errors.append("Field 'rate' must be between 1-10")
         
-        # Check optional albums field
+        # Validate albums field (optional)
         albums_analysis = []
         if "albums" in analysis:
             if not isinstance(analysis["albums"], list):
@@ -373,19 +293,92 @@ def save_band_analyze_tool(
         
         # Final success message with filtering information
         if albums_excluded > 0:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {band_analysis.total_similar_bands_count} similar bands (including missing albums)"
-        else:
-            response["message"] = f"Band analysis successfully saved for {band_name} with {albums_analyzed_final} album reviews and {band_analysis.total_similar_bands_count} similar bands (all albums included)"
+            response["message"] += f" ({albums_excluded} missing albums excluded from analysis)"
+        
+        # Add tool info for compatibility
+        response['tool_info'] = {
+            'tool_name': 'save_band_analyze',
+            'version': self.version,
+            'execution_time': datetime.now(timezone.utc).isoformat(),
+            'parameters_used': {'band_name': band_name, 'analysis_fields': list(analysis.keys())}
+        }
         
         return response
+
+
+# Create handler instance
+_handler = SaveBandAnalyzeHandler()
+
+@mcp.tool()
+def save_band_analyze_tool(
+    band_name: str,    
+    analysis: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Save band analysis data including reviews, ratings, and similar bands.
+    
+    This tool stores comprehensive analysis data for a band:
+    - Overall band review and rating
+    - Album-specific reviews and ratings (1-10 scale)
+    - Similar bands information
+    - Always includes analysis for all albums (both local and missing)
+    - Merges with existing metadata preserving structure
+    - Validates analyze section structure
+    - Updates collection statistics
+    
+    Args:
+        band_name: The name of the band        
+        analysis: Analysis data dictionary containing review, rating, albums analysis, and similar bands 
         
-    except Exception as e:
-        logger.error(f"Error in save_band_analyze tool: {str(e)}")
-        return {
-            'status': 'error',
-            'error': f"Tool execution failed: {str(e)}",
-            'tool_info': {
-                'tool_name': 'save_band_analyze',
-                'version': '1.0.0'
+    Returns:
+        Dict containing comprehensive operation status with validation results, 
+        file operations, collection sync, and analysis summary
+    
+    ANALYSIS SCHEMA:
+    ================
+    The analysis parameter must be a dictionary with the following structure:
+    
+    REQUIRED FIELDS:
+    ================
+    - review (string): Overall band review text
+    - rate (integer): Overall band rating from 1-10 (0 = unrated)
+    
+    OPTIONAL FIELDS FOR EACH ALBUM:
+    ================
+    - albums (array): Per-album analysis objects with:
+        - album_name (string, REQUIRED): Name of the album (used for filtering missing albums)
+        - review (string): Album review text
+        - rate (integer): Album rating 1-10 (0 = unrated)
+    - similar_bands (array of strings): Names of similar/related bands
+    
+    MISSING ALBUMS FILTERING:
+    =========================
+    - Analysis is always saved for all albums, including both local and missing albums
+    
+    RATING VALIDATION:
+    ==================
+    - All ratings must be integers between 0-10
+    - 0 means unrated/no rating given
+    - 1-10 represents actual ratings (1=lowest, 10=highest)
+    
+    EXAMPLE ANALYSIS:
+    =================
+    {
+        "review": "Legendary progressive rock band known for conceptual albums...",
+        "rate": 9,
+        "albums": [
+            {
+                "album_name": "The Dark Side of the Moon",  // REQUIRED
+                "review": "Masterpiece of progressive rock with innovative sound design...",
+                "rate": 10
+            },
+            {
+                "album_name": "The Wall",  // REQUIRED
+                "review": "Epic rock opera exploring themes of isolation...",
+                "rate": 9
             }
-        } 
+        ],
+        "similar_bands": ["King Crimson", "Genesis", "Yes", "Led Zeppelin"]
+    }
+    """
+    return _handler.execute(band_name=band_name, analysis=analysis) 

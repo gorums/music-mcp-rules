@@ -9,12 +9,28 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.resources.advanced_analytics import get_advanced_analytics_markdown
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class AdvancedAnalyticsResourceHandler(BaseResourceHandler):
+    """Handler for the advanced_analytics resource."""
+    
+    def __init__(self):
+        super().__init__("advanced_analytics", "1.0.0")
+    
+    def _get_resource_content(self, **kwargs) -> str:
+        """Get advanced analytics in markdown format."""
+        return get_advanced_analytics_markdown()
+
+
+# Create handler instance
+_handler = AdvancedAnalyticsResourceHandler()
 
 @mcp.resource("collection://analytics")
 def advanced_analytics_resource() -> str:
@@ -57,8 +73,4 @@ def advanced_analytics_resource() -> str:
         - Pattern recognition and insights
         - Organization health analysis
     """
-    try:
-        return get_advanced_analytics_markdown()
-    except Exception as e:
-        logger.error(f"Error in advanced_analytics resource: {str(e)}")
-        return f"# Error Retrieving Advanced Analytics\n\n**Error:** {str(e)}\n\nPlease ensure your music collection has been scanned and analyzed. Advanced analytics require collection data and may need collection insights to be generated first." 
+    return _handler.get_content() 

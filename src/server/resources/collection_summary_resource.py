@@ -9,12 +9,28 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.resources.collection_summary import get_collection_summary
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class CollectionSummaryResourceHandler(BaseResourceHandler):
+    """Handler for the collection_summary resource."""
+    
+    def __init__(self):
+        super().__init__("collection_summary", "1.0.0")
+    
+    def _get_resource_content(self, **kwargs) -> str:
+        """Get collection summary in markdown format."""
+        return get_collection_summary()
+
+
+# Create handler instance
+_handler = CollectionSummaryResourceHandler()
 
 @mcp.resource("collection://summary")
 def collection_summary_resource() -> str:
@@ -54,8 +70,4 @@ def collection_summary_resource() -> str:
         - Collection maturity indicators
         - Actionable recommendations
     """
-    try:
-        return get_collection_summary()
-    except Exception as e:
-        logger.error(f"Error in collection_summary resource: {str(e)}")
-        return f"# Error Retrieving Collection Summary\n\n**Error:** {str(e)}\n\nPlease ensure your music collection has been scanned and that the collection index is accessible." 
+    return _handler.get_content() 

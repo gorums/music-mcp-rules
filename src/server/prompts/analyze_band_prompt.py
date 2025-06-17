@@ -9,12 +9,33 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
 from src.prompts.analyze_band import get_analyze_band_prompt
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class AnalyzeBandPromptHandler(BasePromptHandler):
+    """Handler for the analyze_band prompt."""
+    
+    def __init__(self):
+        super().__init__("analyze_band", "1.0.0")
+    
+    def _generate_prompt(self, **kwargs) -> Dict[str, Any]:
+        """Generate the analyze band prompt template."""
+        band_name = kwargs.get('band_name', '')
+        albums = kwargs.get('albums')
+        analyze_missing_albums = kwargs.get('analyze_missing_albums', False)
+        analysis_scope = kwargs.get('analysis_scope', 'full')
+        
+        return get_analyze_band_prompt(band_name, albums, analyze_missing_albums, analysis_scope)
+
+
+# Create handler instance
+_handler = AnalyzeBandPromptHandler()
 
 @mcp.prompt()
 def analyze_band_prompt(
@@ -53,13 +74,9 @@ def analyze_band_prompt(
         compatible with the BandAnalysis schema, including 1-10 rating scale
         and similar bands identification with collection presence detection.
     """
-    try:
-        return get_analyze_band_prompt(band_name, albums, analyze_missing_albums, analysis_scope)
-    except Exception as e:
-        logger.error(f"Error in analyze_band prompt: {str(e)}")
-        return {
-            'name': 'analyze_band',
-            'description': 'Error loading prompt template', 
-            'messages': [{'role': 'user', 'content': f'Error: {str(e)}'}],
-            'arguments': []
-        } 
+    return _handler.generate(
+        band_name=band_name,
+        albums=albums,
+        analyze_missing_albums=analyze_missing_albums,
+        analysis_scope=analysis_scope
+    ) 

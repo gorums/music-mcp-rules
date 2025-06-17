@@ -9,12 +9,50 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.resources.band_info import get_band_info_markdown
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class BandInfoResourceHandler(BaseResourceHandler):
+    """Handler for the band_info resource."""
+    
+    def __init__(self):
+        super().__init__("band_info", "1.0.0")
+    
+    def _get_resource_content(self, **kwargs) -> str:
+        """Get band information in markdown format."""
+        band_name = kwargs.get('band_name')
+        if not band_name:
+            raise ValueError("Band name is required")
+        
+        return get_band_info_markdown(band_name)
+    
+    def _format_error_content(self, error_message: str, **kwargs) -> str:
+        """Format error message for band info resource."""
+        band_name = kwargs.get('band_name', 'Unknown')
+        return f"""# Error Retrieving Band Information
+
+**Band:** {band_name}
+**Error:** {error_message}
+
+Please check that the band name is correct and that the band has been scanned into your collection.
+
+**Suggestions:**
+- Run the `scan_music_folders` tool to discover new bands
+- Check the spelling of the band name
+- Use the `get_band_list` tool to see available bands
+
+**Timestamp:** {self._get_timestamp()}
+"""
+
+
+# Create handler instance
+_handler = BandInfoResourceHandler()
 
 @mcp.resource("band://info/{band_name}")
 def band_info_resource(band_name: str) -> str:
@@ -51,8 +89,4 @@ def band_info_resource(band_name: str) -> str:
         - band://info/The Beatles
         - band://info/Iron Maiden
     """
-    try:
-        return get_band_info_markdown(band_name)
-    except Exception as e:
-        logger.error(f"Error in band_info resource for '{band_name}': {str(e)}")
-        return f"# Error Retrieving Band Information\n\n**Band:** {band_name}\n\n**Error:** {str(e)}\n\nPlease check that the band name is correct and that the band has been scanned into your collection." 
+    return _handler.get_content(band_name=band_name) 

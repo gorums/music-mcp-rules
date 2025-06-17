@@ -9,12 +9,83 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler, validate_pagination_params, validate_sort_params
 
 # Import tool implementation - using absolute imports
 from src.tools.storage import get_band_list
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class GetBandListHandler(BaseToolHandler):
+    """Handler for the get_band_list tool."""
+    
+    def __init__(self):
+        super().__init__("get_band_list", "1.1.0")
+    
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the get band list tool logic."""
+        # Extract parameters with defaults
+        search_query = kwargs.get('search_query')
+        filter_genre = kwargs.get('filter_genre')
+        filter_has_metadata = kwargs.get('filter_has_metadata')
+        filter_missing_albums = kwargs.get('filter_missing_albums')
+        sort_by = kwargs.get('sort_by', 'name')
+        sort_order = kwargs.get('sort_order', 'asc')
+        page = kwargs.get('page', 1)
+        page_size = kwargs.get('page_size', 50)
+        include_albums = kwargs.get('include_albums', False)
+        album_details_filter = kwargs.get('album_details_filter')
+        
+        # Validate pagination parameters
+        pagination_error = validate_pagination_params(page, page_size)
+        if pagination_error:
+            raise ValueError(pagination_error)
+        
+        # Validate sort parameters
+        allowed_sort_fields = ['name', 'albums_count', 'last_updated', 'completion']
+        sort_error = validate_sort_params(sort_by, sort_order, allowed_sort_fields)
+        if sort_error:
+            raise ValueError(sort_error)
+        
+        # Call the storage function
+        result = get_band_list(
+            search_query=search_query,
+            filter_genre=filter_genre,
+            filter_has_metadata=filter_has_metadata,
+            filter_missing_albums=filter_missing_albums,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            page_size=page_size,
+            include_albums=include_albums,
+            album_details_filter=album_details_filter
+        )
+        
+        # Add tool-specific metadata
+        if result.get('status') == 'success':
+            result['tool_info'] = self._create_tool_info(
+                parameters_used={
+                    'search_query': search_query,
+                    'filter_genre': filter_genre,
+                    'filter_has_metadata': filter_has_metadata,
+                    'filter_missing_albums': filter_missing_albums,
+                    'sort_by': sort_by,
+                    'sort_order': sort_order,
+                    'page': page,
+                    'page_size': page_size,
+                    'include_albums': include_albums,
+                    'album_details_filter': album_details_filter
+                }
+            )
+            result['album_details_filter'] = album_details_filter
+        
+        return result
+
+
+# Create handler instance
+_handler = GetBandListHandler()
 
 @mcp.tool()
 def get_band_list_tool(
@@ -63,48 +134,15 @@ def get_band_list_tool(
         - sort: Information about the applied sorting
         - album_details_filter: Album details filter applied
     """
-    try:
-        result = get_band_list(
-            search_query=search_query,
-            filter_genre=filter_genre,
-            filter_has_metadata=filter_has_metadata,
-            filter_missing_albums=filter_missing_albums,
-            sort_by=sort_by,
-            sort_order=sort_order,
-            page=page,
-            page_size=page_size,
-            include_albums=include_albums,
-            album_details_filter=album_details_filter
-        )
-        
-        # Add tool-specific metadata
-        if result.get('status') == 'success':
-            result['tool_info'] = {
-                'tool_name': 'get_band_list',
-                'version': '1.1.0',
-                'parameters_used': {
-                    'search_query': search_query,
-                    'filter_genre': filter_genre,
-                    'filter_has_metadata': filter_has_metadata,
-                    'filter_missing_albums': filter_missing_albums,
-                    'sort_by': sort_by,
-                    'sort_order': sort_order,
-                    'page': page,
-                    'page_size': page_size,
-                    'include_albums': include_albums,
-                    'album_details_filter': album_details_filter
-                }
-            }
-            result['album_details_filter'] = album_details_filter
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error in get_band_list tool: {str(e)}")
-        return {
-            'status': 'error',
-            'error': f"Tool execution failed: {str(e)}",
-            'tool_info': {
-                'tool_name': 'get_band_list',
-                'version': '1.1.0'
-            }
-        } 
+    return _handler.execute(
+        search_query=search_query,
+        filter_genre=filter_genre,
+        filter_has_metadata=filter_has_metadata,
+        filter_missing_albums=filter_missing_albums,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
+        include_albums=include_albums,
+        album_details_filter=album_details_filter
+    ) 

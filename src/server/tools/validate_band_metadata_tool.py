@@ -9,36 +9,29 @@ import logging
 from typing import Any, Dict
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-@mcp.tool()
-def validate_band_metadata_tool(
-    band_name: str,
-    metadata: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Validate band metadata structure without saving it.
+
+class ValidateBandMetadataHandler(BaseToolHandler):
+    """Handler for the validate_band_metadata tool."""
     
-    This tool performs dry-run validation to help clients test their metadata format:
-    - Validates metadata against the BandMetadata schema
-    - Returns detailed validation results and errors
-    - Does NOT save any data or modify files
-    - Useful for testing metadata structure before calling save_band_metadata_tool
+    def __init__(self):
+        super().__init__("validate_band_metadata", "1.0.0")
     
-    Args:
-        band_name: The name of the band
-        metadata: Metadata dictionary to validate (same format as save_band_metadata_tool)
-    
-    Returns:
-        Dict containing validation results:
-        - status: 'valid' or 'invalid'
-        - validation_results: Detailed schema validation information
-        - suggestions: Helpful suggestions to fix validation errors
-        - example_corrections: Examples of how to fix common errors
-    """
-    try:
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the validate band metadata tool logic."""
+        band_name = kwargs.get('band_name')
+        metadata = kwargs.get('metadata')
+        
+        # Validate required parameters
+        if not band_name:
+            raise ValueError("band_name is required")
+        if not metadata:
+            raise ValueError("metadata is required")
+        
         # Import required models
         from src.models.band import BandMetadata
         
@@ -163,22 +156,36 @@ def validate_band_metadata_tool(
             "suggestions": suggestions,
             "example_corrections": example_corrections,
             "schema_resource": "Use resource 'schema://band_metadata' for complete documentation",
-            "tool_info": {
-                "tool_name": "validate_band_metadata",
-                "version": "1.0.0",
-                "dry_run": True
-            }
+            "tool_info": self._create_tool_info(dry_run=True)
         }
-        
-    except Exception as e:
-        return {
-            "status": "error",
-            "error": f"Validation tool failed: {str(e)}",
-            "suggestions": ["Check that metadata is a valid JSON object"],
-            "schema_resource": "Use resource 'schema://band_metadata' for complete documentation",
-            "tool_info": {
-                "tool_name": "validate_band_metadata",
-                "version": "1.0.0",
-                "dry_run": True
-            }
-        } 
+
+
+# Create handler instance
+_handler = ValidateBandMetadataHandler()
+
+@mcp.tool()
+def validate_band_metadata_tool(
+    band_name: str,
+    metadata: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Validate band metadata structure without saving it.
+    
+    This tool performs dry-run validation to help clients test their metadata format:
+    - Validates metadata against the BandMetadata schema
+    - Returns detailed validation results and errors
+    - Does NOT save any data or modify files
+    - Useful for testing metadata structure before calling save_band_metadata_tool
+    
+    Args:
+        band_name: The name of the band
+        metadata: Metadata dictionary to validate (same format as save_band_metadata_tool)
+    
+    Returns:
+        Dict containing validation results:
+        - status: 'valid' or 'invalid'
+        - validation_results: Detailed schema validation information
+        - suggestions: Helpful suggestions to fix validation errors
+        - example_corrections: Examples of how to fix common errors
+    """
+    return _handler.execute(band_name=band_name, metadata=metadata) 

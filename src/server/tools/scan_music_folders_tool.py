@@ -9,12 +9,39 @@ import logging
 from typing import Any, Dict
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
 from src.tools.scanner import scan_music_folders as scanner_scan_music_folders
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class ScanMusicFoldersHandler(BaseToolHandler):
+    """Handler for the scan_music_folders tool."""
+    
+    def __init__(self):
+        super().__init__("scan_music_folders", "3.0.0")
+    
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the scan music folders tool logic."""
+        # Call the scanner to perform comprehensive change detection
+        # Reason: Always perform full scan to detect all types of changes
+        result = scanner_scan_music_folders()
+        
+        # Add tool-specific metadata
+        if result.get('status') == 'success':
+            result['tool_info'] = self._create_tool_info(
+                scan_mode='comprehensive_change_detection',
+                change_detection='enabled'
+            )
+        
+        return result
+
+
+# Create handler instance
+_handler = ScanMusicFoldersHandler()
 
 @mcp.tool()
 def scan_music_folders() -> Dict[str, Any]:
@@ -39,29 +66,4 @@ def scan_music_folders() -> Dict[str, Any]:
         - bands_removed: Number of bands no longer found
         - albums_changed: Number of bands with album structure changes
     """
-    try:
-        # Call the scanner to perform comprehensive change detection
-        # Reason: Always perform full scan to detect all types of changes
-        result = scanner_scan_music_folders()
-            
-        # Add tool-specific metadata
-        if result.get('status') == 'success':
-            result['tool_info'] = {
-                'tool_name': 'scan_music_folders',
-                'version': '3.0.0',  # Updated version for always-scan behavior
-                'scan_mode': 'comprehensive_change_detection',
-                'change_detection': 'enabled'
-            }
-            
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error in scan_music_folders tool: {str(e)}")
-        return {
-            'status': 'error',
-            'error': f"Tool execution failed: {str(e)}",
-            'tool_info': {
-                'tool_name': 'scan_music_folders',
-                'version': '3.0.0'
-            }
-        } 
+    return _handler.execute() 

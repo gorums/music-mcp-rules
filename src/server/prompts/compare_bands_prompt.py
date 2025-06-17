@@ -9,12 +9,32 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
 from src.prompts.compare_bands import get_compare_bands_prompt
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class CompareBandsPromptHandler(BasePromptHandler):
+    """Handler for the compare_bands prompt."""
+    
+    def __init__(self):
+        super().__init__("compare_bands", "1.0.0")
+    
+    def _generate_prompt(self, **kwargs) -> Dict[str, Any]:
+        """Generate the compare bands prompt template."""
+        band_names = kwargs.get('band_names')
+        comparison_aspects = kwargs.get('comparison_aspects')
+        comparison_scope = kwargs.get('comparison_scope', 'full')
+        
+        return get_compare_bands_prompt(band_names, comparison_aspects, comparison_scope)
+
+
+# Create handler instance
+_handler = CompareBandsPromptHandler()
 
 @mcp.prompt()
 def compare_bands_prompt(
@@ -59,13 +79,8 @@ def compare_bands_prompt(
         The prompt generates instructions for creating comparison data in JSON format
         with rankings, assessments, and detailed analysis for each comparison dimension.
     """
-    try:
-        return get_compare_bands_prompt(band_names, comparison_aspects, comparison_scope)
-    except Exception as e:
-        logger.error(f"Error in compare_bands prompt: {str(e)}")
-        return {
-            'name': 'compare_bands',
-            'description': 'Error loading prompt template',
-            'messages': [{'role': 'user', 'content': f'Error: {str(e)}'}],
-            'arguments': []
-        } 
+    return _handler.generate(
+        band_names=band_names,
+        comparison_aspects=comparison_aspects,
+        comparison_scope=comparison_scope
+    ) 

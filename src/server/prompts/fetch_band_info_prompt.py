@@ -9,12 +9,36 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
 from src.prompts.fetch_band_info import get_fetch_band_info_prompt
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class FetchBandInfoPromptHandler(BasePromptHandler):
+    """Handler for the fetch_band_info prompt."""
+    
+    def __init__(self):
+        super().__init__("fetch_band_info", "1.0.0")
+    
+    def _generate_prompt(self, **kwargs) -> Dict[str, Any]:
+        """Generate the fetch band info prompt template."""
+        band_name = kwargs.get('band_name')
+        existing_albums = kwargs.get('existing_albums')
+        information_scope = kwargs.get('information_scope', 'full')
+        
+        # Validate required parameters
+        if not band_name:
+            raise ValueError("band_name is required")
+        
+        return get_fetch_band_info_prompt(band_name, existing_albums, information_scope)
+
+
+# Create handler instance
+_handler = FetchBandInfoPromptHandler()
 
 @mcp.prompt()
 def fetch_band_info_prompt(
@@ -51,13 +75,8 @@ def fetch_band_info_prompt(
         compatible with the enhanced metadata schema, including album type detection
         and missing album identification.
     """
-    try:
-        return get_fetch_band_info_prompt(band_name, existing_albums, information_scope)
-    except Exception as e:
-        logger.error(f"Error in fetch_band_info prompt: {str(e)}")
-        return {
-            'name': 'fetch_band_info',
-            'description': 'Error loading prompt template',
-            'messages': [{'role': 'user', 'content': f'Error: {str(e)}'}],
-            'arguments': []
-        } 
+    return _handler.generate(
+        band_name=band_name,
+        existing_albums=existing_albums,
+        information_scope=information_scope
+    ) 

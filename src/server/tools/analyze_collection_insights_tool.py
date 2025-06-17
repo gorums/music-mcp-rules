@@ -9,12 +9,110 @@ import logging
 from typing import Any, Dict
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler
 
 # Import required modules and functions
 from src.tools.storage import load_collection_index, load_band_metadata
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class AnalyzeCollectionInsightsHandler(BaseToolHandler):
+    """Handler for the analyze_collection_insights tool."""
+    
+    def __init__(self):
+        super().__init__("analyze_collection_insights", "1.0.0")
+    
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the analyze collection insights tool logic."""
+        from src.models.analytics import CollectionAnalyzer
+        
+        # Load collection index and band metadata
+        collection_index = load_collection_index()
+        if not collection_index:
+            raise ValueError("Collection index not found. Please run scan_music_folders first.")
+        
+        band_metadata = {}
+        
+        # Load metadata for all bands
+        for band_entry in collection_index.bands:
+            try:
+                metadata = load_band_metadata(band_entry.name)
+                if metadata:
+                    band_metadata[band_entry.name] = metadata
+            except Exception as e:
+                logger.warning(f"Could not load metadata for band {band_entry.name}: {str(e)}")
+        
+        if not band_metadata:
+            raise ValueError('No band metadata available for analysis. Try scanning your collection first.')
+        
+        # Perform comprehensive analysis
+        insights = CollectionAnalyzer.analyze_collection(collection_index, band_metadata)
+        
+        # Create summary sections for easy consumption
+        health_summary = {
+            'overall_health': insights.health_metrics.get_health_level(),
+            'overall_score': insights.health_metrics.overall_score,
+            'key_strengths': insights.health_metrics.strengths[:3],
+            'main_weaknesses': insights.health_metrics.weaknesses[:3],
+            'top_recommendations': insights.health_metrics.recommendations[:5]
+        }
+        
+        type_analysis_summary = {
+            'dominant_types': insights.type_analysis.dominant_types,
+            'missing_types': insights.type_analysis.missing_types,
+            'diversity_score': insights.type_analysis.type_diversity_score,
+            'album_to_ep_ratio': insights.type_analysis.album_to_ep_ratio,
+            'live_percentage': insights.type_analysis.live_percentage,
+            'demo_percentage': insights.type_analysis.demo_percentage
+        }
+        
+        recommendations_summary = {
+            'type_recommendations_count': len(insights.type_recommendations),
+            'high_priority_type_recs': [
+                rec.model_dump() for rec in insights.type_recommendations 
+                if rec.priority == "High"
+            ][:5],
+            'edition_upgrades_count': len(insights.edition_upgrades),
+            'organization_recommendations': insights.organization_recommendations[:5]
+        }
+        
+        # Convert insights to serializable format
+        insights_dict = insights.model_dump()
+        
+        return {
+            'status': 'success',
+            'insights': insights_dict,
+            'collection_maturity': insights.collection_maturity.value,
+            'health_summary': health_summary,
+            'type_analysis_summary': type_analysis_summary,
+            'recommendations_summary': recommendations_summary,
+            'analytics_metadata': {
+                'total_bands_analyzed': len(band_metadata),
+                'total_albums_analyzed': sum(
+                    len(metadata.albums) + len(metadata.albums_missing) 
+                    for metadata in band_metadata.values()
+                ),
+                'analysis_timestamp': insights.generated_at,
+                'collection_scan_date': collection_index.last_scan
+            },
+            'tool_info': self._create_tool_info(
+                analysis_features=[
+                    'type_distribution_analysis',
+                    'health_metrics_scoring',
+                    'maturity_assessment',
+                    'recommendation_generation',
+                    'value_scoring',
+                    'discovery_potential',
+                    'organization_analysis'
+                ]
+            )
+        }
+
+
+# Create handler instance
+_handler = AnalyzeCollectionInsightsHandler()
 
 @mcp.tool()
 def analyze_collection_insights_tool() -> Dict[str, Any]:
@@ -100,100 +198,4 @@ def analyze_collection_insights_tool() -> Dict[str, Any]:
         - recommendations_summary: Top recommendations by category with counts
         - analytics_metadata: Analysis details (bands analyzed, timestamp, etc.)
     """
-    try:
-        from src.models.analytics import CollectionAnalyzer
-        
-        # Load collection index and band metadata
-        collection_index = load_collection_index()
-        band_metadata = {}
-        
-        # Load metadata for all bands
-        for band_entry in collection_index.bands:
-            try:
-                metadata = load_band_metadata(band_entry.name)
-                if metadata:
-                    band_metadata[band_entry.name] = metadata
-            except Exception as e:
-                logger.warning(f"Could not load metadata for band {band_entry.name}: {str(e)}")
-        
-        if not band_metadata:
-            return {
-                'status': 'error',
-                'error': 'No band metadata available for analysis. Try scanning your collection first.'
-            }
-        
-        # Perform comprehensive analysis
-        insights = CollectionAnalyzer.analyze_collection(collection_index, band_metadata)
-        
-        # Create summary sections for easy consumption
-        health_summary = {
-            'overall_health': insights.health_metrics.get_health_level(),
-            'overall_score': insights.health_metrics.overall_score,
-            'key_strengths': insights.health_metrics.strengths[:3],
-            'main_weaknesses': insights.health_metrics.weaknesses[:3],
-            'top_recommendations': insights.health_metrics.recommendations[:5]
-        }
-        
-        type_analysis_summary = {
-            'dominant_types': insights.type_analysis.dominant_types,
-            'missing_types': insights.type_analysis.missing_types,
-            'diversity_score': insights.type_analysis.type_diversity_score,
-            'album_to_ep_ratio': insights.type_analysis.album_to_ep_ratio,
-            'live_percentage': insights.type_analysis.live_percentage,
-            'demo_percentage': insights.type_analysis.demo_percentage
-        }
-        
-        recommendations_summary = {
-            'type_recommendations_count': len(insights.type_recommendations),
-            'high_priority_type_recs': [
-                rec.model_dump() for rec in insights.type_recommendations 
-                if rec.priority == "High"
-            ][:5],
-            'edition_upgrades_count': len(insights.edition_upgrades),
-            'organization_recommendations': insights.organization_recommendations[:5]
-        }
-        
-        # Convert insights to serializable format
-        insights_dict = insights.model_dump()
-        
-        return {
-            'status': 'success',
-            'insights': insights_dict,
-            'collection_maturity': insights.collection_maturity.value,
-            'health_summary': health_summary,
-            'type_analysis_summary': type_analysis_summary,
-            'recommendations_summary': recommendations_summary,
-            'analytics_metadata': {
-                'total_bands_analyzed': len(band_metadata),
-                'total_albums_analyzed': sum(
-                    len(metadata.albums) + len(metadata.albums_missing) 
-                    for metadata in band_metadata.values()
-                ),
-                'analysis_timestamp': insights.generated_at,
-                'collection_scan_date': collection_index.last_scan
-            },
-            'tool_info': {
-                'tool_name': 'analyze_collection_insights',
-                'version': '1.0.0',
-                'analysis_features': [
-                    'type_distribution_analysis',
-                    'health_metrics_scoring',
-                    'maturity_assessment',
-                    'recommendation_generation',
-                    'value_scoring',
-                    'discovery_potential',
-                    'organization_analysis'
-                ]
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in analyze_collection_insights tool: {str(e)}")
-        return {
-            'status': 'error',
-            'error': f"Collection analysis failed: {str(e)}",
-            'tool_info': {
-                'tool_name': 'analyze_collection_insights',
-                'version': '1.0.0'
-            }
-        } 
+    return _handler.execute() 

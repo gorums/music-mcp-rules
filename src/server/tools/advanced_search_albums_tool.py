@@ -9,12 +9,138 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from ..core import mcp
+from ..base_handlers import BaseToolHandler
 
 # Import required modules and functions
 from src.tools.storage import load_collection_index, load_band_metadata
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class AdvancedSearchAlbumsHandler(BaseToolHandler):
+    """Handler for the advanced_search_albums tool."""
+    
+    def __init__(self):
+        super().__init__("advanced_search_albums", "1.0.0")
+    
+    def _execute_tool(self, **kwargs) -> Dict[str, Any]:
+        """Execute the advanced search albums tool logic."""
+        # Extract all the search parameters
+        album_types = kwargs.get('album_types')
+        year_min = kwargs.get('year_min')
+        year_max = kwargs.get('year_max')
+        decades = kwargs.get('decades')
+        editions = kwargs.get('editions')
+        genres = kwargs.get('genres')
+        bands = kwargs.get('bands')
+        has_rating = kwargs.get('has_rating')
+        min_rating = kwargs.get('min_rating')
+        max_rating = kwargs.get('max_rating')
+        is_local = kwargs.get('is_local')
+        track_count_min = kwargs.get('track_count_min')
+        track_count_max = kwargs.get('track_count_max')
+        
+        from src.models.analytics import AdvancedSearchEngine, AlbumSearchFilters
+        from src.models.band import AlbumType
+        
+        # Parse comma-separated strings into lists
+        def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
+            if not value:
+                return None
+            return [item.strip() for item in value.split(',') if item.strip()]
+        
+        # Convert comma-separated strings to lists
+        album_types_list = parse_comma_separated(album_types)
+        decades_list = parse_comma_separated(decades)
+        editions_list = parse_comma_separated(editions)
+        genres_list = parse_comma_separated(genres)
+        bands_list = parse_comma_separated(bands)
+        
+        # Convert string album types to AlbumType enums
+        album_type_enums = None
+        if album_types_list:
+            try:
+                album_type_enums = [AlbumType(album_type) for album_type in album_types_list]
+            except ValueError as e:
+                raise ValueError(f"Invalid album type: {str(e)}. Valid types are: {[t.value for t in AlbumType]}")
+        
+        # Validate year ranges
+        if year_min is not None:
+            if not isinstance(year_min, int) or year_min < 1950 or year_min > 2030:
+                raise ValueError("year_min must be an integer between 1950 and 2030")
+        if year_max is not None:
+            if not isinstance(year_max, int) or year_max < 1950 or year_max > 2030:
+                raise ValueError("year_max must be an integer between 1950 and 2030")
+        if year_min is not None and year_max is not None and year_min > year_max:
+            raise ValueError("year_min cannot be greater than year_max")
+        
+        # Validate rating ranges
+        if min_rating is not None:
+            if not isinstance(min_rating, int) or min_rating < 1 or min_rating > 10:
+                raise ValueError("min_rating must be an integer between 1 and 10")
+        if max_rating is not None:
+            if not isinstance(max_rating, int) or max_rating < 1 or max_rating > 10:
+                raise ValueError("max_rating must be an integer between 1 and 10")
+        if min_rating is not None and max_rating is not None and min_rating > max_rating:
+            raise ValueError("min_rating cannot be greater than max_rating")
+        
+        # Validate track count ranges
+        if track_count_min is not None:
+            if not isinstance(track_count_min, int) or track_count_min < 0:
+                raise ValueError("track_count_min must be a non-negative integer")
+        if track_count_max is not None:
+            if not isinstance(track_count_max, int) or track_count_max < 0:
+                raise ValueError("track_count_max must be a non-negative integer")
+        if track_count_min is not None and track_count_max is not None and track_count_min > track_count_max:
+            raise ValueError("track_count_min cannot be greater than track_count_max")
+        
+        # Create search filters
+        search_filters = AlbumSearchFilters(
+            album_types=album_type_enums,
+            year_min=year_min,
+            year_max=year_max,
+            decades=decades_list,
+            editions=editions_list,
+            genres=genres_list,
+            bands=bands_list,
+            has_rating=has_rating,
+            min_rating=min_rating,
+            max_rating=max_rating,
+            is_local=is_local,
+            track_count_min=track_count_min,
+            track_count_max=track_count_max
+        )
+        
+        # Load collection data
+        collection_index = load_collection_index()
+        if not collection_index:
+            raise ValueError("Collection index not found. Please run scan_music_folders first.")
+        
+        # Initialize search engine and perform search
+        search_engine = AdvancedSearchEngine(collection_index, load_band_metadata)
+        search_results = search_engine.search_albums(search_filters)
+        
+        # Count total matching albums
+        total_matching_albums = sum(len(albums) for albums in search_results.results.values())
+        
+        # Build comprehensive response
+        return {
+            'status': 'success',
+            'message': f"Found {total_matching_albums} albums across {search_results.total_matching_bands} bands",
+            'results': search_results.results,
+            'filters_applied': search_results.filters_applied,
+            'total_matching_albums': total_matching_albums,
+            'total_matching_bands': search_results.total_matching_bands,
+            'search_statistics': search_results.search_statistics,
+            'tool_info': self._create_tool_info(
+                parameters_used={k: v for k, v in kwargs.items() if v is not None}
+            )
+        }
+
+
+# Create handler instance
+_handler = AdvancedSearchAlbumsHandler()
 
 @mcp.tool()
 def advanced_search_albums_tool(
@@ -172,131 +298,18 @@ def advanced_search_albums_tool(
         - search_statistics: Detailed statistics about search performance and results
         - tool_info: Metadata about the tool execution
     """
-    try:
-        from src.models.analytics import AdvancedSearchEngine, AlbumSearchFilters
-        from src.models.band import AlbumType
-        
-        # Parse comma-separated strings into lists
-        def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
-            if not value:
-                return None
-            return [item.strip() for item in value.split(',') if item.strip()]
-        
-        # Convert comma-separated strings to lists
-        album_types_list = parse_comma_separated(album_types)
-        decades_list = parse_comma_separated(decades)
-        editions_list = parse_comma_separated(editions)
-        genres_list = parse_comma_separated(genres)
-        bands_list = parse_comma_separated(bands)
-        
-        # Convert string album types to AlbumType enums
-        album_type_enums = None
-        if album_types_list:
-            try:
-                album_type_enums = [AlbumType(album_type) for album_type in album_types_list]
-            except ValueError as e:
-                return {
-                    'status': 'error',
-                    'error': f"Invalid album type: {str(e)}. Valid types are: {[t.value for t in AlbumType]}"
-                }
-        
-        # Create search filters
-        filters = AlbumSearchFilters(
-            album_types=album_type_enums,
-            year_min=year_min,
-            year_max=year_max,
-            decades=decades_list,
-            editions=editions_list,
-            genres=genres_list,
-            bands=bands_list,
-            has_rating=has_rating,
-            min_rating=min_rating,
-            max_rating=max_rating,
-            is_local=is_local,
-            track_count_min=track_count_min,
-            track_count_max=track_count_max
-        )
-        
-        # Load all band metadata for searching
-        collection_index = load_collection_index()
-        band_metadata = {}
-        
-        for band_entry in collection_index.bands:
-            try:
-                metadata = load_band_metadata(band_entry.name)
-                if metadata:
-                    band_metadata[band_entry.name] = metadata
-            except Exception as e:
-                logger.warning(f"Could not load metadata for band {band_entry.name}: {str(e)}")
-        
-        # Perform search
-        search_results = AdvancedSearchEngine.search_albums(band_metadata, filters)
-        
-        # Calculate statistics
-        total_matching_albums = sum(len(albums) for albums in search_results.values())
-        total_matching_bands = len(search_results)
-        
-        # Generate search statistics
-        search_statistics = {
-            'total_albums_searched': sum(
-                len(metadata.albums) + len(metadata.albums_missing) 
-                for metadata in band_metadata.values()
-            ),
-            'total_bands_searched': len(band_metadata),
-            'match_rate': round((total_matching_albums / max(sum(len(metadata.albums) + len(metadata.albums_missing) for metadata in band_metadata.values()), 1)) * 100, 2),
-            'bands_with_matches': total_matching_bands,
-            'albums_per_band': round(total_matching_albums / max(total_matching_bands, 1), 2) if total_matching_bands > 0 else 0
-        }
-        
-        # Summarize filters applied
-        filters_applied = {}
-        if album_types:
-            filters_applied['album_types'] = album_types
-        if year_min or year_max:
-            filters_applied['year_range'] = f"{year_min or 'any'} - {year_max or 'any'}"
-        if decades:
-            filters_applied['decades'] = decades
-        if editions:
-            filters_applied['editions'] = editions
-        if genres:
-            filters_applied['genres'] = genres
-        if bands:
-            filters_applied['bands'] = bands
-        if has_rating is not None:
-            filters_applied['has_rating'] = has_rating
-        if min_rating or max_rating:
-            filters_applied['rating_range'] = f"{min_rating or 1} - {max_rating or 10}"
-        if is_local is not None:
-            filters_applied['album_status'] = 'local' if is_local else 'missing'
-        if track_count_min or track_count_max:
-            filters_applied['track_count_range'] = f"{track_count_min or 'any'} - {track_count_max or 'any'}"
-        
-        # Convert results to serializable format
-        serializable_results = {}
-        for band_name, albums in search_results.items():
-            serializable_results[band_name] = [album.model_dump() for album in albums]
-        
-        return {
-            'status': 'success',
-            'results': serializable_results,
-            'filters_applied': filters_applied,
-            'total_matching_albums': total_matching_albums,
-            'total_matching_bands': total_matching_bands,
-            'search_statistics': search_statistics,
-            'tool_info': {
-                'tool_name': 'advanced_search_albums',
-                'version': '1.0.0',
-                'search_timestamp': load_collection_index().last_scan
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in advanced_search_albums tool: {str(e)}")
-        return {
-            'status': 'error',
-            'error': f"Advanced search failed: {str(e)}",
-            'tool_info': {
-                'tool_name': 'advanced_search_albums',
-                'version': '1.0.0'
-            }
-        } 
+    return _handler.execute(
+        album_types=album_types,
+        year_min=year_min,
+        year_max=year_max,
+        decades=decades,
+        editions=editions,
+        genres=genres,
+        bands=bands,
+        has_rating=has_rating,
+        min_rating=min_rating,
+        max_rating=max_rating,
+        is_local=is_local,
+        track_count_min=track_count_min,
+        track_count_max=track_count_max
+    ) 

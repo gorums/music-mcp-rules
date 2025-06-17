@@ -397,8 +397,16 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
         # Calculate statistics
         filtered_albums_count = len(filtered_album_analysis)
         
+        # Determine if we're analyzing missing albums (default True since we include all albums by default now)
+        analyze_missing_albums = any(album_analysis.album_name in [album.album_name for album in metadata.albums_missing] for album_analysis in analysis.albums)
+        
         # Create appropriate message based on settings
-        message = f"Band analysis saved for {band_name} including all albums"
+        if analyze_missing_albums and len(metadata.albums_missing) > 0:
+            message = f"Band analysis saved for {band_name} including all albums"
+        else:
+            album_text = f"{filtered_albums_count} album reviews"
+            similar_bands_text = f"{filtered_analysis.total_similar_bands_count} similar bands"
+            message = f"Band analysis saved for {band_name} including {album_text} and {similar_bands_text}"
         
         return {
             "status": "success",
@@ -411,7 +419,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
             "similar_bands_in_collection": len(filtered_analysis.similar_bands),
             "similar_bands_missing": len(filtered_analysis.similar_bands_missing),
             "last_updated": metadata.last_updated,
-            "analyze_missing_albums": True
+            "analyze_missing_albums": analyze_missing_albums or len(metadata.albums_missing) > 0
         }
         
     except Exception as e:
