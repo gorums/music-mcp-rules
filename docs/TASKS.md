@@ -96,6 +96,7 @@
   - [x] Sync with collection index
   - [x] Return operation status with validation results
   - [x] **BUG FIX (2025-06-10)**: Fixed album preservation issue where existing albums were always replaced instead of only when albums key is missing from input metadata
+  - [x] **BUG FIX (2025-01-28)**: Fixed technical issue with save_band_metadata_tool where dict object was incorrectly treated as having BandMetadata attributes, causing "'dict' object has no attribute 'folder_structure'" errors. Added proper type checking and exception handling for metadata loading operations.
 - [x] **Tool 4**: `save_band_analyze` - COMPLETED (2025-01-28)
   - [x] Store analysis data including review and rating
   - [x] Handle album-specific reviews and ratings

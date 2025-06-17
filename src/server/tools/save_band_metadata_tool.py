@@ -11,8 +11,9 @@ from typing import Any, Dict
 from ..core import mcp
 
 # Import tool implementation - using absolute imports
-from src.tools.storage import save_band_metadata, load_band_metadata
+from src.tools.storage import save_band_metadata, load_band_metadata, load_collection_index, update_collection_index
 from src.models.band import BandMetadata
+from src.models.collection import BandIndexEntry
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -178,165 +179,175 @@ def save_band_metadata_tool(
     - If albums_missing array is not provided in metadata, existing missing albums are preserved
     - Providing arrays in metadata will replace the existing data for those arrays
     """
-    try:
-        # Validate input parameters
-        if not band_name or not isinstance(band_name, str):
-            return {
-                'status': 'error',
-                'error': 'Invalid band_name parameter: must be non-empty string',
-                'validation_results': {
-                    "schema_valid": False,
-                    "validation_errors": ["band_name is required and must be a string"],
-                    "fields_validated": [],
-                    "albums_count": 0,
-                    "missing_albums_count": 0
-                }
-            }
-            
-        if not metadata or not isinstance(metadata, dict):
-            return {
-                'status': 'error',
-                'error': 'Invalid metadata parameter: must be non-empty dictionary',
-                'validation_results': {
-                    "schema_valid": False,
-                    "validation_errors": ["metadata is required and must be a dictionary"],
-                    "fields_validated": [],
-                    "albums_count": 0,
-                    "missing_albums_count": 0
-                }
-            }
-
-        # Load existing metadata to preserve analyze and folder_structure data
-        local_metadata = load_band_metadata(band_name)
-        band_existed_before = local_metadata is not None
+    try:        
+        # Step 1: Data validation against enhanced schema
+        validation_results = {
+            "schema_valid": False,
+            "validation_errors": [],
+            "fields_validated": [],
+            "albums_count": 0,
+            "missing_albums_count": 0
+        }
         
-        # Convert old format to new format if needed
-        if 'albums' in metadata and isinstance(metadata['albums'], list):
-            albums_with_missing = metadata['albums']
-            if albums_with_missing and isinstance(albums_with_missing[0], dict) and 'missing' in albums_with_missing[0]:
-                # Old format - separate into albums and albums_missing
-                albums = [album for album in albums_with_missing if not album.get('missing', False)]
-                albums_missing = [album for album in albums_with_missing if album.get('missing', False)]
-                
-                # Remove missing field from albums
-                for album in albums:
-                    album.pop('missing', None)
-                for album in albums_missing:
-                    album.pop('missing', None)
-                    
-                metadata['albums'] = albums
-                metadata['albums_missing'] = albums_missing
-
-        # Preserve analyze data if it exists in local metadata
-        if local_metadata and hasattr(local_metadata, 'analyze') and local_metadata.analyze:
-            metadata['analyze'] = local_metadata.analyze.model_dump()
-            
-        # Preserve folder_structure data if it exists in local metadata
-        if local_metadata and hasattr(local_metadata, 'folder_structure') and local_metadata.folder_structure:
-            metadata['folder_structure'] = local_metadata.folder_structure.model_dump()
-            
-        # Only preserve albums if not provided in input
-        if 'albums' not in metadata:
-            if local_metadata:
-                metadata['albums'] = [album.model_dump() for album in local_metadata.albums]
-                
-        # Preserve albums_missing if not provided in input
-        if 'albums_missing' not in metadata:
-            if local_metadata:
-                metadata['albums_missing'] = [album.model_dump() for album in local_metadata.albums_missing]
-
-        # Convert dictionary to BandMetadata object with validation
         try:
-            # Ensure band_name is set correctly (remove from metadata if present to avoid duplicate)
-            metadata_copy = metadata.copy()
-            metadata_copy.pop('band_name', None)  # Remove if present to avoid duplicate
-            band_metadata = BandMetadata(band_name=band_name, **metadata_copy)
-        except Exception as validation_error:
+            # Ensure band_name is set correctly in metadata
+            metadata['band_name'] = band_name
+            
+            # Handle albums preservation logic
+            local_metadata = load_band_metadata(band_name)
+            if local_metadata is not None:
+                # If albums is not provided in metadata, preserve existing local albums
+                metadata['albums'] = [album.model_dump() for album in local_metadata.albums]
+                # If albums_missing is not provided in metadata, preserve existing
+                if 'albums_missing' not in metadata:
+                    metadata['albums_missing'] = [album.model_dump() for album in local_metadata.albums_missing]
+            else:
+                # New band: ensure both arrays exist
+                metadata['albums'] = metadata.get('albums', [])
+                metadata['albums_missing'] = metadata.get('albums_missing', [])
+            
+            # Create BandMetadata object for validation
+            band_metadata = BandMetadata(**metadata)
+            
+            # Ensure we have a proper BandMetadata object, not a dict
+            if not isinstance(band_metadata, BandMetadata):
+                raise ValueError(f"Failed to create BandMetadata object, got {type(band_metadata)}")
+            
+            # Update the metadata saved timestamp before saving
+            # Reason: Track when metadata was saved via this tool for has_metadata determination
+            band_metadata.update_metadata_saved_timestamp()
+            
+            validation_results["schema_valid"] = True
+            validation_results["fields_validated"] = list(metadata.keys())
+            validation_results["albums_count"] = len(band_metadata.albums) + len(band_metadata.albums_missing)
+            validation_results["missing_albums_count"] = len(band_metadata.albums_missing)
+            
+        except Exception as e:
+            validation_results["validation_errors"].append(f"Schema validation failed: {str(e)}")
             return {
                 'status': 'error',
-                'error': f'Metadata validation failed: {str(validation_error)}',
-                'validation_results': {
-                    "schema_valid": False,
-                    "validation_errors": [str(validation_error)],
-                    "fields_validated": ['band_name'] + list(metadata.keys()),
-                    "albums_count": 0,
-                    "missing_albums_count": 0
-                },
+                'error': f"Metadata validation failed: {str(e)}",
+                'validation_results': validation_results,
                 'tool_info': {
                     'tool_name': 'save_band_metadata',
-                    'version': '1.3.0'
+                    'version': '1.1.0'
                 }
             }
         
-        # Save the metadata
-        result = save_band_metadata(band_name, band_metadata)
+        # Step 2: Save metadata with backup mechanism (handled by storage layer)
+        # Reason: Always preserve existing analyze and folder_structure data
+        storage_result = save_band_metadata(band_name, band_metadata)
         
-        # Load the saved metadata to get accurate counts
-        band_metadata = load_band_metadata(band_name)
+        # Step 3: Sync with collection index
+        collection_sync_results = {
+            "index_updated": False,
+            "index_errors": [],
+            "band_entry_created": False
+        }
         
-        # Build comprehensive response
+        try:
+            # Load existing collection index or create new
+            collection_index = load_collection_index()
+            if collection_index is None:
+                from src.models.collection import CollectionIndex
+                collection_index = CollectionIndex()
+            
+            # Create or update band entry
+            local_albums_count = len(band_metadata.albums)
+            missing_albums_count = len(band_metadata.albums_missing)
+            total_albums_count = local_albums_count + missing_albums_count
+            
+            band_entry = BandIndexEntry(
+                name=band_name,
+                albums_count=total_albums_count,
+                local_albums_count=local_albums_count,
+                folder_path=band_name,
+                missing_albums_count=missing_albums_count,
+                has_metadata=band_metadata.has_metadata_saved(),  # Use the new method to determine if metadata was saved
+                has_analysis=band_metadata.analyze is not None,
+                last_updated=band_metadata.last_updated
+            )
+            
+            # Check if band already exists in index
+            existing_band = None
+            for i, existing in enumerate(collection_index.bands):
+                if existing.name == band_name:
+                    existing_band = i
+                    break
+            
+            if existing_band is not None:
+                # Update existing entry
+                collection_index.bands[existing_band] = band_entry
+            else:
+                # Add new entry
+                collection_index.bands.append(band_entry)
+                collection_sync_results["band_entry_created"] = True
+            
+            # Update collection index
+            index_update_result = update_collection_index(collection_index)
+            if index_update_result.get("status") == "success":
+                collection_sync_results["index_updated"] = True
+            else:
+                collection_sync_results["index_updated"] = False
+                collection_sync_results["index_errors"].append("Failed to update collection index")
+                
+        except Exception as e:
+            collection_sync_results["index_errors"].append(f"Collection sync failed: {str(e)}")
+        
+        # Step 4: Prepare comprehensive response
         response = {
-            'status': result.get('status', 'success'),
-            'message': result.get('message', f'Successfully saved metadata for {band_name}'),
-            'validation_results': {
-                'schema_valid': True,
-                'validation_errors': [],
-                'fields_validated': ['band_name'] + list(metadata.keys()),
-                'albums_count': band_metadata.albums_count if band_metadata else 0,
-                'missing_albums_count': band_metadata.missing_albums_count if band_metadata else 0
-            },
+            'status': 'success',
+            'message': f"Band metadata successfully saved and validated for {band_name}",
+            'validation_results': validation_results,
             'file_operations': {
-                'backup_created': True,
-                'last_updated': result.get('last_updated', ''),
-                'metadata_file': result.get('file_path', '')
+                'metadata_file': storage_result.get('file_path', ''),
+                'backup_created': True,  # Always true due to JSONStorage.save_json(backup=True)
+                'last_updated': storage_result.get('last_updated', ''),
+                'last_metadata_saved': band_metadata.last_metadata_saved,  # Include the new timestamp
+                'file_size_bytes': 0,  # Could be enhanced to get actual file size
             },
-            'collection_sync': {
-                'index_updated': True,
-                'band_entry_created': not band_existed_before,
-                'index_errors': []
-            },
+            'collection_sync': collection_sync_results,
             'band_info': {
                 'band_name': band_name,
-                'albums_count': band_metadata.albums_count if band_metadata else 0,
-                'local_albums_count': band_metadata.local_albums_count if band_metadata else 0,
-                'missing_albums_count': band_metadata.missing_albums_count if band_metadata else 0,
+                'albums_count': validation_results["albums_count"],
+                'local_albums_count': len(band_metadata.albums),
+                'missing_albums_count': validation_results["missing_albums_count"],
                 'completion_percentage': round(
-                    (band_metadata.local_albums_count / band_metadata.albums_count * 100) 
-                    if band_metadata and band_metadata.albums_count > 0 
-                    else 100.0, 1
-                ),
-                'has_analysis': bool(band_metadata and band_metadata.analyze),
-                'has_folder_structure': bool(band_metadata and band_metadata.folder_structure),
-                'genre_count': len(band_metadata.genres) if band_metadata else 0,
-                'members_count': len(band_metadata.members) if band_metadata else 0,
-                'albums': [
+                    (len(band_metadata.albums) / max(validation_results["albums_count"], 1)) * 100, 1
+                ) if validation_results["albums_count"] > 0 else 100.0,
+                'has_metadata': band_metadata.has_metadata_saved(),  # Include has_metadata status
+                'has_analysis': band_metadata.analyze is not None,
+                'genre_count': len(band_metadata.genres),
+                'members_count': len(band_metadata.members),
+                # Add detailed album information
+                'local_albums': [
                     {
                         'album_name': album.album_name,
                         'year': album.year,
                         'track_count': album.track_count,
-                        'type': album.type.value if album.type else None,
+                        'type': album.type.value if hasattr(album.type, 'value') else str(album.type),
                         'edition': album.edition,
                         'duration': album.duration,
                         'genres': album.genres
                     }
                     for album in band_metadata.albums
-                ] if band_metadata else [],
-                'albums_missing': [
+                ],
+                'missing_albums': [
                     {
                         'album_name': album.album_name,
                         'year': album.year,
                         'track_count': album.track_count,
-                        'type': album.type.value if album.type else None,
+                        'type': album.type.value if hasattr(album.type, 'value') else str(album.type),
                         'edition': album.edition,
                         'duration': album.duration,
                         'genres': album.genres
                     }
                     for album in band_metadata.albums_missing
-                ] if band_metadata else []
+                ]
             },
             'tool_info': {
                 'tool_name': 'save_band_metadata',
-                'version': '1.3.0',
+                'version': '1.3.0',  # Updated version for always preserve analyze and folder_structure behavior
                 'parameters_used': {
                     'band_name': band_name,
                     'metadata_fields': list(metadata.keys())
@@ -362,4 +373,4 @@ def save_band_metadata_tool(
                 'tool_name': 'save_band_metadata',
                 'version': '1.3.0'
             }
-        } 
+        }

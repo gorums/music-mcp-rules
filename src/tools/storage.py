@@ -6,6 +6,7 @@ file locking, backup/recovery, and metadata synchronization.
 """
 
 import json
+import logging
 import os
 import shutil
 import time
@@ -30,6 +31,9 @@ from src.models import (
     AlbumAnalysis
 )
 from src.config import Config
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 class StorageError(Exception):
@@ -238,6 +242,10 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
         StorageError: If save operation fails
     """
     try:
+        # Validate input parameter type for safety
+        if not isinstance(metadata, BandMetadata):
+            raise StorageError(f"metadata parameter must be BandMetadata instance, got {type(metadata)}")
+            
         config = Config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
@@ -251,21 +259,31 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
                 existing_metadata = BandMetadata(**existing_metadata_dict)
                 existing_analyze = existing_metadata.analyze
                 existing_folder_structure = existing_metadata.folder_structure
-            except Exception:
+            except Exception as e:
                 # If loading fails, continue without preserving (file might be corrupted)
+                logger.warning(f"Could not load existing metadata for {band_name}: {e}")
                 existing_analyze = None
                 existing_folder_structure = None
         
-        # Preserve existing analyze data if it exists
+        # Safely preserve existing analyze data if it exists
         if existing_analyze is not None:
-            metadata.analyze = existing_analyze
+            try:
+                metadata.analyze = existing_analyze
+            except Exception as e:
+                logger.warning(f"Could not set analyze data for {band_name}: {e}")
             
-        # Preserve existing folder_structure data if it exists
+        # Safely preserve existing folder_structure data if it exists
         if existing_folder_structure is not None:
-            metadata.folder_structure = existing_folder_structure
+            try:
+                metadata.folder_structure = existing_folder_structure
+            except Exception as e:
+                logger.warning(f"Could not set folder_structure data for {band_name}: {e}")
 
         # Update timestamp
-        metadata.update_timestamp()
+        try:
+            metadata.update_timestamp()
+        except Exception as e:
+            logger.warning(f"Could not update timestamp for {band_name}: {e}")
         
         # Convert to dict for JSON serialization
         metadata_dict = metadata.model_dump()
