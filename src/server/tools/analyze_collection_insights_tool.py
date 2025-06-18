@@ -84,7 +84,7 @@ class AnalyzeCollectionInsightsHandler(BaseToolHandler):
         return {
             'status': 'success',
             'insights': insights_dict,
-            'collection_maturity': insights.collection_maturity.value,
+            'collection_maturity': insights.collection_maturity,
             'health_summary': health_summary,
             'type_analysis_summary': type_analysis_summary,
             'recommendations_summary': recommendations_summary,
