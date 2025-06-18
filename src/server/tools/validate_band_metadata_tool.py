@@ -8,7 +8,7 @@ This module contains the validate_band_metadata_tool implementation.
 import logging
 from typing import Any, Dict
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Configure logging

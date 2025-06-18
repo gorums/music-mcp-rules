@@ -9,7 +9,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports

@@ -1,15 +1,23 @@
-import os
+# Standard library imports
 import json
 import logging
-from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Set, Any
+import os
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
+# Local imports
 from src.di import get_config
 from src.models import (
-    Album, BandMetadata, BandIndexEntry, CollectionIndex,
-    AlbumType, FolderCompliance, AlbumFolderParser, 
-    BandStructureDetector, ComplianceValidator
+    Album,
+    AlbumFolderParser,
+    AlbumType,
+    BandIndexEntry,
+    BandMetadata,
+    BandStructureDetector,
+    CollectionIndex,
+    ComplianceValidator,
+    FolderCompliance,
 )
 
 

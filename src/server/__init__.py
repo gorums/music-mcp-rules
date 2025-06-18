@@ -9,7 +9,8 @@ This package contains the refactored MCP server components organized by function
 - prompts/: Individual prompt implementations (4 prompts)
 """
 
-from .core import create_server, mcp
+from .core import create_server
+from .mcp_instance import mcp
 
 # Import all tools to ensure they are registered
 from .tools import (

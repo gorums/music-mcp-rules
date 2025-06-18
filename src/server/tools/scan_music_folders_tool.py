@@ -8,7 +8,7 @@ This module contains the scan_music_folders tool implementation.
 import logging
 from typing import Any, Dict
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports

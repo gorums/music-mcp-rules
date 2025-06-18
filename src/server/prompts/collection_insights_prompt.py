@@ -8,7 +8,7 @@ This module contains the collection_insights_prompt implementation.
 import logging
 from typing import Any, Dict
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports

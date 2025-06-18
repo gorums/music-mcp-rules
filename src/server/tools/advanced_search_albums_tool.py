@@ -8,7 +8,7 @@ This module contains the advanced_search_albums_tool implementation.
 import logging
 from typing import Any, Dict, List, Optional
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import required modules and functions

@@ -5,12 +5,14 @@ This module provides markdown-formatted advanced collection analytics including
 type distribution analysis, health metrics, recommendations, and maturity assessment.
 """
 
+# Standard library imports
 import logging
-from typing import Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List
 
-from src.tools.storage import load_collection_index, load_band_metadata, StorageError
-from src.models.analytics import CollectionAnalyzer, AdvancedCollectionInsights
+# Local imports
+from src.models.analytics import AdvancedCollectionInsights, CollectionAnalyzer
+from src.tools.storage import StorageError, load_band_metadata, load_collection_index
 
 logger = logging.getLogger(__name__)
 

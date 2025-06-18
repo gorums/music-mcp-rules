@@ -5,13 +5,15 @@ This module provides markdown-formatted band information resources including
 detailed metadata, album information, analysis data, and missing album tracking.
 """
 
+# Standard library imports
 import logging
-from pathlib import Path
-from typing import Optional, List
 from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
-from src.tools.storage import load_band_metadata, StorageError
-from src.models import BandMetadata, Album, AlbumAnalysis
+# Local imports
+from src.models import Album, AlbumAnalysis, BandMetadata
+from src.tools.storage import StorageError, load_band_metadata
 
 logger = logging.getLogger(__name__)
 

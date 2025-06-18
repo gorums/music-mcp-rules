@@ -8,7 +8,7 @@ This module contains the analyze_collection_insights_tool implementation.
 import logging
 from typing import Any, Dict
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import required modules and functions

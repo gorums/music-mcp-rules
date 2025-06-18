@@ -5,13 +5,15 @@ This module provides markdown-formatted collection overview including
 statistics, insights, top-rated content, and collection health metrics.
 """
 
+# Standard library imports
 import logging
-from pathlib import Path
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from src.tools.storage import load_collection_index, StorageError
-from src.models.collection import CollectionIndex, CollectionStats, CollectionInsight
+# Local imports
+from src.models.collection import CollectionIndex, CollectionInsight, CollectionStats
+from src.tools.storage import StorageError, load_collection_index
 
 logger = logging.getLogger(__name__)
 

@@ -5,65 +5,64 @@ This module provides Pydantic models for music metadata, collection management,
 and data validation.
 """
 
+# Standard library imports
+from typing import TYPE_CHECKING
+
+# Local imports
 from .band import (
     Album, 
-    AlbumType,
     AlbumAnalysis, 
+    AlbumType,
     BandAnalysis, 
     BandMetadata,
-    FolderCompliance
-)
-
-from .collection import (
-    BandIndexEntry,
-    CollectionStats,
-    CollectionInsight,
-    CollectionIndex
-)
-
-from .validation import (
-    AlbumTypeDetector,
-    AlbumDataMigrator,
-    AlbumValidator,
-    get_album_type_distribution,
-    get_edition_distribution,
-    filter_albums_by_type,
-    search_albums_by_criteria
+    FolderCompliance,
 )
 
 from .album_parser import (
     AlbumFolderParser,
-    FolderStructureValidator
+    FolderStructureValidator,
 )
-
-from .band_structure import (
-    StructureType,
-    StructureConsistency,
-    FolderStructure,
-    BandStructureDetector,
-    StructureAnalyzer
-)
-
-from .compliance import (
-    ComplianceLevel,
-    ComplianceIssueType,
-    ComplianceIssue,
-    BandComplianceReport,
-    ComplianceValidator
-)
-
 from .analytics import (
-    CollectionMaturityLevel,
-    RecommendationType,
-    TypeRecommendation,
-    EditionUpgrade,
-    CollectionHealthMetrics,
-    TypeAnalysis,
-    EditionAnalysis,
     AdvancedCollectionInsights,
+    AdvancedSearchEngine,
     AlbumSearchFilters,
     CollectionAnalyzer,
-    AdvancedSearchEngine
+    CollectionHealthMetrics,
+    CollectionMaturityLevel,
+    EditionAnalysis,
+    EditionUpgrade,
+    RecommendationType,
+    TypeAnalysis,
+    TypeRecommendation,
+)
+from .band_structure import (
+    BandStructureDetector,
+    FolderStructure,
+    StructureAnalyzer,
+    StructureConsistency,
+    StructureType,
+)
+from .collection import (
+    BandIndexEntry,
+    CollectionIndex,
+    CollectionInsight,
+    CollectionStats,
+)
+from .compliance import (
+    BandComplianceReport,
+    ComplianceIssue,
+    ComplianceIssueType,
+    ComplianceLevel,
+    ComplianceValidator,
+)
+from .validation import (
+    AlbumDataMigrator,
+    AlbumTypeDetector,
+    AlbumValidator,
+    filter_albums_by_type,
+    get_album_type_distribution,
+    get_edition_distribution,
+    search_albums_by_criteria,
 )
 
 # Rebuild models to resolve forward references
@@ -72,25 +71,25 @@ BandMetadata.model_rebuild()
 __all__ = [
     # Band models
     'Album',
-    'AlbumType', 
     'AlbumAnalysis',
+    'AlbumType',
     'BandAnalysis',
     'BandMetadata',
     'FolderCompliance',
     
     # Collection models
     'BandIndexEntry',
-    'CollectionStats',
-    'CollectionInsight', 
     'CollectionIndex',
+    'CollectionInsight',
+    'CollectionStats',
     
     # Validation utilities
-    'AlbumTypeDetector',
     'AlbumDataMigrator',
+    'AlbumTypeDetector',
     'AlbumValidator',
+    'filter_albums_by_type',
     'get_album_type_distribution',
     'get_edition_distribution',
-    'filter_albums_by_type',
     'search_albums_by_criteria',
     
     # Album parsing utilities
@@ -98,29 +97,29 @@ __all__ = [
     'FolderStructureValidator',
     
     # Band structure detection
-    'StructureType',
-    'StructureConsistency',
-    'FolderStructure',
     'BandStructureDetector',
+    'FolderStructure',
     'StructureAnalyzer',
+    'StructureConsistency',
+    'StructureType',
     
     # Compliance validation
-    'ComplianceLevel',
-    'ComplianceIssueType',
-    'ComplianceIssue',
     'BandComplianceReport',
+    'ComplianceIssue',
+    'ComplianceIssueType',
+    'ComplianceLevel',
     'ComplianceValidator',
     
     # Advanced analytics
-    'CollectionMaturityLevel',
-    'RecommendationType',
-    'TypeRecommendation',
-    'EditionUpgrade',
-    'CollectionHealthMetrics',
-    'TypeAnalysis',
-    'EditionAnalysis',
     'AdvancedCollectionInsights',
+    'AdvancedSearchEngine',
     'AlbumSearchFilters',
     'CollectionAnalyzer',
-    'AdvancedSearchEngine'
+    'CollectionHealthMetrics',
+    'CollectionMaturityLevel',
+    'EditionAnalysis',
+    'EditionUpgrade',
+    'RecommendationType',
+    'TypeAnalysis',
+    'TypeRecommendation',
 ] 

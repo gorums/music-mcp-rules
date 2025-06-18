@@ -9,33 +9,31 @@ Core module for the Music Collection MCP Server that handles:
 - Logger configuration
 """
 
+# Standard library imports
 import logging
 from typing import Any, Dict, List, Optional
 
+# Third-party imports
 from fastmcp import FastMCP
+
+# Local imports - Import MCP instance first to avoid circular imports
+from .mcp_instance import mcp
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Create FastMCP server instance with ERROR log level to fix MCP client visibility
-mcp = FastMCP("music-collection-mcp")
-
-# Import all tool modules to register the @mcp.tool() decorators
-# Individual tool files are loaded to register the MCP tools
+# Local imports - Import handlers to register decorators
+from . import prompts, resources
 from .tools import (
-    scan_music_folders,
-    get_band_list_tool,
-    save_band_metadata_tool,
-    save_band_analyze_tool,
-    save_collection_insight_tool,
-    validate_band_metadata_tool,
     advanced_search_albums_tool,
-    analyze_collection_insights_tool
+    analyze_collection_insights_tool,
+    get_band_list_tool,
+    save_band_analyze_tool,
+    save_band_metadata_tool,
+    save_collection_insight_tool,
+    scan_music_folders,
+    validate_band_metadata_tool,
 )
-
-# Import individual resource and prompt handlers
-from . import resources
-from . import prompts
 
 def create_server() -> FastMCP:
     """Create and configure the MCP server instance"""

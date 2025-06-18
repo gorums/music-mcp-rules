@@ -8,7 +8,7 @@ This module contains the advanced_analytics_resource implementation.
 import logging
 from typing import Any, Dict, List, Optional
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports

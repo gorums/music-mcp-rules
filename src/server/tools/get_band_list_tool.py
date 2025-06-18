@@ -8,7 +8,7 @@ This module contains the get_band_list_tool implementation.
 import logging
 from typing import Any, Dict, List, Optional
 
-from ..core import mcp
+from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler, validate_pagination_params, validate_sort_params
 
 # Import tool implementation - using absolute imports
