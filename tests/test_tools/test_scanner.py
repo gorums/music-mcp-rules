@@ -104,32 +104,45 @@ class TestMusicDirectoryScanner:
     @pytest.fixture
     def mock_config(self):
         """Mock configuration for testing."""
-        with patch('src.tools.scanner.Config') as mock_config_class:
+        with patch('src.di.get_config') as mock_config_class:
             mock_config = mock_config_class.return_value
             mock_config.MUSIC_ROOT_PATH = "/test/music"
             mock_config.CACHE_DURATION_DAYS = 30
             yield mock_config
 
-    @patch('src.tools.scanner.Config')
-    def test_scan_music_folders_success(self, mock_config_class, temp_music_dir):
+    def test_scan_music_folders_success(self, temp_music_dir):
         """Test successful comprehensive scan of music folders."""
-        mock_config = mock_config_class.return_value
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        result = scan_music_folders()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        # Use DI override instead of unittest.mock
+        with override_dependency(Config, MockConfig()):
+            result = scan_music_folders()
         
         assert result['status'] == 'success'
         assert 'results' in result
         assert result['results']['bands_discovered'] == 3  # Beatles, Pink Floyd, Empty Band
         assert result['results']['albums_discovered'] == 3  # 2 Beatles + 1 Pink Floyd + 0 Empty Band
         
-    @patch('src.tools.scanner.Config')
-    def test_scan_music_folders_new_collection(self, mock_config_class, temp_music_dir):
-        mock_config = mock_config_class.return_value
+    def test_scan_music_folders_new_collection(self, temp_music_dir):
         """Test comprehensive scan on a new collection."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        result = scan_music_folders()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            result = scan_music_folders()
         
         assert result['status'] == 'success'
         assert result['changes_made'] is True
@@ -138,19 +151,25 @@ class TestMusicDirectoryScanner:
         assert result['results']['bands_removed'] == 0
         assert result['results']['bands_updated'] == 0
         
-    @patch('src.tools.scanner.Config')
-    def test_scan_music_folders_no_changes(self, mock_config_class, temp_music_dir):
-        mock_config = mock_config_class.return_value
+    def test_scan_music_folders_no_changes(self, temp_music_dir):
         """Test comprehensive scan when no changes have occurred."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # First scan to establish baseline
-        first_result = scan_music_folders()
-        assert first_result['status'] == 'success'
-        assert first_result['changes_made'] is True
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Second scan should detect no changes (since all metadata is now created)
-        second_result = scan_music_folders()
+        with override_dependency(Config, MockConfig()):
+            # First scan to establish baseline
+            first_result = scan_music_folders()
+            assert first_result['status'] == 'success'
+            assert first_result['changes_made'] is True
+            
+            # Second scan should detect no changes (since all metadata is now created)
+            second_result = scan_music_folders()
         assert second_result['status'] == 'success'
         # Note: changes_made might still be True due to metadata synchronization
         # The important thing is that band counts should remain stable
@@ -158,23 +177,29 @@ class TestMusicDirectoryScanner:
         assert second_result['results']['bands_removed'] == 0
         # bands_updated might be > 0 due to metadata sync differences
         
-    @patch('src.tools.scanner.Config')
-    def test_scan_music_folders_new_band_added(self, mock_config_class, temp_music_dir):
-        mock_config = mock_config_class.return_value
+    def test_scan_music_folders_new_band_added(self, temp_music_dir):
         """Test comprehensive scan when a new band is added."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # First scan to establish baseline
-        scan_music_folders()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Add a new band folder
-        new_band_dir = temp_music_dir / "Led Zeppelin"
-        new_band_dir.mkdir()
-        (new_band_dir / "Led Zeppelin IV").mkdir()
-        (new_band_dir / "Led Zeppelin IV" / "song1.mp3").touch()
-        
-        # Second scan should detect new band
-        result = scan_music_folders()
+        with override_dependency(Config, MockConfig()):
+            # First scan to establish baseline
+            scan_music_folders()
+            
+            # Add a new band folder
+            new_band_dir = temp_music_dir / "Led Zeppelin"
+            new_band_dir.mkdir()
+            (new_band_dir / "Led Zeppelin IV").mkdir()
+            (new_band_dir / "Led Zeppelin IV" / "song1.mp3").touch()
+            
+            # Second scan should detect new band
+            result = scan_music_folders()
         assert result['status'] == 'success'
         assert result['changes_made'] is True
         assert result['results']['bands_added'] == 1
@@ -182,76 +207,105 @@ class TestMusicDirectoryScanner:
         # Check that the new band was detected (allow for other updates)
         assert any("Added new band: Led Zeppelin" in change for change in result['results']['changes_detected'])
         
-    @patch('src.tools.scanner.Config') 
-    def test_scan_music_folders_band_removed(self, mock_config_class, temp_music_dir):
-        mock_config = mock_config_class.return_value
+    def test_scan_music_folders_band_removed(self, temp_music_dir):
         """Test comprehensive scan when a band is removed."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # First scan to establish baseline
-        scan_music_folders()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Remove a band folder
-        import shutil
-        shutil.rmtree(temp_music_dir / "Pink Floyd")
-        
-        # Second scan should detect removed band
-        result = scan_music_folders()
+        with override_dependency(Config, MockConfig()):
+            # First scan to establish baseline
+            scan_music_folders()
+            
+            # Remove a band folder
+            import shutil
+            shutil.rmtree(temp_music_dir / "Pink Floyd")
+            
+            # Second scan should detect removed band
+            result = scan_music_folders()
         assert result['status'] == 'success'
         assert result['changes_made'] is True
         assert result['results']['bands_added'] == 0
         assert result['results']['bands_removed'] == 1
         assert "Removed band: Pink Floyd" in result['results']['changes_detected']
         
-    @patch('src.tools.scanner.Config')
-    def test_scan_music_folders_band_updated(self, mock_config_class, temp_music_dir):
-        mock_config = mock_config_class.return_value
+    def test_scan_music_folders_band_updated(self, temp_music_dir):
         """Test comprehensive scan when a band folder is modified."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # First scan to establish baseline
-        first_result = scan_music_folders()
-        assert first_result['status'] == 'success'
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Add a new album to an existing band
-        beatles_dir = temp_music_dir / "The Beatles"
-        new_album_dir = beatles_dir / "White Album"
-        new_album_dir.mkdir()
-        (new_album_dir / "song1.mp3").touch()
-        (new_album_dir / "song2.mp3").touch()
-        
-        # Second scan should detect updated band
-        result = scan_music_folders()
-        assert result['status'] == 'success'
-        # The change detection should work, but might also detect other metadata changes
-        assert result['results']['bands_added'] == 0
-        assert result['results']['bands_removed'] == 0
-        # Check that some change was detected (band should be updated due to new album)
-        beatles_entry = None
-        # Verify in the collection index that Beatles now has more albums
-        from src.tools.scanner import _load_or_create_collection_index
-        index = _load_or_create_collection_index(temp_music_dir)
-        beatles_entry = next((b for b in index.bands if b.name == "The Beatles"), None)
-        assert beatles_entry is not None
-        # Should have at least 3 albums now (2 original + 1 new)
-        assert beatles_entry.albums_count >= 3
+        with override_dependency(Config, MockConfig()):
+            # First scan to establish baseline
+            first_result = scan_music_folders()
+            assert first_result['status'] == 'success'
+            
+            # Add a new album to an existing band
+            beatles_dir = temp_music_dir / "The Beatles"
+            new_album_dir = beatles_dir / "White Album"
+            new_album_dir.mkdir()
+            (new_album_dir / "song1.mp3").touch()
+            (new_album_dir / "song2.mp3").touch()
+            
+            # Second scan should detect updated band
+            result = scan_music_folders()
+            assert result['status'] == 'success'
+            # The change detection should work, but might also detect other metadata changes
+            assert result['results']['bands_added'] == 0
+            assert result['results']['bands_removed'] == 0
+            # Check that some change was detected (band should be updated due to new album)
+            beatles_entry = None
+            # Verify in the collection index that Beatles now has more albums
+            from src.tools.scanner import _load_or_create_collection_index
+            index = _load_or_create_collection_index(temp_music_dir)
+            beatles_entry = next((b for b in index.bands if b.name == "The Beatles"), None)
+            assert beatles_entry is not None
+            # Should have at least 3 albums now (2 original + 1 new)
+            assert beatles_entry.albums_count >= 3
 
-    def test_scan_music_folders_invalid_path(self, mock_config):
+    def test_scan_music_folders_invalid_path(self):
         """Test scanning with invalid music root path."""
-        mock_config.MUSIC_ROOT_PATH = "/nonexistent/path"
+        from src.di import override_dependency
+        from src.config import Config
         
-        result = scan_music_folders()
+        # Create a mock config with an invalid path
+        class MockConfig:
+            MUSIC_ROOT_PATH = "/nonexistent/path"
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            result = scan_music_folders()
         
         assert result['status'] == 'error'
         assert 'Music root path does not exist' in result['error']
 
-    def test_scan_music_folders_not_directory(self, temp_music_dir, mock_config):
+    def test_scan_music_folders_not_directory(self, temp_music_dir):
         """Test scanning when music root path is not a directory."""
+        from src.di import override_dependency
+        from src.config import Config
+        
         test_file = temp_music_dir / "not_a_directory.txt"
         test_file.touch()
-        mock_config.MUSIC_ROOT_PATH = str(test_file)
         
-        result = scan_music_folders()
+        # Create a mock config with a file path instead of directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(test_file)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            result = scan_music_folders()
         
         assert result['status'] == 'error'
         assert 'not a directory' in result['error']
@@ -545,47 +599,63 @@ class TestMusicDirectoryScanner:
         
         assert metadata is None
 
-    def test_detect_missing_albums(self, temp_music_dir, mock_config):
+    def test_detect_missing_albums(self, temp_music_dir):
         """Test missing album detection."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Create collection index with Beatles entry
-        collection_index = CollectionIndex()
-        beatles_entry = BandIndexEntry(
-            name="The Beatles",
-            albums_count=3,
-            local_albums_count=2,  # Local albums found
-            folder_path="The Beatles",
-            missing_albums_count=1,  # One missing album
-            has_metadata=True
-        )
-        collection_index.add_band(beatles_entry)
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        missing_count = _detect_missing_albums(collection_index)
-        
-        # Should detect 1 missing album (Revolver)
-        assert missing_count == 1
-        assert beatles_entry.missing_albums_count == 1
+        with override_dependency(Config, MockConfig()):
+            # Create collection index with Beatles entry
+            collection_index = CollectionIndex()
+            beatles_entry = BandIndexEntry(
+                name="The Beatles",
+                albums_count=3,
+                local_albums_count=2,  # Local albums found
+                folder_path="The Beatles",
+                missing_albums_count=1,  # One missing album
+                has_metadata=True
+            )
+            collection_index.add_band(beatles_entry)
+            
+            missing_count = _detect_missing_albums(collection_index)
+            
+            # Should detect 1 missing album (Revolver)
+            assert missing_count == 1
+            assert beatles_entry.missing_albums_count == 1
 
-    def test_detect_missing_albums_no_metadata(self, temp_music_dir, mock_config):
+    def test_detect_missing_albums_no_metadata(self, temp_music_dir):
         """Test missing album detection for bands without metadata."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        collection_index = CollectionIndex()
-        band_entry = BandIndexEntry(
-            name="Pink Floyd",
-            albums_count=1,
-            local_albums_count=1,  # Local albums found
-            folder_path="Pink Floyd",
-            missing_albums_count=0,  # No missing albums when no metadata
-            has_metadata=False  # No metadata file
-        )
-        collection_index.add_band(band_entry)
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        missing_count = _detect_missing_albums(collection_index)
-        
-        # Should be 0 since no metadata to compare against
-        assert missing_count == 0
+        with override_dependency(Config, MockConfig()):
+            collection_index = CollectionIndex()
+            band_entry = BandIndexEntry(
+                name="Pink Floyd",
+                albums_count=1,
+                local_albums_count=1,  # Local albums found
+                folder_path="Pink Floyd",
+                missing_albums_count=0,  # No missing albums when no metadata
+                has_metadata=False  # No metadata file
+            )
+            collection_index.add_band(band_entry)
+            
+            missing_count = _detect_missing_albums(collection_index)
+            
+            # Should be 0 since no metadata to compare against
+            assert missing_count == 0
 
     def test_music_extensions_constant(self):
         """Test that MUSIC_EXTENSIONS contains expected formats."""
@@ -609,12 +679,20 @@ class TestMusicDirectoryScanner:
         # folder_names = [f.name for f in band_folders]        
         # assert folder_name not in folder_names
 
-    def test_integration_full_scan_workflow(self, temp_music_dir, mock_config):
+    def test_integration_full_scan_workflow(self, temp_music_dir):
         """Test complete scan workflow integration."""
-        mock_config.MUSIC_ROOT_PATH = str(temp_music_dir)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Run full scan
-        result = scan_music_folders()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(temp_music_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            # Run full scan
+            result = scan_music_folders()
         
         # Verify scan results
         assert result['status'] == 'success'

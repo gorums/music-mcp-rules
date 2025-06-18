@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from src.models import BandMetadata, CollectionIndex, BandIndexEntry
-from src.config import Config
+from src.di import get_config
 
 
 class CacheStatus(Enum):
@@ -94,7 +94,7 @@ class CacheManager:
             music_root: Path to music root directory (uses config default if None)
             cache_duration_days: Cache duration in days (uses config default if None)
         """
-        config = Config()
+        config = get_config()
         self.music_root = Path(music_root or config.MUSIC_ROOT_PATH)
         self.cache_duration_days = cache_duration_days or config.CACHE_DURATION_DAYS
         self.cache_duration = timedelta(days=self.cache_duration_days)

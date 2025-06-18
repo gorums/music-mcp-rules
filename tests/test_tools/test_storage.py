@@ -235,39 +235,45 @@ class TestMetadataOperations:
     def setup_method(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
-        self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
-        self.config_patch.stop()
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_save_band_metadata_success(self):
         """Test successful metadata save operation."""
-        band_name = "Test Band"
-        metadata = BandMetadata(
-            band_name=band_name,
-            formed="1990",
-            genres=["Rock"],
-            origin="USA",
-            members=["John", "Jane"],
-            description="A test band",
-            albums=[]
-        )
+        from src.di import override_dependency
+        from src.config import Config
+        
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            band_name = "Test Band"
+            metadata = BandMetadata(
+                band_name=band_name,
+                formed="1990",
+                genres=["Rock"],
+                origin="USA",
+                members=["John", "Jane"],
+                description="A test band",
+                albums=[]
+            )
 
-        result = save_band_metadata(band_name, metadata)
+            result = save_band_metadata(band_name, metadata)
 
-        assert result["status"] == "success"
-        assert result["message"] == f"Band metadata saved for {band_name}"
-        assert result["last_updated"] is not None
-        assert result["albums_count"] == 0
+            assert result["status"] == "success"
+            assert result["message"] == f"Band metadata saved for {band_name}"
+            assert result["last_updated"] is not None
+            assert result["albums_count"] == 0
 
-        # Verify file was created
-        metadata_file = Path(self.temp_dir) / band_name / ".band_metadata.json"
-        assert metadata_file.exists() == True
+            # Verify file was created
+            metadata_file = Path(self.temp_dir) / band_name / ".band_metadata.json"
+            assert metadata_file.exists() == True
 
     def test_save_band_metadata_updates_timestamp(self):
         """Test that saving metadata updates timestamp."""
@@ -441,13 +447,22 @@ class TestBandListOperations:
     def setup_method(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
-        self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
+        
+        # Mock config to use test directory using dependency injection
+        from src.di import override_dependency
+        from src.config import Config
+        
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        self.config_override = override_dependency(Config, MockConfig())
+        self.config_override.__enter__()
 
     def teardown_method(self):
         """Clean up test environment."""
-        self.config_patch.stop()
+        self.config_override.__exit__(None, None, None)
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
@@ -501,57 +516,97 @@ class TestBandListOperations:
 
     def test_load_band_metadata_existing(self):
         """Test loading existing band metadata."""
-        band_name = "Test Band"
-        original_metadata = BandMetadata(
-            band_name=band_name,
-            formed="2000",
-            genres=["Rock"]
-        )
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Save metadata
-        save_band_metadata(band_name, original_metadata)
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Load metadata
-        loaded_metadata = load_band_metadata(band_name)
-        
-        assert loaded_metadata is not None
-        assert loaded_metadata.band_name == band_name
-        assert loaded_metadata.formed == "2000"
-        assert loaded_metadata.genres == ["Rock"]
+        with override_dependency(Config, MockConfig()):
+            band_name = "Test Band"
+            original_metadata = BandMetadata(
+                band_name=band_name,
+                formed="2000",
+                genres=["Rock"]
+            )
+            
+            # Save metadata
+            save_band_metadata(band_name, original_metadata)
+            
+            # Load metadata
+            loaded_metadata = load_band_metadata(band_name)
+            
+            assert loaded_metadata is not None
+            assert loaded_metadata.band_name == band_name
+            assert loaded_metadata.formed == "2000"
+            assert loaded_metadata.genres == ["Rock"]
 
     def test_load_band_metadata_nonexistent(self):
         """Test loading non-existent band metadata."""
-        result = load_band_metadata("Non-existent Band")
-        assert result is None
+        from src.di import override_dependency
+        from src.config import Config
+        
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            result = load_band_metadata("Non-existent Band")
+            assert result is None
 
     def test_load_collection_index_existing(self):
         """Test loading existing collection index."""
-        # Create and save index with a test band
-        original_index = CollectionIndex()
-        test_band = BandIndexEntry(
-            name="Test Band",
-            albums_count=1,
-            local_albums_count=1,
-            folder_path="Test Band",
-            missing_albums_count=0,
-            has_metadata=True
-        )
-        original_index.bands.append(test_band)
-        update_collection_index(original_index)
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Load index
-        loaded_index = load_collection_index()
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        assert loaded_index is not None
-        assert hasattr(loaded_index, 'bands')
-        assert hasattr(loaded_index, 'stats')
-        assert len(loaded_index.bands) == 1
-        assert loaded_index.bands[0].name == "Test Band"
+        with override_dependency(Config, MockConfig()):
+            # Create and save index with a test band
+            original_index = CollectionIndex()
+            test_band = BandIndexEntry(
+                name="Test Band",
+                albums_count=1,
+                local_albums_count=1,
+                folder_path="Test Band",
+                missing_albums_count=0,
+                has_metadata=True
+            )
+            original_index.bands.append(test_band)
+            update_collection_index(original_index)
+            
+            # Load index
+            loaded_index = load_collection_index()
+            
+            assert loaded_index is not None
+            assert hasattr(loaded_index, 'bands')
+            assert hasattr(loaded_index, 'stats')
+            assert len(loaded_index.bands) == 1
+            assert loaded_index.bands[0].name == "Test Band"
 
     def test_load_collection_index_nonexistent(self):
         """Test loading non-existent collection index."""
-        result = load_collection_index()
-        assert result is None
+        from src.di import override_dependency
+        from src.config import Config
+        
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        with override_dependency(Config, MockConfig()):
+            result = load_collection_index()
+            assert result is None
 
 
 class TestBackupOperations:
@@ -560,58 +615,74 @@ class TestBackupOperations:
     def setup_method(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
-        self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
     def teardown_method(self):
         """Clean up test environment."""
-        self.config_patch.stop()
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_cleanup_backups_with_excess_files(self):
         """Test cleanup removes old backup files."""
-        # Create test files with backups
-        test_file = Path(self.temp_dir) / "test.json"
-        test_file.write_text('{"test": "data"}')
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Create multiple backup files
-        backup_files = []
-        for i in range(7):  # More than max_backups (5)
-            backup_file = test_file.with_suffix(f".backup_{i}.json")
-            backup_file.write_text(f'{{"backup": {i}}}')
-            backup_files.append(backup_file)
-            # Different modification times
-            time.sleep(0.01)
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        # Run cleanup
-        result = cleanup_backups(max_backups=5)
-        
-        assert result["status"] == "success"
-        assert result["files_removed"] == 2  # Should remove 2 oldest files
-        assert result["space_freed_bytes"] > 0
-        
-        # Verify only 5 backup files remain
-        remaining_backups = list(Path(self.temp_dir).glob("*.backup*"))
-        assert len(remaining_backups) == 5
+        with override_dependency(Config, MockConfig()):
+            # Create test files with backups
+            test_file = Path(self.temp_dir) / "test.json"
+            test_file.write_text('{"test": "data"}')
+            
+            # Create multiple backup files
+            backup_files = []
+            for i in range(7):  # More than max_backups (5)
+                backup_file = test_file.with_suffix(f".backup_{i}.json")
+                backup_file.write_text(f'{{"backup": {i}}}')
+                backup_files.append(backup_file)
+                # Different modification times
+                time.sleep(0.01)
+            
+            # Run cleanup
+            result = cleanup_backups(max_backups=5)
+            
+            assert result["status"] == "success"
+            assert result["files_removed"] == 2  # Should remove 2 oldest files
+            assert result["space_freed_bytes"] > 0
+            
+            # Verify only 5 backup files remain
+            remaining_backups = list(Path(self.temp_dir).glob("*.backup*"))
+            assert len(remaining_backups) == 5
 
     def test_cleanup_backups_no_excess_files(self):
         """Test cleanup with no excess backup files."""
-        # Create test file with few backups
-        test_file = Path(self.temp_dir) / "test.json"
-        test_file.write_text('{"test": "data"}')
+        from src.di import override_dependency
+        from src.config import Config
         
-        # Create only 3 backup files (less than max)
-        for i in range(3):
-            backup_file = test_file.with_suffix(f".backup_{i}.json")
-            backup_file.write_text(f'{{"backup": {i}}}')
+        # Create a mock config with the temp directory
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
         
-        result = cleanup_backups(max_backups=5)
-        
-        assert result["status"] == "success"
-        assert result["files_removed"] == 0
-        assert result["space_freed_bytes"] == 0
+        with override_dependency(Config, MockConfig()):
+            # Create test file with few backups
+            test_file = Path(self.temp_dir) / "test.json"
+            test_file.write_text('{"test": "data"}')
+            
+            # Create only 3 backup files (less than max)
+            for i in range(3):
+                backup_file = test_file.with_suffix(f".backup_{i}.json")
+                backup_file.write_text(f'{{"backup": {i}}}')
+            
+            result = cleanup_backups(max_backups=5)
+            
+            assert result["status"] == "success"
+            assert result["files_removed"] == 0
+            assert result["space_freed_bytes"] == 0
 
 
 class TestErrorHandling:
@@ -620,13 +691,22 @@ class TestErrorHandling:
     def setup_method(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
-        self.mock_config = self.config_patch.start()
-        self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
+        
+        # Mock config to use test directory using dependency injection
+        from src.di import override_dependency
+        from src.config import Config
+        
+        class MockConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        self.config_override = override_dependency(Config, MockConfig())
+        self.config_override.__enter__()
 
     def teardown_method(self):
         """Clean up test environment."""
-        self.config_patch.stop()
+        self.config_override.__exit__(None, None, None)
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
@@ -635,15 +715,24 @@ class TestErrorHandling:
         # Use a path that will definitely fail on both Windows and Unix
         # NUL device or similar invalid paths 
         import os
+        from src.di import override_dependency
+        from src.config import Config
+        
         if os.name == 'nt':  # Windows
             invalid_path = "CON:/invalid/path"  # CON is reserved on Windows
         else:  # Unix-like
             invalid_path = "/dev/null/invalid/path"  # Can't create directories under /dev/null
             
-        self.mock_config.return_value.MUSIC_ROOT_PATH = invalid_path                
-        metadata = BandMetadata(band_name="Test Band")               
-        with pytest.raises(StorageError):            
-            save_band_metadata("Test Band", metadata)
+        class InvalidMockConfig:
+            MUSIC_ROOT_PATH = invalid_path
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+            
+        # Use nested context manager for invalid path config
+        with override_dependency(Config, InvalidMockConfig()):
+            metadata = BandMetadata(band_name="Test Band")               
+            with pytest.raises(StorageError):            
+                save_band_metadata("Test Band", metadata)
 
     def test_save_metadata_permission_error(self):
         """Test saving metadata with permission error."""
@@ -682,9 +771,17 @@ class TestEnhancedBandListOperations(unittest.TestCase):
         """Set up test environment."""
         self.test_dir = Path(tempfile.mkdtemp())  # Use temporary directory instead of test_music_collection
         
-        # Mock config to use test directory
-        self.original_config = storage.Config
-        storage.Config = lambda: type('MockConfig', (), {'MUSIC_ROOT_PATH': str(self.test_dir)})()
+        # Mock config to use test directory using dependency injection
+        from src.di import override_dependency
+        from src.config import Config
+        
+        class MockConfig:
+            MUSIC_ROOT_PATH = str(self.test_dir)
+            CACHE_DURATION_DAYS = 30
+            LOG_LEVEL = "INFO"
+        
+        self.config_override = override_dependency(Config, MockConfig())
+        self.config_override.__enter__()
         
         # Create test collection index with diverse data
         self.collection_index = CollectionIndex(
@@ -755,7 +852,7 @@ class TestEnhancedBandListOperations(unittest.TestCase):
     
     def tearDown(self):
         """Clean up test environment."""
-        storage.Config = self.original_config
+        self.config_override.__exit__(None, None, None)
         shutil.rmtree(self.test_dir, ignore_errors=True)
     
     def _create_test_metadata(self):

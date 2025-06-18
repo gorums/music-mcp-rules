@@ -30,7 +30,7 @@ from src.models import (
     BandIndexEntry,
     AlbumAnalysis
 )
-from src.config import Config
+from src.di import get_config
 
 # Import standardized exceptions
 from src.exceptions import (
@@ -265,7 +265,7 @@ def save_band_metadata(band_name: str, metadata: BandMetadata) -> Dict[str, Any]
                 user_message="Invalid metadata format provided. Expected BandMetadata object."
             )
             
-        config = Config()
+        config = get_config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
@@ -346,7 +346,7 @@ def save_band_analyze(band_name: str, analysis: BandAnalysis) -> Dict[str, Any]:
         StorageError: If save operation fails
     """
     try:
-        config = Config()
+        config = get_config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
@@ -464,7 +464,7 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
         StorageError: If save operation fails
     """
     try:
-        config = Config()
+        config = get_config()
         collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         # Check if file existed before we modify it
@@ -541,9 +541,9 @@ def get_band_list(
         
     Raises:
         StorageError: If operation fails
-    """
+            """
     try:
-        config = Config()
+        config = get_config()
         collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         if not collection_file.exists():
@@ -799,7 +799,7 @@ def _build_band_info(band_entry: BandIndexEntry, include_albums: bool = False, a
     Returns:
         Dictionary with enhanced band information
     """
-    config = Config()
+    config = get_config()
     band_folder = Path(config.MUSIC_ROOT_PATH) / band_entry.folder_path
     
     # Basic band information
@@ -938,7 +938,7 @@ def load_band_metadata(band_name: str) -> Optional[BandMetadata]:
         StorageError: If load operation fails
     """
     try:
-        config = Config()
+        config = get_config()
         band_folder = Path(config.MUSIC_ROOT_PATH) / band_name
         metadata_file = band_folder / ".band_metadata.json"
         
@@ -961,9 +961,9 @@ def load_collection_index() -> Optional[CollectionIndex]:
         
     Raises:
         StorageError: If load operation fails
-    """
+            """
     try:
-        config = Config()
+        config = get_config()
         collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         if not collection_file.exists():
@@ -988,9 +988,9 @@ def update_collection_index(index: CollectionIndex) -> Dict[str, Any]:
         
     Raises:
         StorageError: If save operation fails
-    """
+            """
     try:
-        config = Config()
+        config = get_config()
         collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
         
         # Update timestamp
@@ -1027,7 +1027,7 @@ def cleanup_backups(max_backups: int = 5) -> Dict[str, Any]:
         Dict with cleanup statistics
     """
     try:
-        config = Config()
+        config = get_config()
         music_root = Path(config.MUSIC_ROOT_PATH)
         
         cleaned_count = 0

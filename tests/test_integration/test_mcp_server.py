@@ -18,23 +18,38 @@ from src.models.collection import CollectionIndex, BandIndexEntry
 
 
 class TestSaveBandMetadataTool(unittest.TestCase):
-    """Test the enhanced save_band_metadata_tool with comprehensive validation and sync."""
-
+    """Test suite for save_band_metadata_tool."""
+    
     def setUp(self):
-        """Set up test environment."""
+        """Set up test environment with temporary directory."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
-        self.mock_config = self.config_patch.start()
+        # Mock the config to use temporary directory
+        self.config_patcher = patch('src.di.get_config')
+        self.mock_config = self.config_patcher.start()
         self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
+        self.mock_config.return_value.CACHE_DURATION_DAYS = 30
+        
+        # Clean up any existing collection index and band metadata to ensure clean state
+        collection_index_path = Path(self.temp_dir) / ".collection_index.json"
+        if collection_index_path.exists():
+            collection_index_path.unlink()
+            
+        # Also clean any existing band metadata files from previous tests
+        import glob
+        band_metadata_files = glob.glob(str(Path(self.temp_dir) / "*" / ".band_metadata.json"))
+        for metadata_file in band_metadata_files:
+            Path(metadata_file).unlink(missing_ok=True)
 
     def tearDown(self):
         """Clean up test environment."""
-        self.config_patch.stop()
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        self.config_patcher.stop()
+        # Clean up the temporary directory
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir)
 
     def test_save_band_metadata_simple_success(self):
         """Test successful metadata save with basic schema."""
-        band_name = "Test Band"
+        band_name = "Test Band Simple Success"
         metadata = {
             "formed": "1990",
             "genres": ["Rock", "Metal"],
@@ -91,7 +106,7 @@ class TestSaveBandMetadataTool(unittest.TestCase):
 
     def test_save_band_metadata_with_analysis(self):
         """Test metadata save with analysis data."""
-        band_name = "Test Band"
+        band_name = "Test Band With Analysis"
         metadata = {
             "formed": "1985",
             "genres": ["Metal"],
@@ -197,10 +212,8 @@ class TestSaveBandMetadataTool(unittest.TestCase):
         }
         
         # Mock both Config paths and ensure persistence
-        with patch('src.tools.storage.Config') as mock_config1, \
-             patch('tools.storage.Config') as mock_config2:
+        with patch('src.di.get_config') as mock_config1:
             mock_config1.return_value.MUSIC_ROOT_PATH = self.temp_dir
-            mock_config2.return_value.MUSIC_ROOT_PATH = self.temp_dir
             
             # First save
             result1 = save_band_metadata_tool(band_name, initial_metadata)
@@ -377,7 +390,7 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
+        self.config_patch = patch('src.di.get_config')
         self.mock_config = self.config_patch.start()
         self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
@@ -675,8 +688,8 @@ class TestSaveBandAnalyzeTool(unittest.TestCase):
         band_name = "Sync Test Band"
         
         # Mock both Config paths to ensure consistency
-        with patch('src.tools.storage.Config') as mock_config1, \
-             patch('tools.storage.Config') as mock_config2, \
+        with patch('src.di.get_config') as mock_config1, \
+             patch('src.di.get_config') as mock_config2, \
              patch('tools.storage.load_collection_index') as mock_load_index, \
              patch('tools.storage.load_band_metadata') as mock_load_metadata, \
              patch('tools.storage.update_collection_index') as mock_update_index, \
@@ -787,7 +800,7 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         self.temp_dir = tempfile.mkdtemp()
-        self.config_patch = patch('src.tools.storage.Config')
+        self.config_patch = patch('src.di.get_config')
         self.mock_config = self.config_patch.start()
         self.mock_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
 
@@ -1052,10 +1065,8 @@ class TestSaveCollectionInsightTool(unittest.TestCase):
         from src.tools.storage import update_collection_index
         
         # Mock both Config paths to ensure consistency
-        with patch('src.tools.storage.Config') as mock_config1, \
-             patch('tools.storage.Config') as mock_config2:
+        with patch('src.di.get_config') as mock_config1:
             mock_config1.return_value.MUSIC_ROOT_PATH = self.temp_dir
-            mock_config2.return_value.MUSIC_ROOT_PATH = self.temp_dir
             
             # Create existing collection index
             existing_entry = BandIndexEntry(

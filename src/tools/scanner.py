@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Tuple, Optional, Set, Any
 from datetime import datetime, timedelta
 
-from src.config import Config
+from src.di import get_config
 from src.models import (
     Album, BandMetadata, BandIndexEntry, CollectionIndex,
     AlbumType, FolderCompliance, AlbumFolderParser, 
@@ -56,7 +56,7 @@ def scan_music_folders() -> Dict:
     """
     try:
         # Validate music root path
-        config = Config()
+        config = get_config()
         music_root = Path(config.MUSIC_ROOT_PATH)
         if not music_root.exists():
             raise ValueError(f"Music root path does not exist: {music_root}")
@@ -169,7 +169,7 @@ def scan_music_folders() -> Dict:
         return {
             'status': 'error',
             'error': error_msg,
-            'collection_path': str(Config().MUSIC_ROOT_PATH) if Config().MUSIC_ROOT_PATH else 'Not set'
+            'collection_path': str(get_config().MUSIC_ROOT_PATH) if get_config().MUSIC_ROOT_PATH else 'Not set'
         }
 
 
@@ -243,9 +243,9 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
         if metadata_file.exists():
             try:
                 # Load existing metadata
-                from tools.storage import JSONStorage
+                from src.tools.storage import JSONStorage
                 metadata_dict = JSONStorage.load_json(metadata_file)
-                from models.band import BandMetadata
+                from src.models.band import BandMetadata
                 metadata = BandMetadata(**metadata_dict)
                 logging.debug(f"Loaded existing metadata for {band_name}")
             except Exception as e:
@@ -254,7 +254,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
         
         # Create new metadata if none exists or loading failed
         if metadata is None:
-            from models.band import BandMetadata
+            from src.models.band import BandMetadata
             metadata = BandMetadata(
                 band_name=band_name,
                 formed="",
@@ -277,7 +277,7 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
         
         # Save updated metadata with folder structure and albums
         try:
-            from tools.storage import JSONStorage
+            from src.tools.storage import JSONStorage
             metadata_dict = metadata.model_dump()
             JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
             logging.debug(f"Updated metadata with folder structure and local albums for {band_name}")
@@ -335,7 +335,7 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
     Returns:
         Updated BandMetadata object with separated albums arrays
     """
-    from models.band import Album, AlbumType
+    from src.models.band import Album, AlbumType
     
     logging.debug(f"Synchronizing metadata with {len(local_albums)} local albums for {band_name}")
     
@@ -758,7 +758,7 @@ def _detect_missing_albums(collection_index: CollectionIndex) -> int:
         Total number of missing albums detected
     """
     total_missing = 0
-    music_root = Path(Config().MUSIC_ROOT_PATH)
+    music_root = Path(get_config().MUSIC_ROOT_PATH)
     
     for band_entry in collection_index.bands:
         if not band_entry.has_metadata:

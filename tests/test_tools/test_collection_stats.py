@@ -58,7 +58,7 @@ class TestCollectionStats(unittest.TestCase):
         
         # Mock the storage operations
         with patch('src.tools.storage.JSONStorage.save_json') as mock_save, \
-             patch('src.tools.storage.Config') as mock_config:
+             patch('src.di.get_config') as mock_config:
             
             # Setup mocks
             mock_config.return_value.MUSIC_ROOT_PATH = "/test/music"

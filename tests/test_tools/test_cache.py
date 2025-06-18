@@ -279,7 +279,7 @@ class TestConvenienceFunctions:
         metadata_file = band_folder / ".band_metadata.json"
         metadata_file.write_text(json.dumps(sample_band_metadata), encoding='utf-8')
         
-        with patch('src.tools.cache.Config') as mock_config:
+        with patch('src.di.get_config') as mock_config:
             mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_root)
             mock_config.return_value.CACHE_DURATION_DAYS = 30
             
@@ -288,7 +288,7 @@ class TestConvenienceFunctions:
     
     def test_cleanup_expired_caches_function(self, temp_music_root):
         """Test cleanup_expired_caches convenience function."""
-        with patch('src.tools.cache.Config') as mock_config:
+        with patch('src.di.get_config') as mock_config:
             mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_root)
             mock_config.return_value.CACHE_DURATION_DAYS = 30
             
@@ -298,13 +298,26 @@ class TestConvenienceFunctions:
     
     def test_get_collection_cache_stats_function(self, temp_music_root):
         """Test get_collection_cache_stats convenience function."""
-        with patch('src.tools.cache.Config') as mock_config:
-            mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_root)
-            mock_config.return_value.CACHE_DURATION_DAYS = 30
-            
-            stats = get_collection_cache_stats()
-            assert isinstance(stats, CacheStats)
-            assert stats.total_entries == 0
+        # Use a completely isolated directory to avoid cross-test contamination
+        with tempfile.TemporaryDirectory() as isolated_temp_dir:
+            with patch('src.di.get_config') as mock_config:
+                mock_config.return_value.MUSIC_ROOT_PATH = isolated_temp_dir
+                mock_config.return_value.CACHE_DURATION_DAYS = 30
+                
+                # Also patch the cache manager's get_config calls
+                with patch('src.tools.cache.get_config') as mock_cache_config:
+                    mock_cache_config.return_value.MUSIC_ROOT_PATH = isolated_temp_dir
+                    mock_cache_config.return_value.CACHE_DURATION_DAYS = 30
+                    
+                    # Now get stats from the clean directory
+                    stats = get_collection_cache_stats()
+                    assert isinstance(stats, CacheStats)
+                    assert stats.total_entries == 0
+                    assert stats.valid_entries == 0
+                    assert stats.expired_entries == 0
+                    assert stats.corrupted_entries == 0
+                    assert stats.total_size == 0
+                    assert stats.cache_hit_rate == 0.0
 
 
 class TestErrorHandling:

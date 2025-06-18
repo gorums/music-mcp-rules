@@ -1,34 +1,34 @@
 """
-Test analyze and folder_structure preservation functionality in save_band_metadata.
+Test analysis data preservation in save_band_metadata operations.
 
-This test verifies that both analyze and folder_structure data are preserved by default 
+This test verifies that both analyze and folder_structure data are preserved by default
 when updating band metadata, ensuring no data loss during metadata updates.
 """
 
-import pytest
 import tempfile
 import shutil
+import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.models.band import BandMetadata, BandAnalysis, AlbumAnalysis, Album
+# Import data models for direct metadata creation
+from src.models.band import BandMetadata, Album, BandAnalysis, AlbumAnalysis
 from src.tools.storage import save_band_metadata, load_band_metadata
 from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
 
 
 class TestAnalyzePreservation:
-    """Test analyze data preservation in save_band_metadata operations."""
+    """Test preservation of analyze data when updating metadata."""
     
     @pytest.fixture
     def temp_music_dir(self):
         """Create temporary music directory for testing."""
-        temp_dir = tempfile.mkdtemp()
-        yield Path(temp_dir)
-        shutil.rmtree(temp_dir)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            yield Path(temp_dir)
     
-    @patch('src.tools.storage.Config')
+    @patch('src.di.get_config')
     def test_preserve_analyze_by_default(self, mock_config, temp_music_dir):
-        """Test that analyze data is always preserved when updating metadata."""
+        """Test that analyze data is preserved when updating metadata."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
         band_name = "Test Band"
@@ -110,8 +110,8 @@ class TestAnalyzePreservation:
         assert loaded_metadata.description == "Updated test band description"
         assert len(loaded_metadata.albums) == 2
     
-    @patch('src.tools.storage.Config')
-    @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
+    @patch('src.di.get_config')
+    @patch('src.di.get_config')  # Also patch the relative import used by MCP server
     def test_preserve_folder_structure_by_default(self, mock_config_rel, mock_config, temp_music_dir):
         """Test that folder_structure data is preserved when updating metadata."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
@@ -203,14 +203,14 @@ class TestAnalyzePreservation:
         # Note: Albums are preserved from original metadata (save_band_metadata_tool always preserves existing albums)
         assert len(loaded_metadata.albums) == 1
     
-    @patch('src.tools.storage.Config')
-    @patch('tools.storage.Config')  # Also patch the relative import used by MCP server
+    @patch('src.di.get_config')
+    @patch('src.di.get_config')  # Also patch the relative import used by MCP server
     def test_preserve_both_analyze_and_folder_structure(self, mock_config_rel, mock_config, temp_music_dir):
         """Test that both analyze and folder_structure data are preserved together."""
         mock_config.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         mock_config_rel.return_value.MUSIC_ROOT_PATH = str(temp_music_dir)
         
-        band_name = "Test Band"
+        band_name = "Test Band Preserve Both"  # Use unique band name to avoid cross-contamination
         
         # Step 1: Create initial metadata
         initial_metadata_dict = {
@@ -252,9 +252,9 @@ class TestAnalyzePreservation:
                 ]
             )
         
-        # Add both analyze and folder_structure data
+        # Add both analyze and folder_structure data - use simple text to avoid cross-contamination
         metadata.analyze = BandAnalysis(
-            review="Great band",
+            review="Great band",  # Simple text to avoid confusion with other tests
             rate=8,
             albums=[],
             similar_bands=["Similar Band"]
