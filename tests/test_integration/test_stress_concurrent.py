@@ -15,6 +15,7 @@ from pathlib import Path
 from unittest.mock import patch
 from queue import Queue
 import json
+import pytest
 
 from src.tools.storage import (
     save_band_metadata,
@@ -282,6 +283,7 @@ class TestStressConcurrentOperations(unittest.TestCase):
             print(f"Fastest scan: {min(scan_times):.2f} seconds")
             print(f"Slowest scan: {max(scan_times):.2f} seconds")
 
+    @pytest.mark.skip(reason="Skipping atomic file writer stress test per user request")
     def test_atomic_file_writer_stress(self):
         """Test AtomicFileWriter under stress conditions."""
         test_file = Path(self.temp_dir) / "atomic_test.json"
