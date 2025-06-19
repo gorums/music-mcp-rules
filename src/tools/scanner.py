@@ -63,113 +63,17 @@ def scan_music_folders() -> Dict:
         OSError: If there are file system access issues
     """
     try:
-        # Validate music root path
-        config = get_config()
-        music_root = Path(config.MUSIC_ROOT_PATH)
-        if not music_root.exists():
-            raise ValueError(f"Music root path does not exist: {music_root}")
-        if not music_root.is_dir():
-            raise ValueError(f"Music root path is not a directory: {music_root}")
-            
-        logging.info(f"Starting comprehensive music collection scan at: {music_root}")
+        # Validate and prepare for scanning
+        music_root, collection_index = _prepare_scan_environment()
         
-        # Load existing collection index to detect changes
-        collection_index = _load_or_create_collection_index(music_root)
+        # Analyze collection changes
+        current_band_folders, scan_results = _analyze_collection_changes(music_root, collection_index)
         
-        # Get current filesystem state vs existing index state
-        current_band_folders = _discover_band_folders(music_root)
-        current_band_names = {folder.name for folder in current_band_folders}
-        existing_band_names = {band.name for band in collection_index.bands}
+        # Process all band folders
+        _process_band_folders(current_band_folders, music_root, collection_index, scan_results)
         
-        # Initialize scan results tracking structure
-        scan_results = {
-            'bands_discovered': len(current_band_folders),
-            'bands_added': len(current_band_names - existing_band_names),
-            'bands_removed': len(existing_band_names - current_band_names),
-            'bands_updated': 0,
-            'albums_discovered': 0,
-            'total_tracks': 0,
-            'missing_albums': 0,
-            'scan_errors': [],
-            'scan_timestamp': datetime.now().isoformat(),
-            'changes_detected': [],
-            'bands': []
-        }
-        
-        # Process removed bands (exist in index but not in filesystem)
-        removed_bands = existing_band_names - current_band_names
-        for band_name in removed_bands:
-            if collection_index.remove_band(band_name):
-                scan_results['changes_detected'].append(f"Removed band: {band_name}")
-                logging.info(f"Removed band from index: {band_name}")
-        
-        # Scan all current band folders and detect changes
-        logging.info(f"Scanning {len(current_band_folders)} band folders")
-        
-        for band_folder in current_band_folders:
-            try:
-                # Scan individual band folder for albums and tracks
-                band_result = _scan_band_folder(band_folder, music_root)
-                if not band_result:
-                    continue
-                    
-                # Add band results to overall scan results
-                scan_results['bands'].append(band_result)
-                scan_results['albums_discovered'] += band_result['albums_count']
-                scan_results['total_tracks'] += band_result['total_tracks']
-                
-                # Detect if this is a new band or an updated existing band
-                existing_entry = collection_index.get_band(band_result['band_name'])
-                if existing_entry is None:
-                    # This is a completely new band
-                    scan_results['changes_detected'].append(
-                        f"Added new band: {band_result['band_name']} ({band_result['albums_count']} albums)"
-                    )
-                else:
-                    # Check for changes in existing band (album count differences)
-                    if existing_entry.albums_count != band_result['albums_count']:
-                        album_diff = band_result['albums_count'] - existing_entry.albums_count
-                        scan_results['bands_updated'] += 1
-                        scan_results['changes_detected'].append(
-                            f"Updated band: {band_result['band_name']} (album change: {album_diff:+d})"
-                        )
-                
-                # Update collection index with current band state
-                band_entry = _create_band_index_entry(band_result, music_root, existing_entry)
-                collection_index.add_band(band_entry)
-                
-            except Exception as e:
-                error_msg = f"Error scanning band folder {band_folder}: {str(e)}"
-                logging.warning(error_msg)
-                scan_results['scan_errors'].append(error_msg)
-        
-        # Calculate missing albums from updated collection stats
-        scan_results['missing_albums'] = sum(band.missing_albums_count for band in collection_index.bands)
-        
-        # Determine if any changes were detected and need to be saved
-        changes_made = (
-            scan_results['bands_added'] + 
-            scan_results['bands_removed'] + 
-            scan_results['bands_updated']
-        ) > 0
-        
-        # Save updated collection index with all changes
-        _save_collection_index(collection_index, music_root)
-        
-        # Log comprehensive scan summary
-        logging.info(
-            f"Comprehensive scan completed: {scan_results['bands_discovered']} total bands, "
-            f"{scan_results['bands_added']} added, {scan_results['bands_removed']} removed, "
-            f"{scan_results['bands_updated']} updated, {scan_results['albums_discovered']} albums, "
-            f"{scan_results['total_tracks']} tracks"
-        )
-        
-        return {
-            'status': 'success',
-            'results': scan_results,
-            'collection_path': str(music_root),
-            'changes_made': changes_made
-        }
+        # Finalize scan results
+        return _finalize_scan_results(music_root, collection_index, scan_results)
         
     except Exception as e:
         error_msg = f"Music collection scan failed: {str(e)}"
@@ -179,6 +83,192 @@ def scan_music_folders() -> Dict:
             'error': error_msg,
             'collection_path': str(get_config().MUSIC_ROOT_PATH) if get_config().MUSIC_ROOT_PATH else 'Not set'
         }
+
+
+def _prepare_scan_environment() -> Tuple[Path, CollectionIndex]:
+    """
+    Validate music root path and load collection index.
+    
+    Returns:
+        Tuple of (music_root_path, collection_index)
+        
+    Raises:
+        ValueError: If music root path is invalid
+    """
+    config = get_config()
+    music_root = Path(config.MUSIC_ROOT_PATH)
+    if not music_root.exists():
+        raise ValueError(f"Music root path does not exist: {music_root}")
+    if not music_root.is_dir():
+        raise ValueError(f"Music root path is not a directory: {music_root}")
+        
+    logging.info(f"Starting comprehensive music collection scan at: {music_root}")
+    
+    # Load existing collection index to detect changes
+    collection_index = _load_or_create_collection_index(music_root)
+    
+    return music_root, collection_index
+
+
+def _analyze_collection_changes(music_root: Path, collection_index: CollectionIndex) -> Tuple[List[Path], Dict]:
+    """
+    Analyze changes in the collection by comparing filesystem to existing index.
+    
+    Args:
+        music_root: Path to music collection root
+        collection_index: Current collection index
+        
+    Returns:
+        Tuple of (current_band_folders, scan_results)
+    """
+    # Get current filesystem state vs existing index state
+    current_band_folders = _discover_band_folders(music_root)
+    current_band_names = {folder.name for folder in current_band_folders}
+    existing_band_names = {band.name for band in collection_index.bands}
+    
+    # Initialize scan results tracking structure
+    scan_results = {
+        'bands_discovered': len(current_band_folders),
+        'bands_added': len(current_band_names - existing_band_names),
+        'bands_removed': len(existing_band_names - current_band_names),
+        'bands_updated': 0,
+        'albums_discovered': 0,
+        'total_tracks': 0,
+        'missing_albums': 0,
+        'scan_errors': [],
+        'scan_timestamp': datetime.now().isoformat(),
+        'changes_detected': [],
+        'bands': []
+    }
+    
+    # Process removed bands (exist in index but not in filesystem)
+    _process_removed_bands(collection_index, current_band_names, existing_band_names, scan_results)
+    
+    return current_band_folders, scan_results
+
+
+def _process_removed_bands(collection_index: CollectionIndex, current_band_names: Set[str], 
+                          existing_band_names: Set[str], scan_results: Dict) -> None:
+    """
+    Process bands that have been removed from the filesystem.
+    
+    Args:
+        collection_index: Collection index to update
+        current_band_names: Set of band names currently in filesystem
+        existing_band_names: Set of band names in existing index
+        scan_results: Scan results dictionary to update
+    """
+    removed_bands = existing_band_names - current_band_names
+    for band_name in removed_bands:
+        if collection_index.remove_band(band_name):
+            scan_results['changes_detected'].append(f"Removed band: {band_name}")
+            logging.info(f"Removed band from index: {band_name}")
+
+
+def _process_band_folders(current_band_folders: List[Path], music_root: Path, 
+                         collection_index: CollectionIndex, scan_results: Dict) -> None:
+    """
+    Process all current band folders and detect changes.
+    
+    Args:
+        current_band_folders: List of band folder paths
+        music_root: Path to music collection root
+        collection_index: Collection index to update
+        scan_results: Scan results dictionary to update
+    """
+    logging.info(f"Scanning {len(current_band_folders)} band folders")
+    
+    for band_folder in current_band_folders:
+        try:
+            # Scan individual band folder for albums and tracks
+            band_result = _scan_band_folder(band_folder, music_root)
+            if not band_result:
+                continue
+                
+            # Add band results to overall scan results
+            scan_results['bands'].append(band_result)
+            scan_results['albums_discovered'] += band_result['albums_count']
+            scan_results['total_tracks'] += band_result['total_tracks']
+            
+            # Detect if this is a new band or an updated existing band
+            _detect_band_changes(collection_index, band_result, scan_results)
+            
+            # Update collection index with current band state
+            band_entry = _create_band_index_entry(band_result, music_root, 
+                                                 collection_index.get_band(band_result['band_name']))
+            collection_index.add_band(band_entry)
+            
+        except Exception as e:
+            error_msg = f"Error scanning band folder {band_folder}: {str(e)}"
+            logging.warning(error_msg)
+            scan_results['scan_errors'].append(error_msg)
+
+
+def _detect_band_changes(collection_index: CollectionIndex, band_result: Dict, scan_results: Dict) -> None:
+    """
+    Detect if a band is new or has been updated.
+    
+    Args:
+        collection_index: Collection index to check against
+        band_result: Results from band folder scan
+        scan_results: Scan results dictionary to update
+    """
+    existing_entry = collection_index.get_band(band_result['band_name'])
+    if existing_entry is None:
+        # This is a completely new band
+        scan_results['changes_detected'].append(
+            f"Added new band: {band_result['band_name']} ({band_result['albums_count']} albums)"
+        )
+    else:
+        # Check for changes in existing band (album count differences)
+        if existing_entry.albums_count != band_result['albums_count']:
+            album_diff = band_result['albums_count'] - existing_entry.albums_count
+            scan_results['bands_updated'] += 1
+            scan_results['changes_detected'].append(
+                f"Updated band: {band_result['band_name']} (album change: {album_diff:+d})"
+            )
+
+
+def _finalize_scan_results(music_root: Path, collection_index: CollectionIndex, 
+                          scan_results: Dict) -> Dict:
+    """
+    Finalize scan results and save collection index.
+    
+    Args:
+        music_root: Path to music collection root
+        collection_index: Updated collection index
+        scan_results: Scan results dictionary
+        
+    Returns:
+        Final scan results dictionary
+    """
+    # Calculate missing albums from updated collection stats
+    scan_results['missing_albums'] = sum(band.missing_albums_count for band in collection_index.bands)
+    
+    # Determine if any changes were detected and need to be saved
+    changes_made = (
+        scan_results['bands_added'] + 
+        scan_results['bands_removed'] + 
+        scan_results['bands_updated']
+    ) > 0
+    
+    # Save updated collection index with all changes
+    _save_collection_index(collection_index, music_root)
+    
+    # Log comprehensive scan summary
+    logging.info(
+        f"Comprehensive scan completed: {scan_results['bands_discovered']} total bands, "
+        f"{scan_results['bands_added']} added, {scan_results['bands_removed']} removed, "
+        f"{scan_results['bands_updated']} updated, {scan_results['albums_discovered']} albums, "
+        f"{scan_results['total_tracks']} tracks"
+    )
+    
+    return {
+        'status': 'success',
+        'results': scan_results,
+        'collection_path': str(music_root),
+        'changes_made': changes_made
+    }
 
 
 def _discover_band_folders(music_root: Path) -> List[Path]:
@@ -223,106 +313,201 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     logging.debug(f"Scanning band folder: {band_name}")
     
     try:
-        # Initialize enhanced detection components
-        album_parser = AlbumFolderParser()
-        structure_detector = BandStructureDetector()
-        compliance_validator = ComplianceValidator()
+        # Initialize scanning components and discover albums
+        albums, total_tracks = _scan_band_albums(band_folder)
         
-        # Discover album folders (including type folders)
-        album_folders = _discover_album_folders_enhanced(band_folder, album_parser)
+        # Detect folder structure and load/create metadata
+        folder_structure, metadata = _process_band_metadata(band_folder, band_name, albums)
         
-        # Scan each album with enhanced metadata
-        albums = []
-        total_tracks = 0
-        
-        for album_folder_info in album_folders:
-            album_info = _scan_album_folder_enhanced(album_folder_info, album_parser, compliance_validator)
-            if album_info:
-                albums.append(album_info)
-                total_tracks += album_info['track_count']
-        
-        # Detect band folder structure
-        folder_structure = structure_detector.detect_band_structure(str(band_folder))
-        
-        # Load existing metadata if available, or create minimal structure
-        metadata_file = band_folder / '.band_metadata.json'
-        metadata = None
-        
-        if metadata_file.exists():
-            try:
-                # Load existing metadata
-                from src.tools.storage import JSONStorage
-                metadata_dict = JSONStorage.load_json(metadata_file)
-                from src.models.band import BandMetadata
-                metadata = BandMetadata(**metadata_dict)
-                logging.debug(f"Loaded existing metadata for {band_name}")
-            except Exception as e:
-                logging.warning(f"Failed to load existing metadata for {band_name}: {e}")
-                # Will create new metadata below
-        
-        # Create new metadata if none exists or loading failed
-        if metadata is None:
-            from src.models.band import BandMetadata
-            metadata = BandMetadata(
-                band_name=band_name,
-                formed="",
-                genres=[],
-                origin="",
-                members=[],
-                description="",
-                albums=[]
-            )
-            logging.debug(f"Created new metadata structure for {band_name}")
-        
-        # Update folder structure in metadata
-        metadata.folder_structure = folder_structure
-        
-        # Synchronize metadata albums with local albums found
-        metadata = _synchronize_metadata_with_local_albums(metadata, albums, band_name)
-        
-        # Update timestamp
-        metadata.update_timestamp()
-        
-        # Save updated metadata with folder structure and albums
-        try:
-            from src.tools.storage import JSONStorage
-            metadata_dict = metadata.model_dump()
-            JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
-            logging.debug(f"Updated metadata with folder structure and local albums for {band_name}")
-        except Exception as e:
-            logging.warning(f"Failed to save metadata for {band_name}: {e}")
-            # Continue with scan even if save fails
-        
-        # Check if metadata exists and was properly saved via save_band_metadata_tool
-        has_metadata = False
-        if metadata_file.exists():
-            try:
-                metadata = _load_band_metadata(metadata_file)
-                if metadata:
-                    has_metadata = metadata.has_metadata_saved()
-            except Exception as e:
-                logging.warning(f"Failed to validate metadata for {band_name}: {e}")
-                has_metadata = False
+        # Check metadata status
+        has_metadata = _check_band_metadata_status(band_folder / '.band_metadata.json', band_name)
         
         # Create result with enhanced information
-        result = {
-            'band_name': band_name,
-            'folder_path': str(band_folder.relative_to(music_root)),
-            'albums_count': len(albums),
-            'albums': albums,
-            'total_tracks': total_tracks,
-            'has_metadata': has_metadata,  # Now uses the has_metadata_saved() method
-            'last_scanned': datetime.now().isoformat(),
-            'folder_structure': folder_structure.model_dump() if folder_structure else None,
-            'album_types_distribution': _calculate_album_types_distribution(albums),
-            'compliance_summary': _calculate_compliance_summary(albums)
-        }
-        
-        return result
+        return _create_band_scan_result(band_name, band_folder, music_root, albums, 
+                                       total_tracks, has_metadata, folder_structure)
         
     except Exception as e:
         logging.error(f"Error scanning band folder {band_name}: {e}")
         return None
+
+
+def _scan_band_albums(band_folder: Path) -> Tuple[List[Dict], int]:
+    """
+    Discover and scan all album folders in a band folder.
+    
+    Args:
+        band_folder: Path to the band folder
+        
+    Returns:
+        Tuple of (albums_list, total_tracks_count)
+    """
+    # Initialize enhanced detection components
+    album_parser = AlbumFolderParser()
+    compliance_validator = ComplianceValidator()
+    
+    # Discover album folders (including type folders)
+    album_folders = _discover_album_folders_enhanced(band_folder, album_parser)
+    
+    # Scan each album with enhanced metadata
+    albums = []
+    total_tracks = 0
+    
+    for album_folder_info in album_folders:
+        album_info = _scan_album_folder_enhanced(album_folder_info, album_parser, compliance_validator)
+        if album_info:
+            albums.append(album_info)
+            total_tracks += album_info['track_count']
+    
+    return albums, total_tracks
+
+
+def _process_band_metadata(band_folder: Path, band_name: str, albums: List[Dict]) -> Tuple[Any, Any]:
+    """
+    Detect folder structure and load/create/update band metadata.
+    
+    Args:
+        band_folder: Path to the band folder
+        band_name: Name of the band
+        albums: List of discovered albums
+        
+    Returns:
+        Tuple of (folder_structure, metadata)
+    """
+    # Detect band folder structure
+    structure_detector = BandStructureDetector()
+    folder_structure = structure_detector.detect_band_structure(str(band_folder))
+    
+    # Load or create metadata
+    metadata = _load_or_create_band_metadata(band_folder, band_name)
+    
+    # Update metadata with current state
+    metadata.folder_structure = folder_structure
+    metadata = _synchronize_metadata_with_local_albums(metadata, albums, band_name)
+    metadata.update_timestamp()
+    
+    # Save updated metadata
+    _save_band_metadata_file(band_folder, band_name, metadata)
+    
+    return folder_structure, metadata
+
+
+def _load_or_create_band_metadata(band_folder: Path, band_name: str):
+    """
+    Load existing metadata or create new metadata structure.
+    
+    Args:
+        band_folder: Path to the band folder
+        band_name: Name of the band
+        
+    Returns:
+        BandMetadata instance
+    """
+    metadata_file = band_folder / '.band_metadata.json'
+    metadata = None
+    
+    if metadata_file.exists():
+        try:
+            # Load existing metadata
+            from src.tools.storage import JSONStorage
+            metadata_dict = JSONStorage.load_json(metadata_file)
+            from src.models.band import BandMetadata
+            metadata = BandMetadata(**metadata_dict)
+            logging.debug(f"Loaded existing metadata for {band_name}")
+        except Exception as e:
+            logging.warning(f"Failed to load existing metadata for {band_name}: {e}")
+            # Will create new metadata below
+    
+    # Create new metadata if none exists or loading failed
+    if metadata is None:
+        from src.models.band import BandMetadata
+        metadata = BandMetadata(
+            band_name=band_name,
+            formed="",
+            genres=[],
+            origin="",
+            members=[],
+            description="",
+            albums=[]
+        )
+        logging.debug(f"Created new metadata structure for {band_name}")
+    
+    return metadata
+
+
+def _save_band_metadata_file(band_folder: Path, band_name: str, metadata) -> None:
+    """
+    Save band metadata to file.
+    
+    Args:
+        band_folder: Path to the band folder
+        band_name: Name of the band
+        metadata: BandMetadata instance to save
+    """
+    metadata_file = band_folder / '.band_metadata.json'
+    try:
+        from src.tools.storage import JSONStorage
+        metadata_dict = metadata.model_dump()
+        JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
+        logging.debug(f"Updated metadata with folder structure and local albums for {band_name}")
+    except Exception as e:
+        logging.warning(f"Failed to save metadata for {band_name}: {e}")
+        # Continue with scan even if save fails
+
+
+def _check_band_metadata_status(metadata_file: Path, band_name: str) -> bool:
+    """
+    Check if band metadata exists and was properly saved.
+    
+    Args:
+        metadata_file: Path to the metadata file
+        band_name: Name of the band
+        
+    Returns:
+        True if metadata exists and was properly saved, False otherwise
+    """
+    has_metadata = False
+    if metadata_file.exists():
+        try:
+            metadata = _load_band_metadata(metadata_file)
+            if metadata:
+                has_metadata = metadata.has_metadata_saved()
+        except Exception as e:
+            logging.warning(f"Failed to validate metadata for {band_name}: {e}")
+            has_metadata = False
+    
+    return has_metadata
+
+
+def _create_band_scan_result(band_name: str, band_folder: Path, music_root: Path, 
+                           albums: List[Dict], total_tracks: int, has_metadata: bool, 
+                           folder_structure: Any) -> Dict:
+    """
+    Create the final band scan result dictionary.
+    
+    Args:
+        band_name: Name of the band
+        band_folder: Path to the band folder
+        music_root: Path to music collection root
+        albums: List of discovered albums
+        total_tracks: Total number of tracks
+        has_metadata: Whether metadata was properly saved
+        folder_structure: Detected folder structure
+        
+    Returns:
+        Dictionary with band scan results
+    """
+    return {
+        'band_name': band_name,
+        'folder_path': str(band_folder.relative_to(music_root)),
+        'albums_count': len(albums),
+        'albums': albums,
+        'total_tracks': total_tracks,
+        'has_metadata': has_metadata,  # Now uses the has_metadata_saved() method
+        'last_scanned': datetime.now().isoformat(),
+        'folder_structure': folder_structure.model_dump() if folder_structure else None,
+        'album_types_distribution': _calculate_album_types_distribution(albums),
+        'compliance_summary': _calculate_compliance_summary(albums)
+    }
 
 
 def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albums: List[Dict], band_name: str) -> 'BandMetadata':
@@ -347,13 +532,61 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
     
     logging.debug(f"Synchronizing metadata with {len(local_albums)} local albums for {band_name}")
     
+    # Prepare data structures for synchronization
+    local_albums_lookup, processed_local_albums = _prepare_album_synchronization(local_albums)
+    
+    # Process existing albums and separate into local/missing
+    updated_local_albums, updated_missing_albums = _process_existing_albums(
+        metadata, local_albums_lookup, processed_local_albums, band_name
+    )
+    
+    # Add new local albums not in metadata
+    new_local_albums = _process_new_local_albums(
+        local_albums, processed_local_albums, band_name
+    )
+    updated_local_albums.extend(new_local_albums)
+    
+    # Update metadata with final results
+    return _update_metadata_with_synchronized_albums(
+        metadata, updated_local_albums, updated_missing_albums, band_name
+    )
+
+
+def _prepare_album_synchronization(local_albums: List[Dict]) -> Tuple[Dict[str, Dict], set]:
+    """
+    Prepare data structures needed for album synchronization.
+    
+    Args:
+        local_albums: List of album dictionaries found during local scanning
+        
+    Returns:
+        Tuple of (local_albums_lookup, processed_local_albums_set)
+    """
     # Create a lookup of local albums by name (case-insensitive)
     local_albums_lookup = {album['album_name'].lower(): album for album in local_albums}
     
     # Track which local albums we've processed
     processed_local_albums = set()
     
-    # Separate albums into local and missing arrays
+    return local_albums_lookup, processed_local_albums
+
+
+def _process_existing_albums(metadata: 'BandMetadata', local_albums_lookup: Dict[str, Dict], 
+                           processed_local_albums: set, band_name: str) -> Tuple[List, List]:
+    """
+    Process existing albums from metadata and separate into local and missing arrays.
+    
+    Args:
+        metadata: BandMetadata object being updated
+        local_albums_lookup: Dictionary mapping lowercase album names to album data
+        processed_local_albums: Set to track which local albums have been processed
+        band_name: Name of the band for logging
+        
+    Returns:
+        Tuple of (updated_local_albums, updated_missing_albums)
+    """
+    from src.models.band import AlbumType
+    
     updated_local_albums = []
     updated_missing_albums = []
     
@@ -364,66 +597,147 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
         album_name_lower = existing_album.album_name.lower()
         
         if album_name_lower in local_albums_lookup:
-            # Album exists locally - add to local albums array
-            local_album = local_albums_lookup[album_name_lower]
+            # Album exists locally - update and add to local albums array
+            updated_album = _update_existing_album_with_local_data(
+                existing_album, local_albums_lookup[album_name_lower]
+            )
+            updated_local_albums.append(updated_album)
             processed_local_albums.add(album_name_lower)
-            
-            # Update the existing album with local info while preserving metadata
-            existing_album.track_count = local_album['track_count']
-            existing_album.folder_path = local_album['folder_path']
-            
-            # Update type if it was detected from folder structure
-            if local_album.get('type'):
-                try:
-                    existing_album.type = AlbumType(local_album['type'])
-                except ValueError:
-                    # Keep existing type if new type is invalid
-                    pass
-            
-            # Update edition if detected
-            if local_album.get('edition'):
-                existing_album.edition = local_album['edition']
-            
-            # Update year if detected and not set
-            if local_album.get('year') and not existing_album.year:
-                existing_album.year = local_album['year']
-            
-            updated_local_albums.append(existing_album)
             logging.debug(f"Updated existing album in local array: {existing_album.album_name}")
-            
         else:
             # Album not found locally - add to missing albums array
-            existing_album.track_count = 0  # No tracks since it's missing
-            existing_album.folder_path = ""  # No folder path since it's missing
-            updated_missing_albums.append(existing_album)
+            missing_album = _prepare_missing_album(existing_album)
+            updated_missing_albums.append(missing_album)
             logging.debug(f"Moved album to missing array: {existing_album.album_name}")
     
-    # Add new albums found locally that aren't in metadata
+    return updated_local_albums, updated_missing_albums
+
+
+def _update_existing_album_with_local_data(existing_album, local_album: Dict):
+    """
+    Update an existing album with local filesystem data while preserving metadata.
+    
+    Args:
+        existing_album: Existing album object from metadata
+        local_album: Dictionary with local album data
+        
+    Returns:
+        Updated album object
+    """
+    from src.models.band import AlbumType
+    
+    # Update the existing album with local info while preserving metadata
+    existing_album.track_count = local_album['track_count']
+    existing_album.folder_path = local_album['folder_path']
+    
+    # Update type if it was detected from folder structure
+    if local_album.get('type'):
+        try:
+            existing_album.type = AlbumType(local_album['type'])
+        except ValueError:
+            # Keep existing type if new type is invalid
+            pass
+    
+    # Update edition if detected
+    if local_album.get('edition'):
+        existing_album.edition = local_album['edition']
+    
+    # Update year if detected and not set
+    if local_album.get('year') and not existing_album.year:
+        existing_album.year = local_album['year']
+    
+    return existing_album
+
+
+def _prepare_missing_album(existing_album):
+    """
+    Prepare an album for the missing albums array.
+    
+    Args:
+        existing_album: Album object to prepare as missing
+        
+    Returns:
+        Album object prepared for missing status
+    """
+    # Album not found locally - clear local-specific data
+    existing_album.track_count = 0  # No tracks since it's missing
+    existing_album.folder_path = ""  # No folder path since it's missing
+    return existing_album
+
+
+def _process_new_local_albums(local_albums: List[Dict], processed_local_albums: set, 
+                            band_name: str) -> List:
+    """
+    Process local albums that aren't in the existing metadata.
+    
+    Args:
+        local_albums: List of all local album dictionaries
+        processed_local_albums: Set of already processed album names (lowercase)
+        band_name: Name of the band for logging
+        
+    Returns:
+        List of new Album objects for albums found locally but not in metadata
+    """
+    from src.models.band import Album, AlbumType
+    
+    new_local_albums = []
+    
     for local_album in local_albums:
         album_name_lower = local_album['album_name'].lower()
         
         if album_name_lower not in processed_local_albums:
             # This is a new album not in metadata
-            try:
-                album_type = AlbumType(local_album.get('type', AlbumType.ALBUM.value))
-            except ValueError:
-                album_type = AlbumType.ALBUM
-            
-            # Create new album entry for local albums array
-            new_album = Album(
-                album_name=local_album['album_name'],
-                year=local_album.get('year', ''),
-                type=album_type,
-                edition=local_album.get('edition', ''),
-                track_count=local_album['track_count'],
-                duration=local_album.get('duration', ''),
-                genres=local_album.get('genres', []),
-                folder_path=local_album['folder_path']
-            )
-            
-            updated_local_albums.append(new_album)
+            new_album = _create_new_album_from_local_data(local_album)
+            new_local_albums.append(new_album)
             logging.debug(f"Added new local album: {new_album.album_name}")
     
+    return new_local_albums
+
+
+def _create_new_album_from_local_data(local_album: Dict):
+    """
+    Create a new Album object from local filesystem data.
+    
+    Args:
+        local_album: Dictionary with local album data
+        
+    Returns:
+        New Album object
+    """
+    from src.models.band import Album, AlbumType
+    
+    try:
+        album_type = AlbumType(local_album.get('type', AlbumType.ALBUM.value))
+    except ValueError:
+        album_type = AlbumType.ALBUM
+    
+    # Create new album entry for local albums array
+    return Album(
+        album_name=local_album['album_name'],
+        year=local_album.get('year', ''),
+        type=album_type,
+        edition=local_album.get('edition', ''),
+        track_count=local_album['track_count'],
+        duration=local_album.get('duration', ''),
+        genres=local_album.get('genres', []),
+        folder_path=local_album['folder_path']
+    )
+
+
+def _update_metadata_with_synchronized_albums(metadata: 'BandMetadata', updated_local_albums: List, 
+                                            updated_missing_albums: List, band_name: str) -> 'BandMetadata':
+    """
+    Update metadata object with synchronized album arrays and statistics.
+    
+    Args:
+        metadata: BandMetadata object to update
+        updated_local_albums: List of local albums
+        updated_missing_albums: List of missing albums
+        band_name: Name of the band for logging
+        
+    Returns:
+        Updated BandMetadata object
+    """
     # Update metadata with separated albums arrays
     metadata.albums = updated_local_albums
     metadata.albums_missing = updated_missing_albums
