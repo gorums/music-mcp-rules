@@ -326,7 +326,7 @@ class TestMusicDirectoryScanner:
 
     def test_discover_band_folders_permission_error(self, temp_music_dir):
         """Test band folder discovery with permission errors."""
-        with patch('pathlib.Path.iterdir', side_effect=PermissionError("Access denied")):
+        with patch('os.scandir', side_effect=PermissionError("Access denied")):
             band_folders = _discover_band_folders(temp_music_dir)
             assert band_folders == []
 
@@ -418,7 +418,7 @@ class TestMusicDirectoryScanner:
         test_folder = temp_music_dir / "restricted"
         test_folder.mkdir()
         
-        with patch('pathlib.Path.iterdir', side_effect=PermissionError("Access denied")):
+        with patch('os.scandir', side_effect=PermissionError("Access denied")):
             count = _count_music_files(test_folder)
             assert count == 0
 

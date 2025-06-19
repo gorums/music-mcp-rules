@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime
@@ -32,6 +33,11 @@ from src.exceptions import (
     create_storage_error,
     wrap_exception,
 )
+from src.tools.performance import (
+    performance_monitor,
+    track_operation,
+    get_performance_summary,
+)
 from src.models import (
     AlbumAnalysis,
     BandAnalysis,
@@ -43,6 +49,74 @@ from src.models import (
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+# Simple in-memory cache for frequently accessed data
+class SimpleCache:
+    """
+    Simple thread-safe in-memory cache for frequently accessed data.
+    """
+    
+    def __init__(self, max_size: int = 100, ttl_seconds: int = 300):
+        self._cache = {}
+        self._access_times = {}
+        self._max_size = max_size
+        self._ttl_seconds = ttl_seconds
+        self._lock = threading.Lock()
+    
+    def get(self, key: str) -> Optional[Any]:
+        """Get item from cache if it exists and is not expired."""
+        with self._lock:
+            if key not in self._cache:
+                return None
+            
+            # Check if expired
+            access_time = self._access_times.get(key, 0)
+            if time.time() - access_time > self._ttl_seconds:
+                del self._cache[key]
+                del self._access_times[key]
+                return None
+            
+            # Update access time
+            self._access_times[key] = time.time()
+            return self._cache[key]
+    
+    def put(self, key: str, value: Any) -> None:
+        """Put item in cache, evicting old items if necessary."""
+        with self._lock:
+            # Evict expired items
+            self._evict_expired()
+            
+            # Evict oldest items if cache is full
+            if len(self._cache) >= self._max_size and key not in self._cache:
+                oldest_key = min(self._access_times.keys(), key=self._access_times.get)
+                del self._cache[oldest_key]
+                del self._access_times[oldest_key]
+            
+            self._cache[key] = value
+            self._access_times[key] = time.time()
+    
+    def _evict_expired(self) -> None:
+        """Remove expired items from cache."""
+        current_time = time.time()
+        expired_keys = [
+            key for key, access_time in self._access_times.items()
+            if current_time - access_time > self._ttl_seconds
+        ]
+        for key in expired_keys:
+            del self._cache[key]
+            del self._access_times[key]
+    
+    def clear(self) -> None:
+        """Clear all items from cache."""
+        with self._lock:
+            self._cache.clear()
+            self._access_times.clear()
+
+
+# Global cache instances
+_collection_cache = SimpleCache(max_size=50, ttl_seconds=300)  # 5 minute TTL
+_metadata_cache = SimpleCache(max_size=200, ttl_seconds=180)   # 3 minute TTL
 
 
 class AtomicFileWriter:
@@ -677,6 +751,7 @@ def save_collection_insight(insights: CollectionInsight) -> Dict[str, Any]:
         raise StorageError(f"Failed to save collection insights: {e}")
 
 
+@performance_monitor("get_band_list")
 def get_band_list(
     search_query: Optional[str] = None,
     filter_genre: Optional[str] = None,
@@ -753,20 +828,51 @@ def get_band_list(
 
 def _load_collection_index_for_band_list() -> Optional[CollectionIndex]:
     """
-    Load collection index for band list operations.
+    Load collection index for band list operations with caching.
     
     Returns:
         CollectionIndex if found, None if not found
     """
     config = get_config()
     collection_file = Path(config.MUSIC_ROOT_PATH) / ".collection_index.json"
+    cache_key = f"collection_index:{collection_file}"
     
-    if not collection_file.exists():
-        return None
+    # Try to get from cache first
+    cached_index = _collection_cache.get(cache_key)
+    if cached_index:
+        logger.debug("Using cached collection index")
+        return cached_index
     
-    # Load collection index
-    index_dict = JSONStorage.load_json(collection_file)
-    return CollectionIndex(**index_dict)
+    with track_operation("load_collection_index") as metrics:
+        if not collection_file.exists():
+            return None
+        
+        try:
+            # Check file modification time for cache invalidation
+            file_mtime = collection_file.stat().st_mtime
+            cached_mtime = _collection_cache.get(f"{cache_key}:mtime")
+            
+            if cached_mtime and cached_mtime == file_mtime and cached_index:
+                # File hasn't changed, use cached version
+                return cached_index
+            
+            # Load collection index
+            index_dict = JSONStorage.load_json(collection_file)
+            index = CollectionIndex(**index_dict)
+            
+            # Cache the loaded index
+            _collection_cache.put(cache_key, index)
+            _collection_cache.put(f"{cache_key}:mtime", file_mtime)
+            
+            metrics.items_processed = len(index.bands) if index.bands else 0
+            logger.debug(f"Loaded collection index with {metrics.items_processed} bands")
+            
+            return index
+            
+        except Exception as e:
+            logger.error(f"Failed to load collection index: {e}")
+            metrics.errors += 1
+            raise
 
 
 def _create_empty_band_list_result(page: int, page_size: int, search_query: Optional[str], 

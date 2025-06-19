@@ -8,6 +8,13 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Local imports
 from src.di import get_config
+from src.tools.performance import (
+    BatchFileOperations,
+    ProgressReporter,
+    performance_monitor,
+    track_operation,
+    get_performance_summary,
+)
 from src.models import (
     Album,
     AlbumFolderParser,
@@ -37,6 +44,7 @@ EXCLUDED_FOLDERS = {
 }
 
 
+@performance_monitor("music_collection_scan")
 def scan_music_folders() -> Dict:
     """
     Scan the music directory structure to discover bands and albums, detecting all changes.
@@ -57,6 +65,7 @@ def scan_music_folders() -> Dict:
         - results: Dict with scan statistics and detailed change information
         - collection_path: Path to the scanned music collection
         - changes_made: True if any changes were detected and saved
+        - performance_metrics: Performance metrics for the scan operation
         
     Raises:
         ValueError: If music root path is invalid
@@ -69,11 +78,16 @@ def scan_music_folders() -> Dict:
         # Analyze collection changes
         current_band_folders, scan_results = _analyze_collection_changes(music_root, collection_index)
         
-        # Process all band folders
+        # Process all band folders with progress reporting
         _process_band_folders(current_band_folders, music_root, collection_index, scan_results)
         
-        # Finalize scan results
-        return _finalize_scan_results(music_root, collection_index, scan_results)
+        # Finalize scan results with performance metrics
+        result = _finalize_scan_results(music_root, collection_index, scan_results)
+        
+        # Add performance metrics to result
+        result['performance_metrics'] = get_performance_summary()
+        
+        return result
         
     except Exception as e:
         error_msg = f"Music collection scan failed: {str(e)}"
@@ -81,7 +95,8 @@ def scan_music_folders() -> Dict:
         return {
             'status': 'error',
             'error': error_msg,
-            'collection_path': str(get_config().MUSIC_ROOT_PATH) if get_config().MUSIC_ROOT_PATH else 'Not set'
+            'collection_path': str(get_config().MUSIC_ROOT_PATH) if get_config().MUSIC_ROOT_PATH else 'Not set',
+            'performance_metrics': get_performance_summary()
         }
 
 
@@ -168,7 +183,7 @@ def _process_removed_bands(collection_index: CollectionIndex, current_band_names
 def _process_band_folders(current_band_folders: List[Path], music_root: Path, 
                          collection_index: CollectionIndex, scan_results: Dict) -> None:
     """
-    Process all current band folders and detect changes.
+    Process all current band folders and detect changes with progress reporting.
     
     Args:
         current_band_folders: List of band folder paths
@@ -176,32 +191,51 @@ def _process_band_folders(current_band_folders: List[Path], music_root: Path,
         collection_index: Collection index to update
         scan_results: Scan results dictionary to update
     """
-    logging.info(f"Scanning {len(current_band_folders)} band folders")
+    num_bands = len(current_band_folders)
+    logging.info(f"Scanning {num_bands} band folders")
     
-    for band_folder in current_band_folders:
-        try:
-            # Scan individual band folder for albums and tracks
-            band_result = _scan_band_folder(band_folder, music_root)
-            if not band_result:
-                continue
+    # Initialize progress reporter for large collections
+    progress_reporter = None
+    if num_bands > 50:  # Use progress reporting for larger collections
+        progress_reporter = ProgressReporter(num_bands, "Band Folder Scanning")
+    
+    with track_operation("process_band_folders", total_bands=num_bands) as metrics:
+        for i, band_folder in enumerate(current_band_folders):
+            try:
+                # Scan individual band folder for albums and tracks
+                band_result = _scan_band_folder(band_folder, music_root)
+                if not band_result:
+                    continue
+                    
+                # Add band results to overall scan results
+                scan_results['bands'].append(band_result)
+                scan_results['albums_discovered'] += band_result['albums_count']
+                scan_results['total_tracks'] += band_result['total_tracks']
                 
-            # Add band results to overall scan results
-            scan_results['bands'].append(band_result)
-            scan_results['albums_discovered'] += band_result['albums_count']
-            scan_results['total_tracks'] += band_result['total_tracks']
-            
-            # Detect if this is a new band or an updated existing band
-            _detect_band_changes(collection_index, band_result, scan_results)
-            
-            # Update collection index with current band state
-            band_entry = _create_band_index_entry(band_result, music_root, 
-                                                 collection_index.get_band(band_result['band_name']))
-            collection_index.add_band(band_entry)
-            
-        except Exception as e:
-            error_msg = f"Error scanning band folder {band_folder}: {str(e)}"
-            logging.warning(error_msg)
-            scan_results['scan_errors'].append(error_msg)
+                # Detect if this is a new band or an updated existing band
+                _detect_band_changes(collection_index, band_result, scan_results)
+                
+                # Update collection index with current band state
+                band_entry = _create_band_index_entry(band_result, music_root, 
+                                                     collection_index.get_band(band_result['band_name']))
+                collection_index.add_band(band_entry)
+                
+                # Update progress tracking
+                metrics.items_processed += 1
+                if progress_reporter:
+                    progress_reporter.update()
+                
+            except Exception as e:
+                error_msg = f"Error scanning band folder {band_folder}: {str(e)}"
+                logging.warning(error_msg)
+                scan_results['scan_errors'].append(error_msg)
+                metrics.errors += 1
+                if progress_reporter:
+                    progress_reporter.update()  # Still update progress on error
+        
+        # Finish progress reporting
+        if progress_reporter:
+            progress_reporter.finish()
 
 
 def _detect_band_changes(collection_index: CollectionIndex, band_result: Dict, scan_results: Dict) -> None:
@@ -273,7 +307,7 @@ def _finalize_scan_results(music_root: Path, collection_index: CollectionIndex,
 
 def _discover_band_folders(music_root: Path) -> List[Path]:
     """
-    Discover all potential band folders in the music directory.
+    Discover all potential band folders in the music directory using optimized batch operations.
     
     Args:
         music_root: Path to music collection root
@@ -281,20 +315,38 @@ def _discover_band_folders(music_root: Path) -> List[Path]:
     Returns:
         List of paths to potential band folders
     """
-    band_folders = []
-    
-    try:
-        for item in music_root.iterdir():
-            if (item.is_dir() and 
-                not item.name.startswith('.') and 
-                item.name.lower() not in EXCLUDED_FOLDERS):
-                band_folders.append(item)
-    except PermissionError as e:
-        logging.warning(f"Permission denied accessing {music_root}: {e}")
-    except OSError as e:
-        logging.warning(f"OS error accessing {music_root}: {e}")
-    
-    return sorted(band_folders, key=lambda x: x.name.lower())
+    with track_operation("discover_band_folders", music_root=str(music_root)) as metrics:
+        try:
+            # Use optimized batch scanning for better performance
+            all_items = BatchFileOperations.scan_directory_batch(
+                music_root, 
+                recursive=False, 
+                exclude_hidden=True
+            )
+            
+            # Filter for valid band folders
+            band_folders = []
+            for item in all_items:
+                if (item.is_dir() and 
+                    not item.name.startswith('.') and 
+                    item.name.lower() not in EXCLUDED_FOLDERS):
+                    band_folders.append(item)
+                    metrics.items_processed += 1
+            
+            # Log performance info for large collections
+            if len(band_folders) > 100:
+                logging.info(f"Discovered {len(band_folders)} band folders in {music_root}")
+            
+            return sorted(band_folders, key=lambda x: x.name.lower())
+            
+        except PermissionError as e:
+            logging.warning(f"Permission denied accessing {music_root}: {e}")
+            metrics.errors += 1
+            return []
+        except OSError as e:
+            logging.warning(f"OS error accessing {music_root}: {e}")
+            metrics.errors += 1
+            return []
 
 
 def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
@@ -917,7 +969,7 @@ def _calculate_compliance_summary(albums: List[Dict]) -> Dict[str, Any]:
 
 def _count_music_files(folder: Path) -> int:
     """
-    Count music files in a folder (non-recursive).
+    Count music files in a folder (non-recursive) using optimized batch operations.
     
     Args:
         folder: Path to folder to scan
@@ -925,15 +977,8 @@ def _count_music_files(folder: Path) -> int:
     Returns:
         Number of music files found
     """
-    count = 0
-    try:
-        for item in folder.iterdir():
-            if item.is_file() and item.suffix.lower() in MUSIC_EXTENSIONS:
-                count += 1
-    except (PermissionError, OSError) as e:
-        logging.warning(f"Error counting files in {folder}: {e}")
-    
-    return count
+    # Use optimized batch file counting for better performance
+    return BatchFileOperations.count_files_in_directory(folder, MUSIC_EXTENSIONS)
 
 
 def _load_or_create_collection_index(music_root: Path) -> CollectionIndex:

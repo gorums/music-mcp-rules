@@ -30,6 +30,16 @@ from .cache import (
     cleanup_expired_caches,
     get_collection_cache_stats
 )
+from .performance import (
+    PerformanceMetrics,
+    PerformanceTracker,
+    BatchFileOperations,
+    ProgressReporter,
+    performance_monitor,
+    track_operation,
+    get_performance_summary,
+    clear_performance_metrics
+)
 
 __all__ = [
     # Scanner functions
@@ -58,5 +68,15 @@ __all__ = [
     'CacheError',
     'is_metadata_cache_valid',
     'cleanup_expired_caches',
-    'get_collection_cache_stats'
+    'get_collection_cache_stats',
+    
+    # Performance monitoring
+    'PerformanceMetrics',
+    'PerformanceTracker',
+    'BatchFileOperations', 
+    'ProgressReporter',
+    'performance_monitor',
+    'track_operation',
+    'get_performance_summary',
+    'clear_performance_metrics'
 ] 
