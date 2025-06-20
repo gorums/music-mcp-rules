@@ -5,69 +5,445 @@ This module provides utilities for validating album types, detecting types from
 folder names, and migrating existing album data to the enhanced schema.
 """
 
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Set
 import re
 from .band import Album, AlbumType
 
 
 class AlbumTypeDetector:
     """
-    Utility class for detecting album types and editions from folder names and metadata.
+    Enhanced utility class for intelligent album type detection from folder names, metadata, and heuristics.
+    
+    Features:
+    - Intelligent keyword-based detection with confidence scoring
+    - Heuristics for ambiguous cases (track count, naming patterns)
+    - Manual type specification and override rules
+    - Special case handling (soundtracks, tributes, covers)
+    - Customizable type mapping rules
     """
     
-    # Keywords for album type detection
+    # Enhanced keywords for album type detection with confidence levels
     TYPE_KEYWORDS = {
-        AlbumType.LIVE: [
-            'live', 'concert', 'unplugged', 'acoustic', 'in concert',
-            'live at', 'live in', 'live from', 'concert at'
-        ],
-        AlbumType.COMPILATION: [
-            'greatest hits', 'best of', 'collection', 'anthology', 
-            'compilation', 'hits', 'complete', 'essential'
-        ],
-        AlbumType.EP: ['ep', 'e.p.'],
-        AlbumType.SINGLE: ['single'],
-        AlbumType.DEMO: [
-            'demo', 'demos', 'early recordings', 'unreleased',
-            'rough mixes', 'rehearsal', 'pre-production'
-        ],
-        AlbumType.INSTRUMENTAL: ['instrumental', 'instrumentals'],
-        AlbumType.SPLIT: ['split', 'vs.', 'vs', 'versus', 'with']
+        AlbumType.LIVE: {
+            'high_confidence': [
+                'live at', 'live in', 'live from', 'concert at', 'live recording',
+                'unplugged', 'acoustic session', 'in concert', 'live performance'
+            ],
+            'medium_confidence': [
+                'live', 'concert', 'acoustic', 'session', 'performance'
+            ],
+            'low_confidence': [
+                'on stage', 'tour', 'festival'
+            ]
+        },
+        AlbumType.COMPILATION: {
+            'high_confidence': [
+                'greatest hits', 'best of', 'anthology', 'collection',
+                'complete works', 'essential', 'hits collection'
+            ],
+            'medium_confidence': [
+                'compilation', 'hits', 'complete', 'selected', 'retrospective'
+            ],
+            'low_confidence': [
+                'works', 'selected songs'
+            ]
+        },
+        AlbumType.EP: {
+            'high_confidence': [
+                'ep', 'e.p.', 'extended play'
+            ],
+            'medium_confidence': [
+                'mini album', 'short album'
+            ],
+            'low_confidence': []
+        },
+        AlbumType.SINGLE: {
+            'high_confidence': [
+                'single', 'maxi single', 'cd single'
+            ],
+            'medium_confidence': [
+                'promo single', 'radio single'
+            ],
+            'low_confidence': []
+        },
+        AlbumType.DEMO: {
+            'high_confidence': [
+                'demo', 'demos', 'early recordings', 'rehearsal recordings',
+                'pre-production', 'rough mixes', 'work in progress'
+            ],
+            'medium_confidence': [
+                'unreleased', 'rehearsal', 'rough', 'early', 'unfinished'
+            ],
+            'low_confidence': [
+                'rare', 'bootleg'
+            ]
+        },
+        AlbumType.INSTRUMENTAL: {
+            'high_confidence': [
+                'instrumental', 'instrumentals', 'instrumental version',
+                'no vocals', 'music only'
+            ],
+            'medium_confidence': [
+                'karaoke version', 'backing tracks'
+            ],
+            'low_confidence': []
+        },
+        AlbumType.SPLIT: {
+            'high_confidence': [
+                'split', 'split album', 'split release', 'versus', 'vs.',
+                'with', 'collaboration'
+            ],
+            'medium_confidence': [
+                'shared album', 'joint release', 'collaborative'
+            ],
+            'low_confidence': [
+                'featuring', 'feat.'
+            ]
+        }
     }
     
-    # Keywords for edition detection
-    EDITION_KEYWORDS = [
-        'deluxe edition', 'deluxe', 'limited edition', 'limited',
-        'anniversary edition', 'remastered', 'remaster',
-        'special edition', 'expanded edition', 'director\'s cut',
-        'collector\'s edition', 'premium edition', 'ultimate edition'
-    ]
+    # Special case keywords for enhanced detection
+    SPECIAL_CASE_KEYWORDS = {
+        'soundtrack': {
+            'keywords': ['soundtrack', 'ost', 'original soundtrack', 'film score', 'movie soundtrack'],
+            'type': AlbumType.COMPILATION
+        },
+        'tribute': {
+            'keywords': ['tribute', 'tribute to', 'covers', 'cover album', 'covers album'],
+            'type': AlbumType.COMPILATION
+        },
+        'remix': {
+            'keywords': ['remix', 'remixes', 'remixed', 'reworked', 'reconstructed'],
+            'type': AlbumType.COMPILATION
+        },
+        'remaster': {
+            'keywords': ['remaster', 'remastered', 'digitally remastered', 'restored'],
+            'type': AlbumType.ALBUM  # Keep as Album type but note as special edition
+        }
+    }
+    
+    # Track count heuristics for ambiguous cases
+    TRACK_COUNT_HEURISTICS = {
+        AlbumType.SINGLE: {'min': 1, 'max': 4},
+        AlbumType.EP: {'min': 3, 'max': 8},
+        AlbumType.ALBUM: {'min': 8, 'max': 50}
+    }
+    
+    # Manual type override rules (can be customized)
+    _manual_overrides: Dict[str, AlbumType] = {}
+    _custom_keywords: Dict[AlbumType, List[str]] = {}
+    
+    @classmethod
+    def set_manual_override(cls, album_identifier: str, album_type: AlbumType) -> None:
+        """
+        Set manual type override for specific album.
+        
+        Args:
+            album_identifier: Album name or folder pattern to override
+            album_type: Type to assign to this album
+        """
+        cls._manual_overrides[album_identifier.lower()] = album_type
+    
+    @classmethod
+    def add_custom_keyword(cls, album_type: AlbumType, keyword: str, confidence: str = 'medium') -> None:
+        """
+        Add custom keyword for album type detection.
+        
+        Args:
+            album_type: Album type to associate with keyword
+            keyword: Keyword to add
+            confidence: Confidence level ('high', 'medium', 'low')
+        """
+        if album_type not in cls._custom_keywords:
+            cls._custom_keywords[album_type] = []
+        cls._custom_keywords[album_type].append(keyword.lower())
+        
+        # Also add to main keywords dict
+        if album_type not in cls.TYPE_KEYWORDS:
+            cls.TYPE_KEYWORDS[album_type] = {'high_confidence': [], 'medium_confidence': [], 'low_confidence': []}
+        
+        confidence_key = f'{confidence}_confidence'
+        if confidence_key in cls.TYPE_KEYWORDS[album_type]:
+            cls.TYPE_KEYWORDS[album_type][confidence_key].append(keyword.lower())
+    
+    @classmethod
+    def detect_type_with_intelligence(
+        cls, 
+        folder_name: str, 
+        album_name: str = "", 
+        track_count: Optional[int] = None,
+        genres: Optional[List[str]] = None,
+        existing_metadata: Optional[Dict] = None
+    ) -> Tuple[AlbumType, float, Dict[str, any]]:
+        """
+        Intelligent album type detection with confidence scoring and detailed analysis.
+        
+        Args:
+            folder_name: The album folder name
+            album_name: The album name (optional)
+            track_count: Number of tracks (for heuristics)
+            genres: List of genres (for context)
+            existing_metadata: Any existing metadata that might help
+            
+        Returns:
+            Tuple of (detected_type, confidence_score, analysis_details)
+        """
+        analysis = {
+            'method_used': [],
+            'keyword_matches': [],
+            'heuristic_factors': [],
+            'special_cases': [],
+            'confidence_factors': []
+        }
+        
+        # Step 1: Check manual overrides first
+        for identifier, override_type in cls._manual_overrides.items():
+            if identifier in folder_name.lower() or identifier in album_name.lower():
+                analysis['method_used'].append('manual_override')
+                analysis['confidence_factors'].append(f"Manual override for '{identifier}'")
+                return override_type, 1.0, analysis
+        
+        # Step 2: Check special cases
+        special_type, special_confidence = cls._detect_special_cases(folder_name, album_name, analysis)
+        if special_type:
+            return special_type, special_confidence, analysis
+        
+        # Step 3: Enhanced keyword detection with confidence scoring
+        keyword_type, keyword_confidence = cls._detect_with_enhanced_keywords(folder_name, album_name, analysis)
+        
+        # Step 4: Apply heuristics for ambiguous cases
+        heuristic_type, heuristic_confidence = cls._apply_heuristics(
+            track_count, genres, keyword_type, keyword_confidence, analysis
+        )
+        
+        # Step 5: Combine results and determine final type
+        final_type, final_confidence = cls._combine_detection_results(
+            keyword_type, keyword_confidence,
+            heuristic_type, heuristic_confidence,
+            analysis
+        )
+        
+        return final_type, final_confidence, analysis
+    
+    @classmethod
+    def _detect_special_cases(cls, folder_name: str, album_name: str, analysis: Dict) -> Tuple[Optional[AlbumType], float]:
+        """Detect special cases like soundtracks, tributes, remixes."""
+        text_to_check = f"{folder_name} {album_name}".lower()
+        
+        for case_name, case_info in cls.SPECIAL_CASE_KEYWORDS.items():
+            for keyword in case_info['keywords']:
+                if keyword in text_to_check:
+                    analysis['method_used'].append('special_case')
+                    analysis['special_cases'].append(f"{case_name}: {keyword}")
+                    analysis['confidence_factors'].append(f"Special case detection: {case_name}")
+                    return case_info['type'], 0.85
+        
+        return None, 0.0
+    
+    @classmethod
+    def _detect_with_enhanced_keywords(cls, folder_name: str, album_name: str, analysis: Dict) -> Tuple[AlbumType, float]:
+        """Enhanced keyword detection with confidence scoring."""
+        text_to_check = f"{folder_name} {album_name}".lower()
+        best_type = AlbumType.ALBUM
+        best_confidence = 0.0
+        
+        for album_type, confidence_levels in cls.TYPE_KEYWORDS.items():
+            type_confidence = 0.0
+            matches = []
+            
+            # Check high confidence keywords
+            for keyword in confidence_levels.get('high_confidence', []):
+                if keyword in text_to_check:
+                    type_confidence = max(type_confidence, 0.9)
+                    matches.append(f"HIGH: {keyword}")
+            
+            # Check medium confidence keywords
+            for keyword in confidence_levels.get('medium_confidence', []):
+                if keyword in text_to_check:
+                    type_confidence = max(type_confidence, 0.7)
+                    matches.append(f"MED: {keyword}")
+            
+            # Check low confidence keywords
+            for keyword in confidence_levels.get('low_confidence', []):
+                if keyword in text_to_check:
+                    type_confidence = max(type_confidence, 0.4)
+                    matches.append(f"LOW: {keyword}")
+            
+            if type_confidence > best_confidence:
+                best_confidence = type_confidence
+                best_type = album_type
+                analysis['keyword_matches'] = matches
+        
+        if best_confidence > 0:
+            analysis['method_used'].append('enhanced_keywords')
+            analysis['confidence_factors'].append(f"Keyword detection: {best_confidence:.1f}")
+        
+        return best_type, best_confidence
+    
+    @classmethod
+    def _apply_heuristics(
+        cls, 
+        track_count: Optional[int], 
+        genres: Optional[List[str]], 
+        keyword_type: AlbumType, 
+        keyword_confidence: float,
+        analysis: Dict
+    ) -> Tuple[AlbumType, float]:
+        """Apply heuristics for ambiguous cases."""
+        heuristic_type = keyword_type
+        heuristic_confidence = keyword_confidence
+        
+        # Track count heuristics
+        if track_count is not None:
+            for album_type, constraints in cls.TRACK_COUNT_HEURISTICS.items():
+                if constraints['min'] <= track_count <= constraints['max']:
+                    # If keyword detection was weak, use track count heuristic
+                    if keyword_confidence < 0.6:
+                        confidence_boost = 0.6 - keyword_confidence
+                        if album_type == keyword_type:
+                            heuristic_confidence += confidence_boost
+                        else:
+                            # Track count suggests different type
+                            if confidence_boost > 0.3:
+                                heuristic_type = album_type
+                                heuristic_confidence = 0.6
+                        
+                        analysis['method_used'].append('track_count_heuristic')
+                        analysis['heuristic_factors'].append(
+                            f"Track count {track_count} suggests {album_type.value}"
+                        )
+                        break
+        
+        # Genre-based heuristics
+        if genres:
+            genre_text = ' '.join(genres).lower()
+            if 'live' in genre_text and keyword_confidence < 0.7:
+                heuristic_type = AlbumType.LIVE
+                heuristic_confidence = max(heuristic_confidence, 0.6)
+                analysis['method_used'].append('genre_heuristic')
+                analysis['heuristic_factors'].append("Genre suggests live album")
+        
+        return heuristic_type, heuristic_confidence
+    
+    @classmethod
+    def _combine_detection_results(
+        cls,
+        keyword_type: AlbumType, keyword_confidence: float,
+        heuristic_type: AlbumType, heuristic_confidence: float,
+        analysis: Dict
+    ) -> Tuple[AlbumType, float]:
+        """Combine detection results for final determination."""
+        # If both methods agree, increase confidence
+        if keyword_type == heuristic_type:
+            final_confidence = min(1.0, (keyword_confidence + heuristic_confidence) / 2 + 0.1)
+            analysis['confidence_factors'].append("Multiple methods agree")
+            return keyword_type, final_confidence
+        
+        # If they disagree, use the one with higher confidence
+        if heuristic_confidence > keyword_confidence:
+            analysis['confidence_factors'].append("Heuristic override keyword detection")
+            return heuristic_type, heuristic_confidence
+        else:
+            analysis['confidence_factors'].append("Keyword detection preferred")
+            return keyword_type, keyword_confidence
     
     @classmethod
     def detect_type_from_folder_name(cls, folder_name: str, album_name: str = "") -> AlbumType:
         """
-        Detect album type from folder name and album name.
+        Legacy method for backward compatibility - detect album type from folder name and album name.
         
         Args:
             folder_name: The album folder name
             album_name: The album name (optional)
             
         Returns:
-            Detected AlbumType
+            Detected AlbumType based on name patterns
         """
-        folder_lower = folder_name.lower()
-        name_lower = album_name.lower() if album_name else ""
-        
-        # Check for type indicators in folder name or album name
-        for album_type, keywords in cls.TYPE_KEYWORDS.items():
-            if any(keyword in folder_lower or keyword in name_lower for keyword in keywords):
-                return album_type
-        
-        # Special case: Check track count heuristics for EP detection
-        # This would be used when track count is known
-        
-        return AlbumType.ALBUM
+        # Use the enhanced detection but only return the type (for backward compatibility)
+        detected_type, _, _ = cls.detect_type_with_intelligence(folder_name, album_name)
+        return detected_type
     
+    @classmethod
+    def batch_detect_types(
+        cls, 
+        albums_data: List[Dict], 
+        confidence_threshold: float = 0.6
+    ) -> List[Dict]:
+        """
+        Batch process multiple albums for type detection.
+        
+        Args:
+            albums_data: List of album dictionaries with folder_name, album_name, etc.
+            confidence_threshold: Minimum confidence to accept detection
+            
+        Returns:
+            List of enhanced album dictionaries with detected types and confidence scores
+        """
+        results = []
+        
+        for album_data in albums_data:
+            folder_name = album_data.get('folder_path', album_data.get('folder_name', ''))
+            album_name = album_data.get('album_name', '')
+            track_count = album_data.get('track_count')
+            genres = album_data.get('genres', [])
+            
+            detected_type, confidence, analysis = cls.detect_type_with_intelligence(
+                folder_name, album_name, track_count, genres
+            )
+            
+            enhanced_album = album_data.copy()
+            enhanced_album.update({
+                'detected_type': detected_type.value,
+                'detection_confidence': confidence,
+                'detection_analysis': analysis,
+                'type_detection_used': confidence >= confidence_threshold
+            })
+            
+            # Only update type if confidence is high enough
+            if confidence >= confidence_threshold:
+                enhanced_album['type'] = detected_type.value
+            
+            results.append(enhanced_album)
+        
+        return results
+    
+    @classmethod
+    def get_detection_statistics(cls, albums_data: List[Dict]) -> Dict[str, any]:
+        """
+        Get statistics about type detection performance.
+        
+        Args:
+            albums_data: List of album dictionaries
+            
+        Returns:
+            Dictionary with detection statistics
+        """
+        results = cls.batch_detect_types(albums_data)
+        
+        total_albums = len(results)
+        high_confidence = len([r for r in results if r['detection_confidence'] >= 0.8])
+        medium_confidence = len([r for r in results if 0.6 <= r['detection_confidence'] < 0.8])
+        low_confidence = len([r for r in results if r['detection_confidence'] < 0.6])
+        
+        type_distribution = {}
+        for result in results:
+            detected_type = result['detected_type']
+            type_distribution[detected_type] = type_distribution.get(detected_type, 0) + 1
+        
+        return {
+            'total_albums': total_albums,
+            'high_confidence_detections': high_confidence,
+            'medium_confidence_detections': medium_confidence,
+            'low_confidence_detections': low_confidence,
+            'confidence_distribution': {
+                'high': high_confidence / total_albums if total_albums > 0 else 0,
+                'medium': medium_confidence / total_albums if total_albums > 0 else 0,
+                'low': low_confidence / total_albums if total_albums > 0 else 0
+            },
+            'type_distribution': type_distribution
+        }
+
+    # Original methods preserved for backward compatibility
     @classmethod
     def detect_edition_from_folder_name(cls, folder_name: str) -> str:
         """
