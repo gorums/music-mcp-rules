@@ -46,11 +46,11 @@ Before contributing, ensure you have:
 
 ```bash
 # Fork the repository on GitHub, then clone your fork
-git clone https://github.com/YOUR_USERNAME/music-catalog-mcp.git
-cd music-catalog-mcp
+git clone https://github.com/YOUR_USERNAME/music-mcp-server.git
+cd music-mcp-server
 
 # Add upstream remote
-git remote add upstream https://github.com/ORIGINAL_OWNER/music-catalog-mcp.git
+git remote add upstream https://github.com/ORIGINAL_OWNER/music-mcp-server.git
 ```
 
 ### 2. Environment Setup

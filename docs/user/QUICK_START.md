@@ -118,7 +118,7 @@ If you used the setup script, it generated a configuration file. Simply:
   "mcpServers": {
     "music-collection": {
       "command": "python",
-      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "args": ["/path/to/music-mcp-server/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/your/music"
       }

@@ -87,7 +87,7 @@ Add this configuration to your Claude Desktop config file:
   "mcpServers": {
     "music-collection": {
       "command": "python",
-      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "args": ["/path/to/music-mcp-server/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/your/music/collection"
       }
@@ -97,7 +97,7 @@ Add this configuration to your Claude Desktop config file:
 ```
 
 **Configuration Notes:**
-- Use your actual path instead of `D:/Projects/music-catalog-mcp/main.py`
+- Use your actual path instead of `D:/Projects/music-mcp-server/main.py`
 - Use your actual music collection path instead of `D:/Path/To/Your/Music/Collection`
 - On Windows, use forward slashes `/` or escaped backslashes `\\\\` in paths
 - The `args` field must be an array, not a string

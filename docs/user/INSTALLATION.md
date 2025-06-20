@@ -136,8 +136,8 @@ docker-compose up music-mcp
 ### Step-by-Step Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/music-catalog-mcp.git
-cd music-catalog-mcp
+git clone https://github.com/yourusername/music-mcp-server.git
+cd music-mcp-server
 
 # Create virtual environment (recommended)
 python -m venv music-mcp-env
@@ -223,8 +223,8 @@ For contributors and developers:
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/music-catalog-mcp.git
-cd music-catalog-mcp
+git clone https://github.com/yourusername/music-mcp-server.git
+cd music-mcp-server
 
 # Use the setup script for development
 python scripts/setup.py

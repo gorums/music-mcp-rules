@@ -2,7 +2,7 @@
   "mcpServers": {
     "music-collection-main": {
       "command": "python",
-      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "args": ["/path/to/music-mcp-server/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/main/music/collection",
         "CACHE_DURATION_DAYS": "30",
@@ -11,7 +11,7 @@
     },
     "music-collection-vinyl": {
       "command": "python", 
-      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "args": ["/path/to/music-mcp-server/main.py"],
       "env": {
         "MUSIC_ROOT_PATH": "/path/to/vinyl/collection",
         "CACHE_DURATION_DAYS": "30",
