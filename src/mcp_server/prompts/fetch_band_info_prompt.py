@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
-from src.prompts.fetch_band_info import get_fetch_band_info_prompt
+from src.core.prompts.fetch_band_info import get_fetch_band_info_prompt
 
 # Configure logging
 logger = logging.getLogger(__name__)

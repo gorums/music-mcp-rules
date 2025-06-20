@@ -10,7 +10,7 @@ class Config(BaseSettings):
     Reads only from environment variables (Docker ENV or system env) with sensible defaults.
     
     This class is designed to work with dependency injection - use get_config() 
-    from src.server.dependencies instead of instantiating directly.
+    from src.mcp_server.dependencies instead of instantiating directly.
     """
     MUSIC_ROOT_PATH: str = Field(
         default="/music",
@@ -88,4 +88,4 @@ class Config(BaseSettings):
 
 
 # Note: Global config instance removed - use dependency injection instead
-# Import get_config from src.server.dependencies for getting config instances 
+# Import get_config from src.mcp_server.dependencies for getting config instances 

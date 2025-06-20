@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.models.collection import CollectionIndex, CollectionStats, BandIndexEntry
-from src.tools.storage import update_collection_index
+from src.core.tools.storage import update_collection_index
 
 
 class TestCollectionStats(unittest.TestCase):
@@ -57,7 +57,7 @@ class TestCollectionStats(unittest.TestCase):
         self.assertEqual(collection_index.stats.completion_percentage, 68.0)
         
         # Mock the storage operations
-        with patch('src.tools.storage.JSONStorage.save_json') as mock_save, \
+        with patch('src.core.tools.storage.JSONStorage.save_json') as mock_save, \
              patch('src.di.get_config') as mock_config:
             
             # Setup mocks

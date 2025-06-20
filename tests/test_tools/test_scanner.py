@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.tools.scanner import (
+from src.core.tools.scanner import (
     scan_music_folders,
     _discover_band_folders,
     _scan_band_folder,
@@ -266,7 +266,7 @@ class TestMusicDirectoryScanner:
             # Check that some change was detected (band should be updated due to new album)
             beatles_entry = None
             # Verify in the collection index that Beatles now has more albums
-            from src.tools.scanner import _load_or_create_collection_index
+            from src.core.tools.scanner import _load_or_create_collection_index
             index = _load_or_create_collection_index(temp_music_dir)
             beatles_entry = next((b for b in index.bands if b.name == "The Beatles"), None)
             assert beatles_entry is not None
@@ -722,7 +722,7 @@ class TestMusicDirectoryScanner:
     def test_has_metadata_saved_behavior(self, temp_music_dir):
         """Test that has_metadata correctly reflects whether metadata was saved via save_band_metadata_tool."""
         from src.models.band import BandMetadata
-        from src.tools.scanner import _scan_band_folder
+        from src.core.tools.scanner import _scan_band_folder
         
         # Test 1: Band with metadata file created directly (not via tool)
         beatles_folder = temp_music_dir / "The Beatles"

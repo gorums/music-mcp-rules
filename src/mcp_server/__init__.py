@@ -3,13 +3,13 @@
 Music Collection MCP Server Package
 
 This package contains the refactored MCP server components organized by function:
-- core.py: Server initialization and FastMCP instance
+- main.py: Server initialization and FastMCP instance
 - tools/: Individual tool implementations (8 tools)
 - resources/: Individual resource implementations (3 resources)
 - prompts/: Individual prompt implementations (4 prompts)
 """
 
-from .core import create_server
+from .main import create_server
 from .mcp_instance import mcp
 
 # Import all tools to ensure they are registered

@@ -6,7 +6,7 @@ import os
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from prompts.collection_insights import (
+from src.core.prompts.collection_insights import (
     get_collection_insights_prompt,
     _build_general_insights_template,
     _build_comprehensive_insights_template,

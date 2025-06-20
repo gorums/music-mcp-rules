@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
-from src.resources.collection_summary import get_collection_summary
+from src.core.resources.collection_summary import get_collection_summary
 
 # Configure logging
 logger = logging.getLogger(__name__)

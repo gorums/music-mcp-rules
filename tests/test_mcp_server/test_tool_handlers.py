@@ -22,7 +22,7 @@ class TestScanMusicFoldersTool:
     def test_scan_music_folders_basic(self):
         """Test basic scan functionality."""
         try:
-            from src.server.tools.scan_music_folders_tool import scan_music_folders
+            from src.mcp_server.tools.scan_music_folders_tool import scan_music_folders
             
             start_time = time.time()
             result = scan_music_folders()
@@ -49,7 +49,7 @@ class TestGetBandListTool:
     def test_get_band_list_basic(self):
         """Test basic band list functionality."""
         try:
-            from src.server.tools.get_band_list_tool import get_band_list_tool
+            from src.mcp_server.tools.get_band_list_tool import get_band_list_tool
             
             result = get_band_list_tool()
             
@@ -70,7 +70,7 @@ class TestValidateBandMetadataTool:
     def test_validate_valid_metadata(self):
         """Test validation with valid metadata."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Create valid test metadata
             metadata = {
@@ -97,7 +97,7 @@ class TestValidateBandMetadataTool:
     def test_validate_invalid_metadata(self):
         """Test validation with invalid metadata."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Create invalid test metadata (missing required fields)
             metadata = {
@@ -124,7 +124,7 @@ class TestSaveBandMetadataTool:
     def test_save_band_metadata_basic(self):
         """Test basic save metadata functionality."""
         try:
-            from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
+            from src.mcp_server.tools.save_band_metadata_tool import save_band_metadata_tool
             
             # Create test metadata
             metadata = MockDataFactory.create_band_metadata("Test Band")
@@ -148,7 +148,7 @@ class TestSaveBandAnalyzeTool:
     def test_save_band_analyze_basic(self):
         """Test basic save analyze functionality."""
         try:
-            from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
+            from src.mcp_server.tools.save_band_analyze_tool import save_band_analyze_tool
             
             # Create test analysis data
             analysis_data = {
@@ -176,11 +176,11 @@ class TestToolHandlerIntegration:
     def test_tool_import_consistency(self):
         """Test that tools can be imported without errors."""
         tool_modules = [
-            'src.server.tools.scan_music_folders_tool',
-            'src.server.tools.get_band_list_tool',
-            'src.server.tools.validate_band_metadata_tool',
-            'src.server.tools.save_band_metadata_tool',
-            'src.server.tools.save_band_analyze_tool'
+            'src.mcp.tools.scan_music_folders_tool',
+            'src.mcp.tools.get_band_list_tool',
+            'src.mcp.tools.validate_band_metadata_tool',
+            'src.mcp.tools.save_band_metadata_tool',
+            'src.mcp.tools.save_band_analyze_tool'
         ]
         
         imported_tools = 0
@@ -203,7 +203,7 @@ class TestToolErrorHandling:
     def test_validate_tool_error_handling(self):
         """Test that validation tool handles errors gracefully."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Test with completely invalid input
             result = validate_band_metadata_tool("", {})
@@ -224,7 +224,7 @@ class TestToolPerformance:
     def test_validation_performance(self):
         """Test that validation completes quickly."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             metadata = MockDataFactory.create_band_metadata("Performance Test")
             metadata_dict = metadata.model_dump() if hasattr(metadata, 'model_dump') else metadata.__dict__
@@ -249,7 +249,7 @@ class TestToolResponseFormat:
     def test_response_structure_consistency(self):
         """Test that tools return consistent response structures."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             metadata = {"band_name": "Test"}
             result = validate_band_metadata_tool("Test", metadata)

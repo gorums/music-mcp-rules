@@ -12,17 +12,15 @@ __author__ = "Music MCP Server"
 __description__ = "MCP server for music collection management and analysis"
 
 # Main exports
-from .server import create_server, mcp
+from .mcp_server import create_server, mcp
 
 # Core module exports
 from . import (
     config,
+    core,
     exceptions,
     models,
-    prompts,
-    resources,
-    server,
-    tools,
+    mcp_server,
 )
 
 __all__ = [
@@ -37,10 +35,8 @@ __all__ = [
     
     # Core modules
     "config",
+    "core",
     "exceptions",
     "models",
-    "prompts",
-    "resources", 
-    "server",
-    "tools",
+    "mcp_server",
 ] 

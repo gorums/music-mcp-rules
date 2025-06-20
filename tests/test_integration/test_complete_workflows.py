@@ -65,7 +65,7 @@ class TestCompleteWorkflows:
         
         # Step 1: Scan music collection
         try:
-            from src.server.tools.scan_music_folders_tool import scan_music_folders_tool
+            from src.mcp_server.tools.scan_music_folders_tool import scan_music_folders_tool
             
             scan_result = scan_music_folders_tool(incremental=False)
             workflow_results['scan'] = scan_result
@@ -78,7 +78,7 @@ class TestCompleteWorkflows:
         
         # Step 2: Get band list
         try:
-            from src.server.tools.get_band_list_tool import get_band_list_tool
+            from src.mcp_server.tools.get_band_list_tool import get_band_list_tool
             
             band_list_result = get_band_list_tool()
             workflow_results['band_list'] = band_list_result
@@ -91,7 +91,7 @@ class TestCompleteWorkflows:
         
         # Step 3: Save metadata for a band
         try:
-            from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
+            from src.mcp_server.tools.save_band_metadata_tool import save_band_metadata_tool
             
             test_metadata = MockDataFactory.create_band_metadata(
                 band_name="Workflow Test Band 1",
@@ -117,7 +117,7 @@ class TestCompleteWorkflows:
         
         # Step 4: Save band analysis
         try:
-            from src.server.tools.save_band_analyze_tool import save_band_analyze_tool
+            from src.mcp_server.tools.save_band_analyze_tool import save_band_analyze_tool
             
             analysis_result = save_band_analyze_tool(
                 band_name="Workflow Test Band 1",
@@ -145,7 +145,7 @@ class TestCompleteWorkflows:
         
         # Step 5: Validate the saved metadata
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             validation_result = validate_band_metadata_tool("Workflow Test Band 1", metadata_dict)
             workflow_results['validation'] = validation_result
@@ -174,7 +174,7 @@ class TestCompleteWorkflows:
         
         # First, set up some data
         try:
-            from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
+            from src.mcp_server.tools.save_band_metadata_tool import save_band_metadata_tool
             
             band_metadata = MockDataFactory.create_band_metadata(
                 band_name="Workflow Test Band 1",
@@ -188,7 +188,7 @@ class TestCompleteWorkflows:
             
             # Then try to access the band resource
             try:
-                from src.server.resources.band_info_resource import band_info_resource
+                from src.mcp_server.resources.band_info_resource import band_info_resource
                 
                 band_resource_content = band_info_resource("Workflow Test Band 1")
                 
@@ -217,9 +217,9 @@ class TestCompleteWorkflows:
                 
                 # Run multiple operations
                 try:
-                    from src.server.tools.scan_music_folders_tool import scan_music_folders_tool
-                    from src.server.tools.get_band_list_tool import get_band_list_tool
-                    from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+                    from src.mcp_server.tools.scan_music_folders_tool import scan_music_folders_tool
+                    from src.mcp_server.tools.get_band_list_tool import get_band_list_tool
+                    from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
                     
                     # Scan
                     results.append(scan_music_folders_tool(incremental=True))
@@ -256,7 +256,7 @@ class TestCompleteWorkflows:
         
         # Step 1: Try operation that should fail
         try:
-            from src.server.tools.scan_music_folders_tool import scan_music_folders_tool
+            from src.mcp_server.tools.scan_music_folders_tool import scan_music_folders_tool
             
             with patch('src.di.get_config') as mock_get_config:
                 mock_config = Mock()
@@ -274,7 +274,7 @@ class TestCompleteWorkflows:
         
         # Step 2: Try operation that should succeed
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             valid_metadata = MockDataFactory.create_band_metadata()
             metadata_dict = valid_metadata.model_dump() if hasattr(valid_metadata, 'model_dump') else valid_metadata.__dict__
@@ -308,7 +308,7 @@ class TestCompleteWorkflows:
             
             # Step 1: Save metadata
             try:
-                from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
+                from src.mcp_server.tools.save_band_metadata_tool import save_band_metadata_tool
                 
                 original_metadata = MockDataFactory.create_band_metadata(
                     band_name=band_name,
@@ -351,7 +351,7 @@ class TestConcurrentWorkflows:
         
         def validation_worker(band_name):
             try:
-                from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+                from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
                 
                 test_metadata = MockDataFactory.create_band_metadata(band_name=band_name)
                 metadata_dict = test_metadata.model_dump() if hasattr(test_metadata, 'model_dump') else test_metadata.__dict__
@@ -397,7 +397,7 @@ class TestConcurrentWorkflows:
         def workflow_worker(worker_id):
             try:
                 # Simulate a small workflow
-                from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+                from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
                 
                 # Each worker uses slightly different data
                 test_metadata = MockDataFactory.create_band_metadata(
@@ -447,9 +447,9 @@ class TestWorkflowRobustness:
         
         # Test each tool individually
         test_tools = [
-            'src.server.tools.scan_music_folders_tool',
-            'src.server.tools.get_band_list_tool',
-            'src.server.tools.validate_band_metadata_tool'
+            'src.mcp.tools.scan_music_folders_tool',
+            'src.mcp.tools.get_band_list_tool',
+            'src.mcp.tools.validate_band_metadata_tool'
         ]
         
         for tool_module in test_tools:
@@ -482,7 +482,7 @@ class TestWorkflowRobustness:
         
         for invalid_input in invalid_inputs:
             try:
-                from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+                from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
                 
                 # Handle different input types
                 if hasattr(invalid_input, 'model_dump'):

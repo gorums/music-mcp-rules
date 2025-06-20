@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler, validate_pagination_params, validate_sort_params
 
 # Import tool implementation - using absolute imports
-from src.tools.storage import get_band_list
+from src.core.tools.storage import get_band_list
 
 # Configure logging
 logger = logging.getLogger(__name__)

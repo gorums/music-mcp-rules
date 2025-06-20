@@ -13,7 +13,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
-from src.tools.storage import save_collection_insight, load_collection_index
+from src.core.tools.storage import save_collection_insight, load_collection_index
 from src.models.collection import CollectionInsight
 
 # Configure logging

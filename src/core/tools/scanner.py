@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Local imports
 from src.di import get_config
-from src.tools.performance import (
+from src.core.tools.performance import (
     BatchFileOperations,
     ProgressReporter,
     performance_monitor,
@@ -460,7 +460,7 @@ def _load_or_create_band_metadata(band_folder: Path, band_name: str):
     if metadata_file.exists():
         try:
             # Load existing metadata
-            from src.tools.storage import JSONStorage
+            from src.core.tools.storage import JSONStorage
             metadata_dict = JSONStorage.load_json(metadata_file)
             from src.models.band import BandMetadata
             metadata = BandMetadata(**metadata_dict)
@@ -497,7 +497,7 @@ def _save_band_metadata_file(band_folder: Path, band_name: str, metadata) -> Non
     """
     metadata_file = band_folder / '.band_metadata.json'
     try:
-        from src.tools.storage import JSONStorage
+        from src.core.tools.storage import JSONStorage
         metadata_dict = metadata.model_dump()
         JSONStorage.save_json(metadata_file, metadata_dict, backup=metadata_file.exists())
         logging.debug(f"Updated metadata with folder structure and local albums for {band_name}")

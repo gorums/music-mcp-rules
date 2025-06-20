@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-from src.resources.collection_summary import (
+from src.core.resources.collection_summary import (
     get_collection_summary,
     _generate_collection_markdown,
     _generate_header_section,
@@ -36,7 +36,7 @@ from src.models.collection import (
     CollectionInsight,
     BandIndexEntry
 )
-from src.tools.storage import StorageError
+from src.core.tools.storage import StorageError
 
 
 class TestGetCollectionSummary:
@@ -66,7 +66,7 @@ class TestGetCollectionSummary:
         
         collection_index = CollectionIndex(bands=bands)
         
-        with patch('src.resources.collection_summary.load_collection_index', return_value=collection_index):
+        with patch('src.core.resources.collection_summary.load_collection_index', return_value=collection_index):
             result = get_collection_summary()
             
             # Verify markdown structure
@@ -80,7 +80,7 @@ class TestGetCollectionSummary:
     
     def test_collection_not_found(self):
         """Test markdown generation when no collection index exists."""
-        with patch('src.resources.collection_summary.load_collection_index', return_value=None):
+        with patch('src.core.resources.collection_summary.load_collection_index', return_value=None):
             result = get_collection_summary()
             
             assert "# 🎵 Music Collection Summary" in result
@@ -92,7 +92,7 @@ class TestGetCollectionSummary:
         """Test error handling for storage failures."""
         error_msg = "File permission denied"
         
-        with patch('src.resources.collection_summary.load_collection_index', 
+        with patch('src.core.resources.collection_summary.load_collection_index', 
                   side_effect=StorageError(error_msg)):
             result = get_collection_summary()
             
@@ -103,7 +103,7 @@ class TestGetCollectionSummary:
     
     def test_unexpected_error_handling(self):
         """Test handling of unexpected errors."""
-        with patch('src.resources.collection_summary.load_collection_index', 
+        with patch('src.core.resources.collection_summary.load_collection_index', 
                   side_effect=Exception("Unexpected error")):
             result = get_collection_summary()
             

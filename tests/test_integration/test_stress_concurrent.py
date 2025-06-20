@@ -17,7 +17,7 @@ from queue import Queue
 import json
 import pytest
 
-from src.tools.storage import (
+from src.core.tools.storage import (
     save_band_metadata,
     save_band_analyze,
     get_band_list,
@@ -26,7 +26,7 @@ from src.tools.storage import (
     file_lock,
     JSONStorage
 )
-from src.tools.scanner import scan_music_folders
+from src.core.tools.scanner import scan_music_folders
 from src.models import BandMetadata, Album, BandAnalysis, AlbumAnalysis
 
 
@@ -395,7 +395,7 @@ class TestStressConcurrentOperations(unittest.TestCase):
         
         # Force creation of a completely new collection index
         from src.models.collection import CollectionIndex
-        from src.tools.storage import JSONStorage
+        from src.core.tools.storage import JSONStorage
         fresh_index = CollectionIndex()
         JSONStorage.save_json(collection_index_path, fresh_index.model_dump())
         

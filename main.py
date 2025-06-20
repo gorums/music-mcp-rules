@@ -19,7 +19,7 @@ def main():
     """Main entry point."""
     try:
         # Import and run the MCP server from refactored structure
-        from server.core import main as server_main
+        from mcp_server.main import main as server_main
         server_main()
         
     except KeyboardInterrupt:

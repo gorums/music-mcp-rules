@@ -15,8 +15,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.tools import storage
-from src.tools.storage import (
+from src.core.tools import storage
+from src.core.tools.storage import (
     AtomicFileWriter,
     file_lock,
     JSONStorage,
@@ -141,7 +141,7 @@ class TestFileLock:
             try:
                 import fcntl
                 # Mock fcntl to always raise exception (simulate locked file)
-                with patch('src.tools.storage.fcntl.flock', side_effect=OSError("File locked")):
+                with patch('src.core.tools.storage.fcntl.flock', side_effect=OSError("File locked")):
                     with pytest.raises(StorageError, match="Could not acquire lock"):
                         with file_lock(file_path, timeout=1):
                             pass
@@ -736,7 +736,7 @@ class TestErrorHandling:
 
     def test_save_metadata_permission_error(self):
         """Test saving metadata with permission error."""
-        with patch('src.tools.storage.JSONStorage.save_json', side_effect=PermissionError("Access denied")):
+        with patch('src.core.tools.storage.JSONStorage.save_json', side_effect=PermissionError("Access denied")):
             metadata = BandMetadata(band_name="Test Band")
             
             with pytest.raises(StorageError, match="Storage save band metadata failed"):

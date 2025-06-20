@@ -13,7 +13,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
-from src.tools.storage import save_band_analyze, load_collection_index, update_collection_index, load_band_metadata
+from src.core.tools.storage import save_band_analyze, load_collection_index, update_collection_index, load_band_metadata
 from src.models.band import BandAnalysis, AlbumAnalysis
 
 # Configure logging

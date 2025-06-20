@@ -1,5 +1,5 @@
 import pytest
-from src.prompts.analyze_band import get_analyze_band_prompt
+from src.core.prompts.analyze_band import get_analyze_band_prompt
 
 
 class TestAnalyzeBandPrompt:

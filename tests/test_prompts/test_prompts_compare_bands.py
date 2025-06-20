@@ -1,5 +1,5 @@
 import pytest
-from src.prompts.compare_bands import get_compare_bands_prompt
+from src.core.prompts.compare_bands import get_compare_bands_prompt
 
 
 class TestCompareBandsPrompt:

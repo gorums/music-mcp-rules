@@ -11,9 +11,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from src.tools.scanner import scan_music_folders
-from src.tools.storage import get_band_list, load_collection_index
-from src.tools.performance import (
+from src.core.tools.scanner import scan_music_folders
+from src.core.tools.storage import get_band_list, load_collection_index
+from src.core.tools.performance import (
     get_performance_summary,
     clear_performance_metrics,
     BatchFileOperations,
@@ -38,13 +38,13 @@ class TestPerformanceOptimizations(unittest.TestCase):
         self.mock_config.return_value.CACHE_DURATION_DAYS = 30
         
         # Also patch the scanner module's get_config calls
-        self.scanner_config_patcher = patch('src.tools.scanner.get_config')
+        self.scanner_config_patcher = patch('src.core.tools.scanner.get_config')
         self.mock_scanner_config = self.scanner_config_patcher.start()
         self.mock_scanner_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
         self.mock_scanner_config.return_value.CACHE_DURATION_DAYS = 30
         
         # Patch storage module's get_config calls
-        self.storage_config_patcher = patch('src.tools.storage.get_config')
+        self.storage_config_patcher = patch('src.core.tools.storage.get_config')
         self.mock_storage_config = self.storage_config_patcher.start()
         self.mock_storage_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
         self.mock_storage_config.return_value.CACHE_DURATION_DAYS = 30
@@ -286,7 +286,7 @@ class TestPerformanceOptimizations(unittest.TestCase):
         (album_dir / "info.txt").write_text("text")
         
         # Import optimized function
-        from src.tools.scanner import _count_music_files
+        from src.core.tools.scanner import _count_music_files
         
         # Test optimized file counting
         count = _count_music_files(album_dir)

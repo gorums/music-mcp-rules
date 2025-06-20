@@ -8,12 +8,12 @@ import tempfile
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.tools.metadata import (
+from src.core.tools.metadata import (
     save_band_metadata,
     save_band_analyze,
     save_collection_insight
 )
-from src.tools.storage import StorageError
+from src.core.tools.storage import StorageError
 from src.models import (
     BandMetadata,
     BandAnalysis,
@@ -34,7 +34,7 @@ class TestMetadataFunctions:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch('src.tools.metadata._save_band_metadata')
+    @patch('src.core.tools.metadata._save_band_metadata')
     def test_save_band_metadata_success(self, mock_save):
         """Test successful band metadata save."""
         # Setup mock
@@ -58,7 +58,7 @@ class TestMetadataFunctions:
         assert result["status"] == "success"
         mock_save.assert_called_once_with(band_name, metadata)
 
-    @patch('src.tools.metadata._save_band_metadata')
+    @patch('src.core.tools.metadata._save_band_metadata')
     def test_save_band_metadata_error(self, mock_save):
         """Test band metadata save with error."""
         # Setup mock to raise error
@@ -72,7 +72,7 @@ class TestMetadataFunctions:
         with pytest.raises(StorageError, match="Save failed"):
             save_band_metadata(band_name, metadata)
 
-    @patch('src.tools.metadata._save_band_analyze')
+    @patch('src.core.tools.metadata._save_band_analyze')
     def test_save_band_analyze_success(self, mock_save):
         """Test successful band analysis save."""
         # Setup mock
@@ -102,7 +102,7 @@ class TestMetadataFunctions:
         assert result["albums_analyzed"] == 2
         mock_save.assert_called_once_with(band_name, analysis)
 
-    @patch('src.tools.metadata._save_band_analyze')
+    @patch('src.core.tools.metadata._save_band_analyze')
     def test_save_band_analyze_error(self, mock_save):
         """Test band analysis save with error."""
         # Setup mock to raise error
@@ -116,7 +116,7 @@ class TestMetadataFunctions:
         with pytest.raises(StorageError, match="Analysis save failed"):
             save_band_analyze(band_name, analysis)
 
-    @patch('src.tools.metadata._save_collection_insight')
+    @patch('src.core.tools.metadata._save_collection_insight')
     def test_save_collection_insight_success(self, mock_save):
         """Test successful collection insights save."""
         # Setup mock
@@ -142,7 +142,7 @@ class TestMetadataFunctions:
         assert result["collection_health"] == "Good"
         mock_save.assert_called_once_with(insights)
 
-    @patch('src.tools.metadata._save_collection_insight')
+    @patch('src.core.tools.metadata._save_collection_insight')
     def test_save_collection_insight_error(self, mock_save):
         """Test collection insights save with error."""
         # Setup mock to raise error
@@ -159,7 +159,7 @@ class TestMetadataFunctions:
 class TestIntegrationScenarios:
     """Test integration scenarios with different data combinations."""
 
-    @patch('src.tools.metadata._save_band_metadata')
+    @patch('src.core.tools.metadata._save_band_metadata')
     def test_save_metadata_with_albums(self, mock_save):
         """Test saving metadata with album information."""
         # Setup mock
@@ -179,7 +179,7 @@ class TestIntegrationScenarios:
         assert result["status"] == "success"
         assert result["albums_count"] == 2
 
-    @patch('src.tools.metadata._save_band_analyze')  
+    @patch('src.core.tools.metadata._save_band_analyze')  
     def test_save_analysis_with_album_reviews(self, mock_save):
         """Test saving analysis with album-specific reviews."""
         # Setup mock
@@ -207,7 +207,7 @@ class TestIntegrationScenarios:
         assert result["albums_analyzed"] == 3
         assert result["similar_bands_count"] == 2
 
-    @patch('src.tools.metadata._save_collection_insight')
+    @patch('src.core.tools.metadata._save_collection_insight')
     def test_save_comprehensive_insights(self, mock_save):
         """Test saving comprehensive collection insights."""
         # Setup mock

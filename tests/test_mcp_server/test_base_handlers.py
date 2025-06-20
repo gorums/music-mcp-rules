@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch, MagicMock
 from typing import Any, Dict
 from datetime import datetime, timezone
 
-from src.server.base_handlers import (
+from src.mcp_server.base_handlers import (
     HandlerResponse, BaseHandler, BaseToolHandler, 
     BaseResourceHandler, BasePromptHandler,
     create_success_response, create_error_response,

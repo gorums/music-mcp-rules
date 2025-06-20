@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
-from src.tools.scanner import scan_music_folders as scanner_scan_music_folders
+from src.core.tools.scanner import scan_music_folders as scanner_scan_music_folders
 
 # Configure logging
 logger = logging.getLogger(__name__)

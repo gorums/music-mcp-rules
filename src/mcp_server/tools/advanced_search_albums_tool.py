@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
 
 # Import required modules and functions
-from src.tools.storage import load_collection_index, load_band_metadata
+from src.core.tools.storage import load_collection_index, load_band_metadata
 
 # Configure logging
 logger = logging.getLogger(__name__)

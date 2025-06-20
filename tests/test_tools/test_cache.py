@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.tools.cache import (
+from src.core.tools.cache import (
     CacheManager,
     CacheStatus,
     CacheStats,
@@ -305,7 +305,7 @@ class TestConvenienceFunctions:
                 mock_config.return_value.CACHE_DURATION_DAYS = 30
                 
                 # Also patch the cache manager's get_config calls
-                with patch('src.tools.cache.get_config') as mock_cache_config:
+                with patch('src.core.tools.cache.get_config') as mock_cache_config:
                     mock_cache_config.return_value.MUSIC_ROOT_PATH = isolated_temp_dir
                     mock_cache_config.return_value.CACHE_DURATION_DAYS = 30
                     

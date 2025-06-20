@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
-from src.resources.band_info import (
+from src.core.resources.band_info import (
     get_band_info_markdown,
     _generate_band_markdown,
     _generate_header_section,
@@ -25,7 +25,7 @@ from src.resources.band_info import (
     _generate_error_message
 )
 from src.models import BandMetadata, Album, BandAnalysis, AlbumAnalysis
-from src.tools.storage import StorageError
+from src.core.tools.storage import StorageError
 
 
 class TestGetBandInfoMarkdown:
@@ -51,7 +51,7 @@ class TestGetBandInfoMarkdown:
             ]
         )
         
-        with patch('src.resources.band_info.load_band_metadata', return_value=metadata):
+        with patch('src.core.resources.band_info.load_band_metadata', return_value=metadata):
             result = get_band_info_markdown("Pink Floyd")
             
             # Verify markdown structure
@@ -64,7 +64,7 @@ class TestGetBandInfoMarkdown:
     
     def test_band_not_found(self):
         """Test markdown generation for non-existent band."""
-        with patch('src.resources.band_info.load_band_metadata', return_value=None):
+        with patch('src.core.resources.band_info.load_band_metadata', return_value=None):
             result = get_band_info_markdown("Non-Existent Band")
             
             assert "# Non-Existent Band" in result
@@ -76,7 +76,7 @@ class TestGetBandInfoMarkdown:
         """Test error handling for storage failures."""
         error_msg = "File permission denied"
         
-        with patch('src.resources.band_info.load_band_metadata', 
+        with patch('src.core.resources.band_info.load_band_metadata', 
                   side_effect=StorageError(error_msg)):
             result = get_band_info_markdown("Test Band")
             
@@ -87,7 +87,7 @@ class TestGetBandInfoMarkdown:
     
     def test_unexpected_error_handling(self):
         """Test handling of unexpected errors."""
-        with patch('src.resources.band_info.load_band_metadata', 
+        with patch('src.core.resources.band_info.load_band_metadata', 
                   side_effect=Exception("Unexpected error")):
             result = get_band_info_markdown("Test Band")
             

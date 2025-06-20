@@ -1,5 +1,5 @@
 import pytest
-from src.prompts.fetch_band_info import get_fetch_band_info_prompt
+from src.core.prompts.fetch_band_info import get_fetch_band_info_prompt
 
 
 class TestFetchBandInfoPrompt:

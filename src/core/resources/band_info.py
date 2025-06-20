@@ -13,7 +13,7 @@ from typing import List, Optional
 
 # Local imports
 from src.models import Album, AlbumAnalysis, BandMetadata
-from src.tools.storage import StorageError, load_band_metadata
+from src.core.tools.storage import StorageError, load_band_metadata
 
 logger = logging.getLogger(__name__)
 

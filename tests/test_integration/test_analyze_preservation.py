@@ -13,8 +13,8 @@ from unittest.mock import patch
 
 # Import data models for direct metadata creation
 from src.models.band import BandMetadata, Album, BandAnalysis, AlbumAnalysis
-from src.tools.storage import save_band_metadata, load_band_metadata
-from src.server.tools.save_band_metadata_tool import save_band_metadata_tool
+from src.core.tools.storage import save_band_metadata, load_band_metadata
+from src.mcp_server.tools.save_band_metadata_tool import save_band_metadata_tool
 
 
 class TestAnalyzePreservation:

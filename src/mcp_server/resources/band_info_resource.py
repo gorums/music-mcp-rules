@@ -12,7 +12,7 @@ from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
-from src.resources.band_info import get_band_info_markdown
+from src.core.resources.band_info import get_band_info_markdown
 
 # Configure logging
 logger = logging.getLogger(__name__)

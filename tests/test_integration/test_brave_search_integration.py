@@ -11,7 +11,7 @@ import shutil
 from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 
-from src.prompts.fetch_band_info import get_fetch_band_info_prompt
+from src.core.prompts.fetch_band_info import get_fetch_band_info_prompt
 from src.models import BandMetadata, Album
 
 

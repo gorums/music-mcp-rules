@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional
 
 # Local imports
 from src.models.collection import CollectionIndex, CollectionInsight, CollectionStats
-from src.tools.storage import StorageError, load_collection_index
+from src.core.tools.storage import StorageError, load_collection_index
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ def _generate_statistics_section(index: CollectionIndex) -> str:
 
 def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
     """Generate enhanced statistics including album types and compliance."""
-    from src.tools.storage import load_band_metadata
+    from src.core.tools.storage import load_band_metadata
     
     section = ["## 🎯 Enhanced Collection Analysis"]
     

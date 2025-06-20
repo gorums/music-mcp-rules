@@ -12,7 +12,7 @@ from typing import Any, Dict, List
 
 # Local imports
 from src.models.analytics import AdvancedCollectionInsights, CollectionAnalyzer
-from src.tools.storage import StorageError, load_band_metadata, load_collection_index
+from src.core.tools.storage import StorageError, load_band_metadata, load_collection_index
 
 logger = logging.getLogger(__name__)
 

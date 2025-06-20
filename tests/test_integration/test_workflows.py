@@ -18,7 +18,7 @@ class TestBasicWorkflows:
         test_metadata = MockDataFactory.create_band_metadata("Test Band")
         
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Convert BandMetadata object to dict for validation
             metadata_dict = test_metadata.model_dump() if hasattr(test_metadata, 'model_dump') else test_metadata.__dict__
@@ -38,7 +38,7 @@ class TestBasicWorkflows:
         test_metadata = MockDataFactory.create_band_metadata("Performance Test")
         
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Convert BandMetadata object to dict for validation
             metadata_dict = test_metadata.model_dump() if hasattr(test_metadata, 'model_dump') else test_metadata.__dict__
@@ -65,7 +65,7 @@ class TestBasicWorkflows:
             mock_get_config.return_value = mock_config
             
             try:
-                from src.server.tools.scan_music_folders_tool import scan_music_folders
+                from src.mcp_server.tools.scan_music_folders_tool import scan_music_folders
                 
                 result = scan_music_folders()
                 
@@ -78,7 +78,7 @@ class TestBasicWorkflows:
     def test_error_handling_workflow(self):
         """Test workflow error handling."""
         try:
-            from src.server.tools.validate_band_metadata_tool import validate_band_metadata_tool
+            from src.mcp_server.tools.validate_band_metadata_tool import validate_band_metadata_tool
             
             # Test with invalid input - should get validation errors but not crash
             result = validate_band_metadata_tool("Test Band", {})

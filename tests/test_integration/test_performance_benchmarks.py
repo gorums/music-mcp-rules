@@ -12,8 +12,8 @@ import shutil
 from pathlib import Path
 from unittest.mock import patch
 
-from src.tools.scanner import scan_music_folders
-from src.tools.storage import (
+from src.core.tools.scanner import scan_music_folders
+from src.core.tools.storage import (
     save_band_metadata,
     get_band_list,
     load_collection_index
@@ -34,7 +34,7 @@ class TestPerformanceBenchmarks(unittest.TestCase):
         self.mock_config.return_value.CACHE_DURATION_DAYS = 30
         
         # Also patch the scanner module's get_config calls
-        self.scanner_config_patcher = patch('src.tools.scanner.get_config')
+        self.scanner_config_patcher = patch('src.core.tools.scanner.get_config')
         self.mock_scanner_config = self.scanner_config_patcher.start()
         self.mock_scanner_config.return_value.MUSIC_ROOT_PATH = self.temp_dir
         self.mock_scanner_config.return_value.CACHE_DURATION_DAYS = 30
