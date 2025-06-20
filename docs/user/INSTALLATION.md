@@ -110,7 +110,7 @@ chmod +x scripts/start-docker.sh
 ### Manual Docker Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/music-catalog-mcp.git
+git clone https://github.com/gorums/music-catalog-mcp.git
 cd music-catalog-mcp
 
 # Build the container
@@ -136,7 +136,7 @@ docker-compose up music-mcp
 ### Step-by-Step Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/music-mcp-server.git
+git clone https://github.com/gorums/music-mcp-server.git
 cd music-mcp-server
 
 # Create virtual environment (recommended)
@@ -223,7 +223,7 @@ For contributors and developers:
 
 ```bash
 # Clone and setup
-git clone https://github.com/yourusername/music-mcp-server.git
+git clone https://github.com/gorums/music-mcp-server.git
 cd music-mcp-server
 
 # Use the setup script for development
