@@ -1,201 +1,170 @@
 # Music Collection MCP Server
 
-A Model Context Protocol (MCP) server that provides intelligent access to your local music collection through JSON-based metadata management, band discovery, and intelligent querying capabilities.
+A powerful Model Context Protocol (MCP) server that provides intelligent access to your local music collection through advanced metadata management, album type classification, and comprehensive analytics.
 
-## Features
+## ✨ Key Features
 
-- **Intelligent Music Scanning**: Incremental scanning with change detection for large collections
-- **Advanced Metadata Management**: Store and retrieve comprehensive band and album information
-- **Analysis & Reviews**: Band and album ratings, reviews, and similar artist recommendations
-- **Collection Insights**: Generate collection-wide analytics and improvement suggestions
-- **Smart Filtering**: Advanced search with genre, rating, and completion status filters
-- **Missing Album Detection**: Identify gaps in your collection
-- **MCP Integration**: Works seamlessly with Claude Desktop, Cline, and other MCP clients
+- **🎵 Smart Music Discovery**: Intelligent scanning with 8-type album classification (Album, EP, Live, Demo, Compilation, Single, Instrumental, Split)
+- **📊 Advanced Analytics**: Collection maturity assessment, health scoring, and personalized recommendations
+- **🏗️ Flexible Organization**: Support for multiple folder structures with automated compliance scoring
+- **⚡ High Performance**: Optimized scanning (20-30% faster), batch operations, and intelligent caching
+- **🤖 AI Integration**: Works seamlessly with Claude Desktop and other MCP clients
+- **🔄 Automated Setup**: One-command installation with configuration generation
 
-## Quick Start
+## 🚀 Quick Start
 
-### Using Python (Recommended)
+### Option 1: Automated Setup (Recommended)
 
-1. **Install dependencies:**
 ```bash
-# Windows
-py -m pip install -r requirements.txt
+python scripts/setup.py
+```
 
-# Linux/macOS
+This guided setup will:
+- Check system requirements
+- Install dependencies
+- Configure your music collection path
+- Generate Claude Desktop configuration
+- Validate your setup
+
+### Option 2: Manual Installation
+
+#### Using Python
+```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-2. **Set environment variables:**
-```bash
-# Windows (PowerShell)
-$env:MUSIC_ROOT_PATH = "C:\Path\To\Your\Music\Collection"
-
-# Linux/macOS
+# Set your music path
 export MUSIC_ROOT_PATH="/path/to/your/music"
-```
 
-3. **Run the server:**
-```bash
-# Windows
-py main.py
-
-# Linux/macOS
+# Run the server
 python main.py
 ```
 
-4. **Configure your MCP client:**
-
-**For Windows:**
-```json
-{
-  "mcpServers": {
-    "music-collection": {
-      "command": "py",
-      "args": ["C:/Path/To/music-catalog-mcp/main.py"],
-      "env": {
-        "MUSIC_ROOT_PATH": "C:/Path/To/Your/Music/Collection"
-      }
-    }
-  }
-}
-```
-
-**For Linux/macOS:**
-```json
-{
-  "mcpServers": {
-    "music-collection": {
-      "command": "python",
-      "args": ["/path/to/music-catalog-mcp/main.py"],
-      "env": {
-        "MUSIC_ROOT_PATH": "/path/to/your/music/collection"
-      }
-    }
-  }
-}
-```
-
-### Using Docker (Alternative)
-
-1. **Build the container:**
+#### Using Docker
 ```bash
-docker build -t music-mcp-server .
+# Build and run
+docker build -t music-mcp .
+docker run -v "/path/to/your/music:/music" -e MUSIC_ROOT_PATH=/music music-mcp
 ```
 
-2. **Run the server:**
+## 📁 Music Organization
+
+The server supports multiple organization patterns:
+
+### Enhanced Structure (Recommended)
+```
+Band Name/
+├── Album/
+│   ├── 1973 - Dark Side of the Moon/
+│   └── 1979 - The Wall (Deluxe)/
+├── Live/
+│   └── 1988 - Delicate Sound of Thunder/
+├── Compilation/
+│   └── 2001 - Echoes - Best Of/
+└── .band_metadata.json (auto-generated)
+```
+
+### Simple Structure (Also Supported)
+```
+Band Name/
+├── 1973 - Dark Side of the Moon/
+├── 1988 - Delicate Sound of Thunder (Live)/
+└── 2001 - Echoes - Best Of (Compilation)/
+```
+
+## 🛠️ MCP Capabilities
+
+### Tools (8 total)
+- **Music Discovery**: `scan_music_folders` - Smart scanning with type detection
+- **Collection Management**: `get_band_list` - Advanced filtering and search
+- **Metadata Storage**: `save_band_metadata`, `save_band_analyze`, `save_collection_insight`
+- **Validation**: `validate_band_metadata` - Dry-run validation
+- **Advanced Search**: `advanced_search_albums` - 13-parameter filtering system
+- **Analytics**: `analyze_collection_insights` - Comprehensive collection analysis
+
+### Resources (3 total)
+- **Band Info**: `band://info/{band_name}` - Detailed band information
+- **Collection Summary**: `collection://summary` - Overview and statistics  
+- **Advanced Analytics**: `collection://analytics` - Deep collection analysis
+
+### Prompts (4 total)
+- **Information Gathering**: `fetch_band_info`, `analyze_band`
+- **Analysis**: `compare_bands`, `collection_insights`
+
+## ⚙️ Configuration
+
+Configure via environment variables or the automated setup:
+
 ```bash
-docker run -d --name music-mcp-container \
-  -v "/path/to/your/music:/music" \
-  -e "MUSIC_ROOT_PATH=/music" \
-  music-mcp-server
+MUSIC_ROOT_PATH="/path/to/your/music"     # Required: Your music directory
+CACHE_DURATION_DAYS=30                    # Optional: Cache expiration (default: 30)
+LOG_LEVEL=INFO                           # Optional: Logging level (default: INFO)
 ```
-
-3. **Configure your MCP client:**
-```json
-{
-  "mcpServers": {
-    "music-collection": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "--interactive",
-        "-v", "/path/to/your/music:/music",
-        "-e", "MUSIC_ROOT_PATH=/music",
-        "music-mcp-server"
-      ]
-    }
-  }
-}
-```
-
-## Music Collection Structure
-
-Organize your music like this:
-```
-music_root/
-├── Pink Floyd/
-│   ├── The Wall/
-│   │   ├── 01 - In The Flesh.mp3
-│   │   └── 02 - The Thin Ice.mp3
-│   └── Dark Side of the Moon/
-│       └── music files...
-└── The Beatles/
-    └── Abbey Road/
-        └── music files...
-```
-
-## MCP Capabilities
-
-Once connected to an MCP client, you'll have access to:
-
-### Tools (8 tools)
-- `scan_music_folders` - Intelligent scanning with incremental updates and album type detection
-- `get_band_list_tool` - Advanced filtering, sorting, and pagination with album type support
-- `save_band_metadata_tool` - Store comprehensive band information with album types and editions
-- `save_band_analyze_tool` - Store analysis with reviews and ratings
-- `save_collection_insight_tool` - Store collection-wide insights and recommendations
-- `validate_band_metadata_tool` - Dry-run validation without saving
-- `advanced_search_albums_tool` - Advanced search with 13 filter parameters (types, years, editions, ratings, etc.)
-- `analyze_collection_insights_tool` - Comprehensive collection analytics with maturity assessment
-
-### Resources (3 resources)
-- `band://info/{band_name}` - Detailed band information in markdown with type organization
-- `collection://summary` - Collection overview and statistics with enhanced analytics
-- `collection://analytics` - Advanced collection analytics with health metrics and recommendations
-
-### Prompts (4 prompts)
-- `fetch_band_info` - Intelligent band information fetching using external sources
-- `analyze_band` - Comprehensive band analysis with ratings and similar bands
-- `compare_bands` - Multi-band comparison analysis
-- `collection_insights` - Generate collection insights and recommendations
-
-## Configuration
-
-Set these environment variables:
-
-- `MUSIC_ROOT_PATH` - Path to your music directory (required)
-- `CACHE_DURATION_DAYS` - Cache expiration in days (default: 30)
-- `LOG_LEVEL` - Logging level (default: INFO)
 
 ## 📚 Documentation
 
-### Getting Started
-- [Installation Guide](docs/user/INSTALLATION.md) - Step-by-step installation instructions
-- [Configuration Guide](docs/user/CONFIGURATION.md) - How to configure the server for your music collection
-- [Quick Start](docs/user/QUICK_START.md) - Get up and running in minutes
+### Get Started Quickly
+- [Quick Start Guide](docs/user/QUICK_START.md) - Get running in minutes
+- [Installation Guide](docs/user/INSTALLATION.md) - Detailed setup instructions
+- [Configuration Guide](docs/user/CONFIGURATION.md) - Advanced configuration options
 
-### Using the Server
-- [Usage Examples](docs/user/USAGE_EXAMPLES.md) - Real-world examples and common use cases
-- [Prompt Examples](docs/user/PROMPT_EXAMPLES.md) - Comprehensive prompt examples for MCP clients
-- [Collection Organization](docs/user/COLLECTION_ORGANIZATION.md) - How to organize your music collection for best results
-- [Album Handling](docs/user/ALBUM_HANDLING.md) - Understanding album types and metadata
+### Learn More
+- [Usage Examples](docs/user/USAGE_EXAMPLES.md) - Real-world examples
+- [Collection Organization](docs/user/COLLECTION_ORGANIZATION.md) - Best practices
+- [Album Handling](docs/user/ALBUM_HANDLING.md) - Understanding album types
 
-### Getting Help
-- [FAQ](docs/user/FAQ.md) - Frequently asked questions and answers  
-- [Troubleshooting](docs/user/TROUBLESHOOTING.md) - Solutions to common problems
-- [Rating System Guide](docs/user/RATING_SYSTEM.md) - Understanding the rating and analysis system
+### Get Help
+- [FAQ](docs/user/FAQ.md) - Common questions
+- [Troubleshooting](docs/user/TROUBLESHOOTING.md) - Problem solving
+- [Rating System](docs/user/RATING_SYSTEM.md) - Understanding ratings and analysis
 
-### 🛠️ Developer Documentation
-For developers who want to understand, modify, or contribute to the project:
-- [Architecture Overview](docs/developer/ARCHITECTURE.md) - System design and patterns
-- [Metadata Schema](docs/developer/METADATA_SCHEMA.md) - The metadata schema
-- [API Reference](docs/developer/API_REFERENCE.md) - Complete API documentation
-- [Contributing Guidelines](docs/developer/CONTRIBUTING.md) - How to contribute
-- [Code Style](docs/developer/CODE_STYLE.md) - Complete code style
-- [Testing Guide](docs/developer/TESTING.md) - Running and writing tests
+## 🔧 Maintenance & Scripts
 
-## Testing
+The `scripts/` directory provides powerful maintenance tools:
 
-Run tests using Python:
-```python
-py -m pytest tests/ -v 
-```
+- **Setup**: `setup.py` - Automated installation and configuration
+- **Docker**: `start-docker.sh` - Container management with options
+- **Validation**: `validate-music-structure.py` - Collection health checking
+- **Backup**: `backup-recovery.py` - Complete backup and recovery system
+- **Monitoring**: `health-check.py` - Comprehensive health monitoring
 
-Run tests using Docker:
+## 🧪 Testing
+
 ```bash
+# Using Docker (recommended)
 docker build -f Dockerfile.test -t music-mcp-tests .
 docker run --rm music-mcp-tests python -m pytest . -v
+
+# Using Python
+python -m pytest tests/ -v
 ```
 
+## 📊 What's New
+
+### Recent Improvements
+- **Advanced Analytics**: Collection maturity assessment and health scoring
+- **Performance**: 20-30% faster scanning with optimized file operations
+- **Separated Schema**: Local vs missing albums for better management
+- **Automated Setup**: One-command installation and configuration
+- **Album Types**: Intelligent 8-type classification system
+- **Flexible Structure**: Support for multiple organization patterns
+
+## 🆘 Need Help?
+
+1. **Check the [FAQ](docs/user/FAQ.md)** for common questions
+2. **Run health check**: `python scripts/health-check.py /path/to/music`
+3. **Validate structure**: `python scripts/validate-music-structure.py /path/to/music`
+4. **Review [Troubleshooting](docs/user/TROUBLESHOOTING.md)** guide
+
+## 🔗 Links
+
+- **Setup Scripts**: Complete automation in `scripts/` directory
+- **Claude Desktop Configs**: Ready-to-use examples in `scripts/claude-desktop-configs/`
+- **Developer Docs**: Architecture and API reference in `docs/developer/`
+
+---
+
+*Transform your music collection into an intelligent, searchable library with AI-powered insights!* 🎶
 
 ## Requirements
 
