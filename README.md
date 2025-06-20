@@ -47,6 +47,48 @@ docker build -t music-mcp .
 docker run -v "/path/to/your/music:/music" -e MUSIC_ROOT_PATH=/music music-mcp
 ```
 
+## 🤖 MCP Client Setup
+
+### Configuration File Locations for Claude desktop
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
+### Python Installation
+```json
+{
+  "mcpServers": {
+    "music-collection": {
+      "command": "python",
+      "args": ["/path/to/music-catalog-mcp/main.py"],
+      "env": {
+        "MUSIC_ROOT_PATH": "/path/to/your/music",
+        "CACHE_DURATION_DAYS": "30",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}
+```
+
+### Docker Installation
+```json
+{
+  "mcpServers": {
+    "music-collection": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "--interactive",
+        "-v", "/path/to/your/music:/music",
+        "-e", "MUSIC_ROOT_PATH=/music",
+        "-e", "CACHE_DURATION_DAYS=30",
+        "music-mcp"
+      ]
+    }
+  }
+}
+```
+
 ## 📁 Music Organization
 
 The server supports multiple organization patterns:
