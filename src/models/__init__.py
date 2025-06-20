@@ -64,6 +64,14 @@ from .validation import (
     get_edition_distribution,
     search_albums_by_criteria,
 )
+from .migration import (
+    AlbumMigrationOperation,
+    BandStructureMigrator,
+    MigrationBackup,
+    MigrationResult,
+    MigrationStatus,
+    MigrationType,
+)
 
 # Rebuild models to resolve forward references
 BandMetadata.model_rebuild()
@@ -122,4 +130,12 @@ __all__ = [
     'RecommendationType',
     'TypeAnalysis',
     'TypeRecommendation',
+    
+    # Migration utilities
+    'AlbumMigrationOperation',
+    'BandStructureMigrator',
+    'MigrationBackup',
+    'MigrationResult',
+    'MigrationStatus',
+    'MigrationType',
 ] 

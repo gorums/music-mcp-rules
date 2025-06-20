@@ -28,6 +28,7 @@ from .tools import (
     advanced_search_albums_tool,
     analyze_collection_insights_tool,
     get_band_list_tool,
+    migrate_band_structure,
     save_band_analyze_tool,
     save_band_metadata_tool,
     save_collection_insight_tool,

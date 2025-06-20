@@ -15,6 +15,7 @@ from .save_collection_insight_tool import save_collection_insight_tool
 from .validate_band_metadata_tool import validate_band_metadata_tool
 from .advanced_search_albums_tool import advanced_search_albums_tool
 from .analyze_collection_insights_tool import analyze_collection_insights_tool
+from .migrate_band_structure_tool import migrate_band_structure
 
 __all__ = [
     "scan_music_folders",
@@ -24,5 +25,6 @@ __all__ = [
     "save_collection_insight_tool",
     "validate_band_metadata_tool",
     "advanced_search_albums_tool",
-    "analyze_collection_insights_tool"
+    "analyze_collection_insights_tool",
+    "migrate_band_structure"
 ] 
