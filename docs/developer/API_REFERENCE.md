@@ -6,16 +6,20 @@ The Music Collection MCP Server provides a comprehensive API for managing and ac
 
 ## Quick Reference
 
-### Tools (5 available)
+### Tools (8 available)
 - [`scan_music_folders`](#scan_music_folders) - Scan and index music collection with type detection
 - [`get_band_list`](#get_band_list) - List bands and albums with type filtering and structure analysis
-- [`save_band_metadata`](#save_band_metadata) - Store band metadata with album types
-- [`save_band_analyze`](#save_band_analyze) - Store band analysis data
+- [`save_band_metadata`](#save_band_metadata) - Store band metadata with separated album arrays
+- [`save_band_analyze`](#save_band_analyze) - Store band analysis data with similar bands separation
 - [`save_collection_insight`](#save_collection_insight) - Store collection insights
+- [`validate_band_metadata`](#validate_band_metadata) - Validate band metadata structure
+- [`advanced_search_albums`](#advanced_search_albums) - Advanced album search with 13 parameters
+- [`analyze_collection_insights`](#analyze_collection_insights) - Generate collection analytics and insights
 
-### Resources (2 available)
-- [`band://info/{band_name}`](#band-info-resource) - Get band information with album types
-- [`collection://summary`](#collection-summary-resource) - Get collection overview with type distribution
+### Resources (3 available)
+- [`band://info/{band_name}`](#band-info-resource) - Get band information with type organization
+- [`collection://summary`](#collection-summary-resource) - Get collection overview with enhanced statistics
+- [`collection://analytics`](#collection-analytics-resource) - Get advanced collection analytics
 
 ### Prompts (4 available)
 - [`fetch_band_info`](#fetch_band_info) - Template for fetching band data
@@ -60,27 +64,16 @@ The server supports 8 distinct album types with intelligent auto-detection:
 
 Scans the music collection directory to discover bands and albums with album type detection and folder structure analysis.
 
-#### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `force_rescan` | boolean | No | `false` | Force full rescan even if folders haven't changed |
-| `force_full_scan` | boolean | No | `false` | Perform complete scan regardless of cache |
-| `include_missing_albums` | boolean | No | `true` | Include missing albums in results |
-| `analyze_structure` | boolean | No | `true` | Perform folder structure analysis |
-| `detect_album_types` | boolean | No | `true` | Enable album type detection |
 
 #### Response Schema
 
 ```json
 {
   "success": true,
-  "message": "Scanned 142 band folders, found 1,847 albums (1,623 local + 224 missing)",
+  "message": "Scanned 142 band folders, found 1,623 local albums",
   "stats": {
     "bands_scanned": 142,
-    "albums_found": 1847,
-    "local_albums": 1623,
-    "missing_albums": 224,
+    "local_albums_found": 1623,
     "scan_duration": "5.2s",
     "album_type_distribution": {
       "Album": 1245,
@@ -129,6 +122,92 @@ Scans the music collection directory to discover bands and albums with album typ
 
 ---
 
+### advanced_search_albums
+
+Advanced album search with comprehensive filtering capabilities across collection.
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `album_types` | array | No | `[]` | Filter by album types: `["Album", "Live", "EP", "Demo"]` |
+| `year_min` | integer | No | `null` | Minimum year (inclusive) |
+| `year_max` | integer | No | `null` | Maximum year (inclusive) |
+| `decades` | array | No | `[]` | Filter by decades: `["1970s", "1980s", "1990s"]` |
+| `editions` | array | No | `[]` | Filter by editions: `["Deluxe", "Limited", "Remastered"]` |
+| `genres` | array | No | `[]` | Filter by genres |
+| `bands` | array | No | `[]` | Filter by specific bands |
+| `rating_min` | integer | No | `null` | Minimum rating (1-10) |
+| `rating_max` | integer | No | `null` | Maximum rating (1-10) |
+| `local_only` | boolean | No | `false` | Only return local albums |
+| `missing_only` | boolean | No | `false` | Only return missing albums |
+| `track_count_min` | integer | No | `null` | Minimum track count |
+| `track_count_max` | integer | No | `null` | Maximum track count |
+
+#### Response Schema
+
+```json
+{
+  "success": true,
+  "results": [
+    {
+      "band_name": "Pink Floyd",
+      "album_name": "The Wall",
+      "year": "1979",
+      "type": "Album",
+      "edition": "Deluxe Edition",
+      "genres": ["Progressive Rock"],
+      "rating": 10,
+      "track_count": 26,
+      "is_local": true,
+      "folder_path": "Album/1979 - The Wall (Deluxe Edition)"
+    }
+  ],
+  "total_results": 1,
+  "search_criteria": {
+    "filters_applied": ["album_types", "rating_min"],
+    "search_summary": "Albums: Album, Rating: 8+"
+  }
+}
+```
+
+---
+
+### analyze_collection_insights
+
+Generate comprehensive collection analytics with maturity assessment and recommendations.
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `analysis_depth` | string | No | `"comprehensive"` | Analysis depth: `"basic"`, `"comprehensive"`, `"health_only"` |
+| `focus_areas` | array | No | `[]` | Focus areas: `["statistics", "recommendations", "health", "trends"]` |
+
+#### Response Schema
+
+```json
+{
+  "success": true,
+  "insights": {
+    "maturity_level": "Advanced",
+    "health_score": 85,
+    "collection_size": "Large",
+    "type_diversity": 87,
+    "recommendations": [
+      {
+        "type": "missing_album_type",
+        "priority": "high",
+        "description": "Consider adding more EP releases",
+        "impact": "Increases collection diversity"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ### get_band_list
 
 Retrieves a list of bands with optional filtering by album types, compliance levels, and structure types.
@@ -157,8 +236,8 @@ Retrieves a list of bands with optional filtering by album types, compliance lev
     {
       "band_name": "Pink Floyd",
       "albums_count": 15,
-      "local_albums": 12,
-      "missing_albums": 3,
+      "local_albums_count": 12,
+      "missing_albums_count": 3,
       "has_metadata": true,
       "has_analysis": true,
       "formed": "1965",
@@ -183,8 +262,7 @@ Retrieves a list of bands with optional filtering by album types, compliance lev
           "type": "Album",
           "year": "1979",
           "edition": "Deluxe Edition",
-          "missing": false,
-          "tracks_count": 26,
+          "track_count": 26,
           "compliance": {
             "score": 100,
             "level": "excellent",
@@ -381,7 +459,6 @@ Stores analysis data for bands including album-specific reviews and ratings with
 |-----------|------|----------|-------------|
 | `band_name` | string | Yes | Name of the band |
 | `analyze_data` | object | Yes | Analysis data object |
-| `analyze_missing_albums` | boolean | No | Include missing albums in analysis (default: `false`) |
 
 #### Analysis Data Schema
 

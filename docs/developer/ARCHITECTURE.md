@@ -1,8 +1,8 @@
-# Music Collection MCP Server - Architecture Guide with Album Type Classification
+# Music Collection MCP Server - Architecture Guide
 
 ## Overview
 
-The Music Collection MCP Server is built using a modular, file-system-based architecture that provides intelligent access to local music collections through the Model Context Protocol (MCP). This document details the system architecture, design patterns, and integration strategies, including the new album type classification and folder structure analysis features.
+The Music Collection MCP Server is built using a modular, dependency-injected architecture that provides intelligent access to local music collections through the Model Context Protocol (MCP). The system features advanced album type classification, folder structure analysis, and separated album schemas for optimal collection management.
 
 ## High-Level Architecture
 
@@ -23,26 +23,34 @@ The Music Collection MCP Server is built using a modular, file-system-based arch
 │                                                                 │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
 │  │      Tools      │  │    Resources    │  │     Prompts     │  │
-│  │   (5 tools)     │  │  (2 resources)  │  │   (4 prompts)   │  │
+│  │   (8 tools)     │  │  (3 resources)  │  │   (4 prompts)   │  │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │                    Core Services                            │  │
+│  │                 Modular Server Layer                       │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │  │
-│  │  │   Scanner   │  │   Storage   │  │       Cache         │  │  │
-│  │  │   Service   │  │   Service   │  │      Service        │  │  │
+│  │  │   Base      │  │   Error     │  │    Dependency       │  │  │
+│  │  │  Handlers   │  │  Handlers   │  │    Injection        │  │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────────┐  │
-│  │                   Enhanced Data Models                      │  │
+│  │                    Core Services                            │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │  │
+│  │  │   Scanner   │  │   Storage   │  │      Cache &        │  │  │
+│  │  │   Service   │  │   Service   │  │   Performance       │  │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                Enhanced Data Models                         │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │  │
 │  │  │    Band     │  │ Collection  │  │   Album Type &      │  │  │
 │  │  │   Models    │  │   Models    │  │ Structure Models    │  │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │  │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │  │
 │  │  │ Compliance  │  │   Parser    │  │     Validation      │  │  │
-│  │  │   Models    │  │   Models    │  │      Models         │  │  │
+│  │  │   Models    │  │   Models    │  │ & Analytics Models  │  │  │
 │  │  └─────────────┘  └─────────────┘  └─────────────────────┘  │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -53,621 +61,375 @@ The Music Collection MCP Server is built using a modular, file-system-based arch
 │  ┌─────────────────────────────────────────────────────────────┐  │
 │  │                  Music Collection                           │  │
 │  │                                                             │  │
-│  │  Band Folder 1/                Band Folder 2/              │  │
-│  │  ├── Album/                     ├── 1973 - Album Name/     │  │
-│  │  │   └── 1979 - Album Name/     ├── Live/                  │  │
-│  │  ├── Live/                      │   └── 1975 - Live Album/ │  │
-│  │  │   └── 1980 - Live Album/     └── .band_metadata.json    │  │
+│  │  Band A/ (Enhanced Structure)    Band B/ (Default)         │  │
+│  │  ├── Album/                      ├── 1973 - Album Name/    │  │
+│  │  │   └── 1979 - Album Name/      ├── 1975 - Live Album/    │  │
+│  │  ├── Live/                       └── .band_metadata.json   │  │
+│  │  │   └── 1980 - Live Album/                                │  │
+│  │  ├── Demo/                                                 │  │
+│  │  │   └── 1977 - Early Demo/                               │  │
 │  │  └── .band_metadata.json                                   │  │
 │  │                                                             │  │
-│  │  .collection_index.json (with type & structure metadata)   │  │
+│  │  .collection_index.json (with separated schema)            │  │
 │  └─────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Core Components
+## Core Architecture Components
 
-### 1. MCP Server Core (`src/music_mcp_server.py`)
+### 1. Modular Server Layer (`src/mcp/`)
 
-The main server implementation using FastMCP framework with enhanced album type support:
+The server uses a completely modular architecture with individual components:
+
+#### Server Structure
+```
+src/mcp_server/
+├── main.py                   # Server initialization and configuration
+├── base_handlers.py          # Abstract base classes for all handlers
+├── error_handlers.py         # Centralized error handling
+├── tools/                    # Individual tool implementations
+│   ├── scan_music_folders_tool.py
+│   ├── get_band_list_tool.py
+│   ├── save_band_metadata_tool.py
+│   ├── advanced_search_albums_tool.py
+│   └── ... (8 total tools)
+├── resources/                # Individual resource implementations
+│   ├── band_info_resource.py
+│   ├── collection_summary_resource.py
+│   └── advanced_analytics_resource.py
+└── prompts/                  # Individual prompt implementations
+    ├── fetch_band_info_prompt.py
+    ├── analyze_band_prompt.py
+    └── ... (4 total prompts)
+```
 
 #### Responsibilities
-- **Server Initialization**: FastMCP server setup and configuration
-- **Component Registration**: Tools, resources, and prompts registration with type-aware features
-- **Request Routing**: JSON-RPC request handling and routing
-- **Error Handling**: Centralized error handling and logging
-- **Configuration Management**: Environment variable and settings handling
-- **Type System Integration**: Album type classification and validation
-
-#### Key Features
-- **FastMCP Integration**: Modern MCP framework with automatic serialization
-- **Type Safety**: Full Pydantic v2 integration for type validation including AlbumType enum
-- **Concurrent Safety**: File locking and atomic operations
-- **Resource Management**: Efficient memory and file handle management
-- **Album Type Support**: Intelligent type detection and classification throughout the system
+- **Modular Design**: Each tool, resource, and prompt in separate files (under 350 lines each)
+- **Base Handler System**: Standardized error handling and response formatting
+- **Dependency Injection**: Single configuration instance with testable architecture
+- **Performance Monitoring**: Built-in performance tracking and optimization
+- **Type Safety**: Full Pydantic v2 integration with album type classification
 
 ### 2. Enhanced Data Models (`src/models/`)
 
-Pydantic v2-based data models providing type safety and validation with album type classification:
+#### Separated Albums Schema
+The system now uses separated arrays for optimal album management:
 
-#### Band Models (`band.py`)
 ```python
-# Album type enumeration
-class AlbumType(str, Enum):
-    ALBUM = "Album"
-    COMPILATION = "Compilation"
-    EP = "EP"
-    LIVE = "Live"
-    SINGLE = "Single"
-    DEMO = "Demo"
-    INSTRUMENTAL = "Instrumental"
-    SPLIT = "Split"
+class BandMetadata(BaseModel):
+    band_name: str
+    albums: List[Album] = []           # Local albums (found in folders)
+    albums_missing: List[Album] = []   # Missing albums (known from metadata)
+    
+    # Computed properties
+    @property
+    def albums_count(self) -> int:
+        return len(self.albums) + len(self.albums_missing)
+    
+    @property
+    def local_albums_count(self) -> int:
+        return len(self.albums)
+        
+    @property
+    def missing_albums_count(self) -> int:
+        return len(self.albums_missing)
+```
 
-# Enhanced album representation with type classification
+#### Album Type Classification
+```python
+class AlbumType(str, Enum):
+    ALBUM = "Album"                # Standard studio albums
+    COMPILATION = "Compilation"    # Greatest hits, collections
+    EP = "EP"                     # Extended plays
+    LIVE = "Live"                 # Live recordings
+    SINGLE = "Single"             # Single releases
+    DEMO = "Demo"                 # Demo recordings
+    INSTRUMENTAL = "Instrumental" # Instrumental versions
+    SPLIT = "Split"               # Split releases
+
 class Album(BaseModel):
     album_name: str
     year: Optional[str] = None
     type: AlbumType = Field(default=AlbumType.ALBUM)
-    edition: Optional[str] = Field(default="", max_length=100)
-    genres: List[str] = []
-    tracks_count: Optional[int] = None
-    duration: Optional[str] = None
-    missing: bool = False
-    
-    # File system information
+    edition: Optional[str] = None
     folder_path: Optional[str] = None
-    file_size_mb: Optional[float] = None
-    last_modified: Optional[str] = None
-    
-    # Audio format information
-    primary_format: Optional[str] = None
-    format_distribution: Optional[Dict[str, int]] = None
-    
-    # Compliance and organization
-    compliance: Optional[AlbumCompliance] = None
-
-# Album compliance information
-class AlbumCompliance(BaseModel):
-    score: int = Field(default=0, ge=0, le=100)
-    level: str = Field(default="unknown")
-    issues: List[str] = Field(default_factory=list)
-    recommendations: List[str] = Field(default_factory=list)
-
-# Complete band metadata with type distribution
-class BandMetadata(BaseModel):
-    band_name: str
-    formed: Optional[str] = None
-    genres: List[str] = []
-    origin: Optional[str] = None
-    members: List[str] = []
-    albums_count: int = 0
-    description: Optional[str] = None
-    albums: List[Album] = []
-    last_updated: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
-    analyze: Optional[BandAnalysis] = None
-    
-    # Album type distribution
-    album_type_distribution: Optional[Dict[str, int]] = None
-    structure_analysis: Optional[Dict[str, Any]] = None
+    folder_compliance: Optional[FolderCompliance] = None
 ```
 
-#### Album Type and Structure Models (`album_parser.py`, `band_structure.py`)
+#### Folder Structure Models
 ```python
-# Folder structure types
 class StructureType(str, Enum):
-    DEFAULT = "default"      # Flat structure: "YYYY - Album Name"
-    ENHANCED = "enhanced"    # Type-based: "Type/YYYY - Album Name"
-    MIXED = "mixed"          # Combination of both
-    LEGACY = "legacy"        # No year prefix: "Album Name"
+    DEFAULT = "default"      # "YYYY - Album Name (Edition?)"
+    ENHANCED = "enhanced"    # "Type/YYYY - Album Name (Edition?)"  
+    MIXED = "mixed"          # Combination of both patterns
+    LEGACY = "legacy"        # "Album Name" (no year)
     UNKNOWN = "unknown"      # Unrecognized pattern
 
-# Folder structure analysis
 class FolderStructure(BaseModel):
     structure_type: StructureType
     compliance_score: int = Field(ge=0, le=100)
-    compliance_level: str
-    pattern_consistency: float = Field(ge=0.0, le=1.0)
-    recommendations: List[str] = Field(default_factory=list)
-    issues: List[str] = Field(default_factory=list)
-    
-    # Structure metadata
-    total_albums: int = 0
-    albums_by_pattern: Dict[str, int] = Field(default_factory=dict)
-    type_folder_usage: Dict[str, int] = Field(default_factory=dict)
+    consistency_score: float = Field(ge=0.0, le=1.0)
+    recommendations: List[str] = []
+    analysis_metadata: Dict[str, Any] = {}
 ```
 
-#### Collection Models (`collection.py`)
-```python
-# Enhanced collection index entry
-class BandIndexEntry(BaseModel):
-    band_name: str
-    folder_path: str
-    albums_count: int = 0
-    local_albums: int = 0
-    missing_albums: int = 0
-    has_metadata: bool = False
-    has_analysis: bool = False
-    last_updated: str
-    
-    # Album type distribution
-    album_type_distribution: Dict[str, int] = Field(default_factory=dict)
-    
-    # Structure analysis
-    structure_analysis: Optional[Dict[str, Any]] = None
+### 3. Core Services Layer
 
-# Collection-wide statistics with type analysis
-class CollectionStats(BaseModel):
-    total_bands: int = 0
-    total_albums: int = 0
-    total_missing_albums: int = 0
-    bands_with_metadata: int = 0
-    bands_with_analysis: int = 0
-    completion_percentage: float = 0.0
+#### Scanner Service (`src/tools/scanner.py`)
+- **Album Discovery**: Scans folders and populates only the `albums` array with local albums
+- **Type Detection**: Automatically detects album types from folder names and keywords
+- **Structure Analysis**: Analyzes folder organization patterns and compliance
+- **Performance Optimized**: Uses `os.scandir()` for 20-30% faster directory scanning
+- **Progress Reporting**: Automatic progress tracking for large collections (>50 bands)
+
+#### Storage Service (`src/tools/storage.py`)
+- **Separated Schema Handling**: Manages local vs missing albums in separate arrays
+- **Metadata Integration**: Merges external metadata with local album data
+- **Caching System**: In-memory cache with TTL and LRU eviction
+- **Atomic Operations**: Ensures data consistency with file locking
+- **Backward Compatibility**: Automatic migration from old schema format
+
+#### Performance Service (`src/tools/performance.py`)
+- **Batch File Operations**: Optimized file system operations
+- **Performance Monitoring**: Comprehensive metrics tracking
+- **Memory Management**: Reduced memory usage for large collections
+- **Progress Tracking**: ETA calculations for long-running operations
+
+### 4. Dependency Injection System (`src/di/`)
+
+```python
+# Thread-safe dependency container
+class DependencyContainer:
+    def __init__(self):
+        self._dependencies = {}
+        self._instances = {}
+        self._lock = threading.RLock()
     
-    # Album type distribution across collection
-    album_type_distribution: Dict[str, int] = Field(default_factory=dict)
-    
-    # Structure analysis across collection
-    structure_distribution: Dict[str, int] = Field(default_factory=dict)
-    average_compliance_score: float = 0.0
-    compliance_distribution: Dict[str, int] = Field(default_factory=dict)
+    def register(self, interface, implementation):
+        # Register dependency factories
+        
+    def get(self, interface):
+        # Get or create singleton instances
+
+# Usage throughout the system
+from src.di import get_config
+config = get_config()  # Single instance across entire application
 ```
 
-### 3. Enhanced Scanner Service (`src/tools/scanner.py`)
+## Advanced Features
 
-File system scanner with album type detection and structure analysis:
+### 1. Album Type Classification System
 
-#### Architecture Pattern: Observer + Strategy + Type Detection
-```python
-class MusicScanner:
-    def __init__(self, config: Config):
-        self.config = config
-        self.file_filters = self._setup_filters()
-        self.observers = []  # Progress observers
-        self.type_detector = AlbumTypeDetector()
-        self.structure_analyzer = FolderStructureAnalyzer()
-    
-    def scan_music_folders(self, 
-                          force_rescan: bool = False,
-                          detect_album_types: bool = True,
-                          analyze_structure: bool = True) -> ScanResult:
-        # Strategy pattern for different scan modes with type detection
-        strategy = FullScanStrategy() if force_rescan else IncrementalScanStrategy()
-        strategy.enable_type_detection = detect_album_types
-        strategy.enable_structure_analysis = analyze_structure
-        return strategy.execute(self)
-    
-    def _scan_band_folder(self, band_path: Path) -> BandScanResult:
-        """Scan individual band folder with type detection and structure analysis."""
-        # Analyze folder structure first
-        structure_analysis = self.structure_analyzer.analyze_band_structure(band_path)
-        
-        albums = []
-        for album_path in self._get_album_folders(band_path):
-            # Create album with type detection
-            album = self._create_album_from_folder(album_path, structure_analysis.structure_type)
-            albums.append(album)
-        
-        return BandScanResult(
-            band_name=band_path.name,
-            albums=albums,
-            structure_analysis=structure_analysis,
-            album_type_distribution=self._calculate_type_distribution(albums)
-        )
+#### Intelligent Type Detection
+- **Keyword-based Classification**: Analyzes folder names for type indicators
+- **Pattern Recognition**: Advanced regex-based parsing of album folder names
+- **Fallback Logic**: Default to "Album" type when no specific indicators found
+- **Confidence Scoring**: Multiple detection methods with confidence levels
+
+#### Supported Patterns
+```
+# Default Structure Examples
+1973 - The Dark Side of the Moon/
+1979 - The Wall (Deluxe Edition)/
+1988 - Delicate Sound of Thunder (Live)/
+1983 - The Final Cut (Demo)/
+
+# Enhanced Structure Examples
+Album/1973 - The Dark Side of the Moon/
+Live/1988 - Delicate Sound of Thunder/
+Demo/1983 - The Final Cut/
+Compilation/1971 - Relics/
 ```
 
-#### Key Features
-- **Album Type Detection**: Automatic classification during scanning
-- **Structure Analysis**: Real-time folder organization assessment
-- **Incremental Scanning**: Only scan changed directories with type awareness
-- **File Type Detection**: Support for 9+ music file formats
-- **Progress Reporting**: Real-time scan progress with type statistics
-- **Error Recovery**: Graceful handling of permission errors
-- **Concurrent Safety**: File locking during scan operations
+### 2. Folder Structure Analysis
 
-### 4. Enhanced Storage Service (`src/tools/storage.py`)
+#### Structure Types Detection
+- **Default**: Flat structure with "YYYY - Album Name (Edition?)" pattern
+- **Enhanced**: Type-based folders with "Type/YYYY - Album Name (Edition?)" pattern
+- **Mixed**: Combination of both patterns within same band
+- **Legacy**: Albums without year prefix, just "Album Name" pattern
 
-Atomic file operations with album type and compliance validation:
+#### Compliance Scoring
+- **Excellent** (90-100): All albums follow consistent naming pattern
+- **Good** (70-89): Most albums follow pattern with minor issues
+- **Fair** (50-69): Mixed patterns with some organization
+- **Poor** (25-49): Inconsistent organization with multiple issues
+- **Critical** (0-24): Little to no organization structure
 
-#### Architecture Pattern: Repository + Unit of Work + Type Validation
+### 3. Advanced Analytics (`src/models/analytics.py`)
+
+#### Collection Analysis
 ```python
-class StorageService:
-    def __init__(self, config: Config):
-        self.config = config
-        self.file_locks = {}  # Concurrent access control
-        self.backup_manager = BackupManager()
-        self.type_validator = AlbumTypeValidator()
-        self.compliance_validator = ComplianceValidator()
-    
-    async def save_band_metadata(self, 
-                                band_name: str, 
-                                metadata: BandMetadata) -> SaveResult:
-        async with self._get_lock(band_name):
-            # Validate album types and compliance
-            validation_result = self._validate_metadata_with_types(metadata)
-            
-            # Unit of work pattern with type-aware backup
-            with self.backup_manager.create_backup(band_name):
-                # Enhance metadata with type distribution and structure analysis
-                enhanced_metadata = self._enhance_metadata_with_types(metadata)
-                return await self._atomic_save(band_name, enhanced_metadata)
-    
-    def _validate_metadata_with_types(self, metadata: BandMetadata) -> ValidationResult:
-        """Validate metadata including album types and compliance."""
-        errors = []
-        warnings = []
+class CollectionAnalyzer:
+    def analyze_collection(self) -> AdvancedCollectionInsights:
+        # Comprehensive collection analysis
         
-        for album in metadata.albums:
-            # Validate album type
-            if not self.type_validator.is_valid_type(album.type):
-                errors.append(f"Invalid album type '{album.type}' for album '{album.album_name}'")
-            
-            # Validate compliance if present
-            if album.compliance:
-                compliance_validation = self.compliance_validator.validate(album)
-                if compliance_validation.has_errors():
-                    warnings.extend(compliance_validation.warnings)
+    def get_maturity_assessment(self) -> CollectionMaturityLevel:
+        # Collection maturity scoring (Beginner to Master)
         
-        return ValidationResult(errors=errors, warnings=warnings)
+    def generate_recommendations(self) -> List[TypeRecommendation]:
+        # Intelligent recommendations for collection improvement
 ```
 
-#### Key Features
-- **Type-Aware Operations**: All operations consider album types
-- **Compliance Validation**: Automatic folder structure compliance checking
-- **Atomic Operations**: All-or-nothing file writes with type preservation
-- **Backup Management**: Automatic backup creation before modifications
-- **File Locking**: Thread-safe concurrent access
-- **Data Validation**: Pydantic integration with AlbumType validation
-- **Error Recovery**: Rollback capabilities on failure
+#### Features
+- **Maturity Assessment**: 5-level system (Beginner, Intermediate, Advanced, Expert, Master)
+- **Health Scoring**: Multi-factor analysis including type diversity, organization quality
+- **Type Distribution Analysis**: Compare actual vs ideal album type distributions
+- **Discovery Recommendations**: Suggest missing album types and similar bands
 
-### 5. Album Type Detection System (`src/models/validation.py`)
+## Integration Patterns
 
-Intelligent album type classification and validation:
+### 1. MCP Client Integration
 
-#### Architecture Pattern: Strategy + Factory + Rule Engine
+#### Tool Registration Pattern
 ```python
-class AlbumTypeDetector:
-    """Intelligent album type detection using multiple strategies."""
-    
-    TYPE_KEYWORDS = {
-        AlbumType.LIVE: ['live', 'concert', 'unplugged', 'acoustic'],
-        AlbumType.COMPILATION: ['greatest hits', 'best of', 'collection'],
-        AlbumType.EP: ['ep', 'e.p.'],
-        AlbumType.DEMO: ['demo', 'demos', 'unreleased'],
-        # ... more type keywords
-    }
-    
-    @classmethod
-    def detect_type_from_folder_name(cls, folder_name: str, album_name: str = "") -> AlbumType:
-        """Multi-strategy type detection."""
-        # Strategy 1: Keyword matching
-        detected_type = cls._detect_from_keywords(folder_name, album_name)
-        if detected_type != AlbumType.ALBUM:
-            return detected_type
-        
-        # Strategy 2: Folder structure analysis
-        detected_type = cls._detect_from_structure(folder_name)
-        if detected_type != AlbumType.ALBUM:
-            return detected_type
-        
-        # Strategy 3: Track count heuristics (if available)
-        # Strategy 4: Metadata analysis (if available)
-        
-        return AlbumType.ALBUM
-    
-    @classmethod
-    def detect_from_track_count(cls, track_count: int) -> AlbumType:
-        """Heuristic type detection based on track count."""
-        if track_count == 1:
-            return AlbumType.SINGLE
-        elif 2 <= track_count <= 7:
-            return AlbumType.EP
-        else:
-            return AlbumType.ALBUM
+# Individual tool files use shared server instance
+from src.mcp.main import app
+
+@app.tool()
+async def scan_music_folders(
+    force_rescan: bool = False,
+    analyze_structure: bool = True,
+    detect_album_types: bool = True
+) -> ScanResult:
+    # Tool implementation
 ```
 
-### 6. Folder Structure Analysis System (`src/models/band_structure.py`)
-
-Comprehensive folder organization analysis and compliance scoring:
-
-#### Architecture Pattern: Analyzer + Scorer + Recommender
+#### Resource Pattern
 ```python
-class FolderStructureAnalyzer:
-    """Analyzes band folder organization patterns and compliance."""
-    
-    def analyze_band_structure(self, band_path: Path) -> FolderStructure:
-        """Comprehensive structure analysis."""
-        albums = list(self._get_album_folders(band_path))
-        
-        # Detect structure type
-        structure_type = self._detect_structure_type(albums)
-        
-        # Calculate compliance score
-        compliance_score = self._calculate_compliance_score(albums, structure_type)
-        
-        # Generate recommendations
-        recommendations = self._generate_recommendations(albums, structure_type, compliance_score)
-        
-        return FolderStructure(
-            structure_type=structure_type,
-            compliance_score=compliance_score,
-            compliance_level=self._get_compliance_level(compliance_score),
-            recommendations=recommendations,
-            total_albums=len(albums),
-            albums_by_pattern=self._analyze_patterns(albums),
-            type_folder_usage=self._analyze_type_folders(albums)
-        )
-    
-    def _calculate_compliance_score(self, albums: List[Path], structure_type: StructureType) -> int:
-        """Calculate compliance score based on structure consistency."""
-        if not albums:
-            return 0
-        
-        score = 100
-        
-        # Deduct points for inconsistencies
-        for album_path in albums:
-            # Check naming convention compliance
-            if not self._follows_naming_convention(album_path, structure_type):
-                score -= 10
-            
-            # Check type folder consistency (for enhanced structures)
-            if structure_type == StructureType.ENHANCED:
-                if not self._has_proper_type_folder(album_path):
-                    score -= 15
-        
-        return max(0, score)
+@app.resource("band://info/{band_name}")
+async def get_band_info(band_name: str) -> str:
+    # Resource implementation with type-organized display
 ```
 
-### 7. Cache Service with Type Awareness (`src/tools/cache.py`)
+### 2. Error Handling Pattern
 
-Intelligent caching with album type and structure metadata:
-
-#### Architecture Pattern: Cache-Aside + TTL + Type-Aware Invalidation
+#### Centralized Exception System
 ```python
-class CacheService:
-    def __init__(self, config: Config):
-        self.config = config
-        self.memory_cache = {}  # In-memory cache
-        self.file_cache = FileCacheManager()  # Persistent cache
-        self.type_cache = AlbumTypeCache()  # Type-specific caching
-    
-    def get_band_metadata(self, band_name: str) -> Optional[BandMetadata]:
-        """Get cached band metadata with type information."""
-        cache_key = f"band_metadata:{band_name}"
+# src/exceptions.py
+class MusicMCPError(Exception):
+    def __init__(self, message: str, severity: ErrorSeverity = ErrorSeverity.MEDIUM):
+        self.severity = severity
+        super().__init__(message)
+
+class StorageError(MusicMCPError):
+    pass
+
+class ScanningError(MusicMCPError):
+    pass
+```
+
+#### Handler Integration
+```python
+# Base handler with standardized error handling
+class BaseToolHandler(ABC):
+    def handle_error(self, error: Exception) -> HandlerResponse:
+        # Centralized error processing with context
+```
+
+### 3. Performance Optimization Patterns
+
+#### Batch Operations
+```python
+class BatchFileOperations:
+    def fast_scandir(self, path: Path) -> List[Path]:
+        # 20-30% faster than pathlib.iterdir()
+        return [entry.path for entry in os.scandir(path)]
         
-        # Check memory cache first
-        if cache_key in self.memory_cache:
-            cached_data = self.memory_cache[cache_key]
-            if self._is_cache_valid(cached_data):
-                return cached_data['metadata']
+    def count_files_optimized(self, directory: Path) -> int:
+        # Optimized file counting for large directories
+```
+
+#### Caching Strategy
+```python
+class SimpleCache:
+    def __init__(self, ttl_seconds: int = 300):
+        self._cache = {}
+        self._timestamps = {}
+        self._ttl = ttl_seconds
         
-        # Check file cache
-        cached_metadata = self.file_cache.get(cache_key)
-        if cached_metadata and self._is_metadata_current(cached_metadata):
-            # Validate album types are still current
-            if self._validate_cached_types(cached_metadata):
-                self.memory_cache[cache_key] = {
-                    'metadata': cached_metadata,
-                    'timestamp': time.time()
-                }
-                return cached_metadata
-        
-        return None
-    
-    def invalidate_type_cache(self, album_type: AlbumType):
-        """Invalidate cache entries for specific album type."""
-        self.type_cache.invalidate_type(album_type)
+    def get_with_ttl(self, key: str) -> Optional[Any]:
+        # TTL-based cache with automatic expiration
 ```
 
 ## Data Flow Architecture
 
-### 1. Album Type Detection Flow
-
+### 1. Scanning Workflow
 ```
-File System Scan → Folder Name Analysis → Type Detection → Validation → Storage
-                                      ↓
-                   Track Count Analysis → Type Confirmation → Metadata Enhancement
-                                      ↓
-                   Structure Analysis → Compliance Scoring → Recommendations
-```
-
-### 2. Structure Analysis Flow
-
-```
-Band Folder → Album Folders Discovery → Pattern Analysis → Structure Type Detection
-                                                        ↓
-            Compliance Validation → Scoring → Issue Identification → Recommendations
-                                                        ↓
-            Type Folder Analysis → Distribution Calculation → Enhancement Suggestions
+User Request → scan_music_folders_tool
+    ↓
+Scanner Service (enhanced with type detection)
+    ↓
+Album Folder Parser (structure analysis)
+    ↓
+Band Structure Detector (compliance scoring)
+    ↓
+Update Collection Index (separated schema)
+    ↓
+Return Results (with type distribution)
 ```
 
-### 3. Enhanced Metadata Flow
-
+### 2. Metadata Integration Workflow
 ```
-Raw Metadata → Type Validation → Structure Analysis → Compliance Scoring
-                              ↓
-            Enhanced Metadata → Distribution Calculation → Storage → Index Update
-                              ↓
-            Cache Update → Resource Generation → Client Response
-```
-
-## Integration Patterns
-
-### 1. Type-Aware Resource Generation
-
-Resources now include album type information and structure analysis:
-
-```python
-class BandInfoResource:
-    def generate_markdown(self, band_metadata: BandMetadata) -> str:
-        """Generate markdown with album type organization."""
-        sections = []
-        
-        # Band overview
-        sections.append(self._generate_overview(band_metadata))
-        
-        # Album type distribution
-        sections.append(self._generate_type_distribution(band_metadata))
-        
-        # Albums organized by type
-        sections.append(self._generate_albums_by_type(band_metadata))
-        
-        # Structure analysis
-        sections.append(self._generate_structure_analysis(band_metadata))
-        
-        return "\n\n".join(sections)
+External Metadata → save_band_metadata_tool
+    ↓
+Load Existing Metadata (with separated arrays)
+    ↓
+Separate Albums by Local Availability
+    ↓
+Merge with Local Album Data
+    ↓
+Update timestamps and collection index
+    ↓
+Return Status (with local/missing counts)
 ```
 
-### 2. Type-Aware Filtering and Search
-
-Enhanced filtering capabilities across all tools:
-
-```python
-class BandListFilter:
-    def apply_filters(self, 
-                     bands: List[BandIndexEntry],
-                     album_types: List[AlbumType] = None,
-                     compliance_levels: List[str] = None,
-                     structure_types: List[StructureType] = None) -> List[BandIndexEntry]:
-        """Apply type-aware filtering."""
-        filtered_bands = bands
-        
-        if album_types:
-            filtered_bands = [b for b in filtered_bands 
-                            if self._has_album_types(b, album_types)]
-        
-        if compliance_levels:
-            filtered_bands = [b for b in filtered_bands 
-                            if self._meets_compliance(b, compliance_levels)]
-        
-        if structure_types:
-            filtered_bands = [b for b in filtered_bands 
-                            if self._has_structure_type(b, structure_types)]
-        
-        return filtered_bands
+### 3. Analytics Workflow
+```
+Collection Data → analyze_collection_insights_tool
+    ↓
+Collection Analyzer (comprehensive analysis)
+    ↓
+Maturity Assessment (5-level scoring)
+    ↓
+Health Metrics (multi-factor scoring)
+    ↓
+Generate Recommendations (type-specific)
+    ↓
+Return Insights (with actionable suggestions)
 ```
 
-## Performance Considerations
+## Quality Assurance Architecture
 
-### 1. Type Detection Optimization
+### 1. Testing Strategy
+- **Unit Tests**: Individual component testing with 95%+ coverage
+- **Integration Tests**: End-to-end workflow validation
+- **Performance Tests**: Large collection testing (10,000+ albums)
+- **Concurrent Tests**: Thread-safety validation
+- **Error Handling Tests**: Exception recovery validation
 
-- **Keyword Caching**: Pre-compiled regex patterns for type detection
-- **Structure Memoization**: Cache structure analysis results
-- **Incremental Updates**: Only re-analyze changed folders
+### 2. Code Quality Standards
+- **Function Size**: All functions under 50 lines following single responsibility
+- **Type Safety**: Full type hints with Pydantic v2 validation
+- **Error Handling**: Comprehensive exception hierarchy with context
+- **Documentation**: Complete docstrings with Google style
+- **Modularity**: Each component in separate file under 350 lines
 
-### 2. Compliance Scoring Efficiency
+### 3. Performance Standards
+- **File System**: 20-30% improvement with optimized scanning
+- **Memory Usage**: Reduced footprint through batch operations
+- **Response Time**: <30 seconds for all operations
+- **Concurrent Safety**: Thread-safe operations throughout
+- **Progress Reporting**: Automatic progress for operations >50 items
 
-- **Lazy Evaluation**: Calculate compliance scores only when needed
-- **Batch Processing**: Analyze multiple albums in single pass
-- **Score Caching**: Cache compliance scores with folder modification timestamps
+## Future Extensibility
 
-### 3. Memory Management
+The modular architecture supports easy extension through:
 
-- **Type Distribution Caching**: Cache album type distributions
-- **Structure Analysis Pooling**: Reuse structure analysis objects
-- **Selective Loading**: Load only required album type information
+1. **New Tool Addition**: Create individual tool file following base handler pattern
+2. **Custom Album Types**: Extend AlbumType enum with new classifications
+3. **Additional Structure Types**: Add new patterns to StructureType enum
+4. **Enhanced Analytics**: Extend CollectionAnalyzer with new metrics
+5. **Custom Compliance Rules**: Add validation rules to compliance system
 
-## Error Handling and Validation
-
-### 1. Type Validation Errors
-
-```python
-class AlbumTypeValidationError(Exception):
-    def __init__(self, album_name: str, invalid_type: str, valid_types: List[str]):
-        self.album_name = album_name
-        self.invalid_type = invalid_type
-        self.valid_types = valid_types
-        super().__init__(f"Invalid album type '{invalid_type}' for album '{album_name}'")
-```
-
-### 2. Structure Compliance Errors
-
-```python
-class StructureComplianceError(Exception):
-    def __init__(self, band_name: str, compliance_score: int, issues: List[str]):
-        self.band_name = band_name
-        self.compliance_score = compliance_score
-        self.issues = issues
-        super().__init__(f"Low compliance score ({compliance_score}) for band '{band_name}'")
-```
-
-## Security and Validation
-
-### 1. Input Validation
-
-- **Album Type Validation**: Strict enum validation for album types
-- **Structure Type Validation**: Validation of folder structure patterns
-- **Compliance Score Validation**: Range validation for compliance scores
-
-### 2. File System Security
-
-- **Path Traversal Protection**: Prevent access outside music root
-- **Type Folder Validation**: Validate type folder names against enum
-- **Structure Consistency Checks**: Ensure folder structure integrity
-
-## Deployment Architecture
-
-### 1. Docker Integration with Type Support
-
-```dockerfile
-# Enhanced Dockerfile with type detection dependencies
-FROM python:3.11-slim
-
-# Install additional dependencies for type detection
-RUN pip install pydantic[email] regex
-
-# Copy enhanced models and type detection modules
-COPY src/models/ /app/src/models/
-COPY src/tools/ /app/src/tools/
-
-# Set environment variables for type detection
-ENV ENABLE_TYPE_DETECTION=true
-ENV ENABLE_STRUCTURE_ANALYSIS=true
-```
-
-### 2. Configuration Management
-
-```python
-class EnhancedConfig:
-    # Existing configuration
-    MUSIC_ROOT_PATH: str
-    CACHE_DURATION_DAYS: int
-    
-    # New type-related configuration
-    ENABLE_TYPE_DETECTION: bool = True
-    ENABLE_STRUCTURE_ANALYSIS: bool = True
-    DEFAULT_ALBUM_TYPE: AlbumType = AlbumType.ALBUM
-    COMPLIANCE_THRESHOLD: int = 70
-    AUTO_MIGRATE_STRUCTURE: bool = False
-```
-
-## Future Architecture Considerations
-
-### 1. Machine Learning Integration
-
-- **Type Prediction Models**: ML models for better type detection
-- **Structure Optimization**: AI-driven folder organization recommendations
-- **Quality Assessment**: Automated quality scoring based on multiple factors
-
-### 2. Distributed Processing
-
-- **Parallel Type Detection**: Multi-threaded type detection for large collections
-- **Distributed Structure Analysis**: Cluster-based structure analysis
-- **Caching Strategies**: Distributed caching for type and structure information
-
-### 3. API Evolution
-
-- **GraphQL Integration**: Type-aware GraphQL schema for flexible queries
-- **Real-time Updates**: WebSocket support for real-time type and structure updates
-- **Plugin Architecture**: Extensible type detection and structure analysis plugins
-
----
-
-## Version Information
-
-- **Architecture Version**: 2.0.0
-- **Album Type System**: 1.0.0
-- **Folder Structure Analysis**: 1.0.0
-- **Core MCP Framework**: 1.1.0
-- **Last Updated**: 2025-01-30 
+The system is designed for continued growth while maintaining performance, reliability, and ease of use.

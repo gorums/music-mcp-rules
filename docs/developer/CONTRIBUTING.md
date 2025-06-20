@@ -1,8 +1,8 @@
-# Contributing to Music Collection MCP Server with Album Type Classification
+# Contributing to Music Collection MCP Server
 
 ## Welcome Contributors! 🎵
 
-Thank you for your interest in contributing to the Music Collection MCP Server! This project aims to provide an intelligent, file-system-based music collection management system through the Model Context Protocol, featuring advanced album type classification and folder structure analysis. We welcome contributions of all kinds, from bug fixes to new features.
+Thank you for your interest in contributing to the Music Collection MCP Server! This project provides an intelligent, modular music collection management system through the Model Context Protocol, featuring advanced album type classification, separated album schemas, and dependency injection architecture. We welcome contributions of all kinds, from bug fixes to new features.
 
 ## Table of Contents
 
@@ -10,8 +10,8 @@ Thank you for your interest in contributing to the Music Collection MCP Server! 
 - [Development Setup](#development-setup)
 - [Code Style Guidelines](#code-style-guidelines)
 - [Testing Requirements](#testing-requirements)
-- [Album Type Classification Features](#album-type-classification-features)
-- [Folder Structure Analysis Features](#folder-structure-analysis-features)
+- [Modular Architecture Guidelines](#modular-architecture-guidelines)
+- [Separated Albums Schema](#separated-albums-schema)
 - [Contribution Workflow](#contribution-workflow)
 - [Feature Development](#feature-development)
 - [Bug Reports](#bug-reports)
@@ -74,28 +74,29 @@ cp .env.example .env
 # Build development container
 docker build -f Dockerfile.test -t music-mcp-dev .
 
-# Run development container with album type features
+# Run development container
 docker run -v $(pwd):/app -v /path/to/music:/music \
   -e "MUSIC_ROOT_PATH=/music" \
-  -e "ENABLE_TYPE_DETECTION=true" \
-  -e "ENABLE_STRUCTURE_ANALYSIS=true" \
   music-mcp-dev bash
 ```
 
 ### 3. Verify Setup
 
 ```bash
-# Run tests to verify everything works including new features
+# Run tests to verify everything works
 python -m pytest tests/ -v
 
-# Test album type detection
-python -m pytest tests/test_album_types.py -v
+# Test album type detection and structure analysis
+python -m pytest tests/test_models/test_album_enhancements.py -v
 
-# Test structure analysis
-python -m pytest tests/test_structure_analysis.py -v
+# Test separated albums schema
+python -m pytest tests/test_separated_albums_schema.py -v
 
-# Test server startup with type features
-ENABLE_TYPE_DETECTION=true ENABLE_STRUCTURE_ANALYSIS=true python main.py
+# Test modular server components
+python -m pytest tests/test_mcp_server/ -v
+
+# Test server startup
+python main.py
 ```
 
 ## Code Style Guidelines
@@ -110,7 +111,73 @@ We follow **PEP 8** with some project-specific additions:
 - **Imports**: Use `black` for automatic formatting
 - **Type Hints**: Required for all function signatures
 
-#### Album Type and Structure Code Style
+## Modular Architecture Guidelines
+
+### File Size Constraints
+- **Maximum file size**: 350 lines per file
+- **Function size**: Maximum 50 lines per function
+- **Single responsibility**: Each file should have one clear purpose
+- **Separation of concerns**: Business logic separate from MCP protocol handling
+
+### Directory Structure
+```
+src/
+├── mcp_server/            # MCP server components (modular)
+│   ├── main.py            # Server initialization (<100 lines)
+│   ├── base_handlers.py   # Base handler classes
+│   ├── error_handlers.py  # Error handling system
+│   ├── tools/             # Individual tool files (8 tools)
+│   ├── resources/         # Individual resource files (3 resources)
+│   └── prompts/          # Individual prompt files (4 prompts)
+├── tools/                 # Core services
+├── models/               # Data models with separated schemas
+├── di/                   # Dependency injection
+└── exceptions.py         # Exception hierarchy
+```
+
+### Creating New Components
+
+#### Adding New MCP Tools
+1. Create individual file in `src/mcp_server/tools/`
+2. Inherit from `BaseToolHandler`
+3. Keep file under 350 lines
+4. Export in `src/mcp_server/tools/__init__.py`
+
+```python
+# src/mcp_server/tools/my_new_tool.py
+from src.mcp_server.main import app
+from src.mcp_server.base_handlers import BaseToolHandler
+
+@app.tool()
+async def my_new_tool(param: str) -> dict:
+    """New tool implementation."""
+    # Implementation under 50 lines per function
+```
+
+## Separated Albums Schema
+
+### Key Schema Changes
+- **Local albums**: `albums` array contains only albums found in folders
+- **Missing albums**: `albums_missing` array contains albums not found locally
+- **No missing field**: Removed `missing: bool` from Album model
+- **Computed counts**: `albums_count = len(albums) + len(albums_missing)`
+
+### Working with Separated Schema
+```python
+class BandMetadata(BaseModel):
+    albums: List[Album] = []           # Local albums only
+    albums_missing: List[Album] = []   # Missing albums only
+    
+    @property
+    def local_albums_count(self) -> int:
+        return len(self.albums)
+        
+    @property
+    def missing_albums_count(self) -> int:
+        return len(self.albums_missing)
+```
+
+#### Code Style for Album Features
 ```python
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -119,7 +186,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 from pathlib import Path
 
-# Album type enumeration
+# Album type enumeration  
 class AlbumType(str, Enum):
     """Album type classification enumeration."""
     ALBUM = "Album"

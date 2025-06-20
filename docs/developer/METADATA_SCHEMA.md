@@ -6,9 +6,10 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 
 ## Schema Versions
 
-- **Current Version**: 1.1
-- **Migration Support**: From version 1.0 and 0.9 (automatic migration available)
-- **Backwards Compatibility**: Maintained within major versions
+- **Current Version**: 2.0 (Separated Albums Schema)
+- **Migration Support**: Automatic migration from versions 1.x and 0.9
+- **Backwards Compatibility**: Full backward compatibility with automatic schema conversion
+- **Breaking Changes**: Albums now separated into `albums` (local) and `albums_missing` arrays
 
 ---
 
@@ -37,12 +38,10 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "type": "string (AlbumType enum, optional, default: 'Album')",
       "edition": "string (optional)",
       "genres": ["array of strings (optional)"],
-      "tracks_count": "integer (optional)",
-      "track_count": "integer (alias for tracks_count, optional)",
+      "track_count": "integer (optional)",
       "duration": "string (e.g., '45min', optional)",
-      "missing": "boolean (default: false)",
       "folder_path": "string (relative path from band folder, optional)",
-      "compliance": {
+      "folder_compliance": {
         "score": "integer (0-100, optional)",
         "level": "string (excellent/good/fair/poor/critical, optional)",
         "issues": ["array of strings (optional)"],
@@ -50,6 +49,19 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       }
     }
   ],
+  "albums_missing": [
+    {
+      "album_name": "string (required)",
+      "year": "string (YYYY format, optional)",
+      "type": "string (AlbumType enum, optional, default: 'Album')",
+      "edition": "string (optional)",
+      "genres": ["array of strings (optional)"],
+      "track_count": "integer (optional)",
+      "duration": "string (e.g., '45min', optional)"
+    }
+  ],
+  "local_albums_count": "integer (auto-calculated)",
+  "missing_albums_count": "integer (auto-calculated)",
   "last_updated": "string (ISO 8601 datetime, auto-generated)",
   "analyze": {
     "review": "string (optional)",
