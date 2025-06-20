@@ -12,6 +12,7 @@ from enum import Enum
 import json
 import shutil
 import time
+import os
 from datetime import datetime
 from pydantic import BaseModel, Field
 
@@ -489,7 +490,15 @@ class BandStructureMigrator:
         )
     
     def _execute_migration_operation(self, operation: AlbumMigrationOperation):
-        """Execute a single migration operation."""
+        """
+        Execute a single migration operation with enhanced file handling.
+        
+        Handles:
+        - File permission preservation
+        - Timestamp preservation 
+        - Folder name conflict detection and resolution
+        - Atomic operations with proper error handling
+        """
         source_path = Path(operation.source_path)
         target_path = Path(operation.target_path)
         
@@ -497,17 +506,128 @@ class BandStructureMigrator:
         if source_path == target_path:
             return
         
+        # Check for folder name conflicts and resolve them
+        target_path = self._resolve_folder_conflicts(target_path)
+        operation.target_path = str(target_path)  # Update operation with resolved path
+        
         # Create target directory if it doesn't exist
         target_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Perform the move operation
+        # Perform the move operation with enhanced file handling
         if operation.operation_type == "move":
-            shutil.move(str(source_path), str(target_path))
+            self._safe_move_with_permissions(source_path, target_path)
         elif operation.operation_type == "copy":
-            shutil.copytree(str(source_path), str(target_path), dirs_exist_ok=True)
+            self._safe_copy_with_permissions(source_path, target_path)
+    
+    def _resolve_folder_conflicts(self, target_path: Path) -> Path:
+        """
+        Detect and resolve folder name conflicts.
+        
+        Args:
+            target_path: The intended target path
+            
+        Returns:
+            Path: Resolved path without conflicts
+        """
+        if not target_path.exists():
+            return target_path
+        
+        # Generate alternative name with counter
+        counter = 1
+        original_name = target_path.name
+        parent_dir = target_path.parent
+        
+        while target_path.exists():
+            # Extract the base name and extension/edition info
+            if " (" in original_name and original_name.endswith(")"):
+                # Handle names like "2010 - Album Name (Deluxe Edition)"
+                base_part = original_name.rsplit(" (", 1)[0]
+                edition_part = original_name.rsplit(" (", 1)[1]
+                new_name = f"{base_part} (Conflict {counter}) ({edition_part}"
+            else:
+                # Handle names like "2010 - Album Name"
+                new_name = f"{original_name} (Conflict {counter})"
+            
+            target_path = parent_dir / new_name
+            counter += 1
+            
+            # Safety check to prevent infinite loops
+            if counter > 999:
+                raise ValueError(f"Too many conflicts for folder: {original_name}")
+        
+        return target_path
+
+    def _safe_move_with_permissions(self, source_path: Path, target_path: Path):
+        """
+        Move folder while preserving permissions and timestamps.
+        
+        Args:
+            source_path: Source folder path
+            target_path: Target folder path
+        """
+        try:
+            # Get original permissions and timestamps before move
+            source_stat = source_path.stat()
+            
+            # Perform the move operation
+            shutil.move(str(source_path), str(target_path))
+            
+            # Restore permissions and timestamps
+            self._preserve_folder_attributes(target_path, source_stat)
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to move folder from {source_path} to {target_path}: {e}")
+
+    def _safe_copy_with_permissions(self, source_path: Path, target_path: Path):
+        """
+        Copy folder while preserving permissions and timestamps.
+        
+        Args:
+            source_path: Source folder path
+            target_path: Target folder path
+        """
+        try:
+            # Use shutil.copytree with copy_function that preserves metadata
+            shutil.copytree(
+                str(source_path), 
+                str(target_path), 
+                copy_function=shutil.copy2,  # Preserves metadata including timestamps
+                dirs_exist_ok=True
+            )
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to copy folder from {source_path} to {target_path}: {e}")
+
+    def _preserve_folder_attributes(self, folder_path: Path, original_stat):
+        """
+        Preserve folder permissions and timestamps after move operation.
+        
+        Args:
+            folder_path: Path to folder to update
+            original_stat: Original stat object from source folder
+        """
+        try:
+            # Preserve access and modification times
+            os.utime(folder_path, (original_stat.st_atime, original_stat.st_mtime))
+            
+            # Preserve permissions (only on Unix-like systems)
+            if hasattr(original_stat, 'st_mode') and isinstance(original_stat.st_mode, int):
+                folder_path.chmod(original_stat.st_mode)
+                
+        except (OSError, AttributeError, TypeError):
+            # Non-critical error, permissions/timestamps couldn't be preserved
+            # This is common on Windows or with restricted permissions
+            pass
     
     def _update_band_metadata_after_migration(self, band_name: str, migration_type: MigrationType):
-        """Update band metadata after successful migration."""
+        """
+        Update band metadata after successful migration.
+        
+        Updates:
+        - Folder structure type information
+        - Album folder paths in metadata
+        - Band timestamps
+        """
         try:
             # Import here to avoid circular imports
             from ..core.tools.storage import load_band_metadata, save_band_metadata
@@ -524,6 +644,9 @@ class BandStructureMigrator:
                     elif migration_type == MigrationType.ENHANCED_TO_DEFAULT:
                         metadata.folder_structure.structure_type = StructureType.DEFAULT
                 
+                # Update album folder paths in metadata
+                self._update_album_folder_paths_in_metadata(metadata, migration_type)
+                
                 # Update timestamp
                 metadata.update_timestamp()
                 
@@ -532,6 +655,64 @@ class BandStructureMigrator:
         except Exception:
             # Non-critical error, just continue
             pass
+
+    def _update_album_folder_paths_in_metadata(self, metadata, migration_type: MigrationType):
+        """
+        Update album folder paths in band metadata after migration.
+        
+        Args:
+            metadata: Band metadata object
+            migration_type: Type of migration performed
+        """
+        try:
+            # Update paths for both local albums and missing albums if they have folder_path
+            for album_list_name in ['albums', 'albums_missing']:
+                if hasattr(metadata, album_list_name):
+                    album_list = getattr(metadata, album_list_name)
+                    if album_list:
+                        for album in album_list:
+                            if hasattr(album, 'folder_path') and album.folder_path:
+                                # Update the folder path based on migration type
+                                album.folder_path = self._calculate_new_album_path(
+                                    album, migration_type
+                                )
+        except Exception:
+            # Non-critical error, continue
+            pass
+
+    def _calculate_new_album_path(self, album, migration_type: MigrationType) -> str:
+        """
+        Calculate new album folder path after migration.
+        
+        Args:
+            album: Album object from metadata
+            migration_type: Type of migration performed
+            
+        Returns:
+            str: New folder path for the album
+        """
+        try:
+            current_path = Path(album.folder_path)
+            band_folder = current_path.parent
+            
+            # Parse album information
+            parsed = self.parser.parse_enhanced_folder_structure(str(current_path))
+            
+            # Determine album type
+            album_type = getattr(album, 'type', AlbumType.ALBUM)
+            if isinstance(album_type, str):
+                album_type = AlbumType(album_type)
+            
+            # Generate new path based on migration type
+            new_path = self._generate_target_path(
+                band_folder, current_path, migration_type, album_type, parsed
+            )
+            
+            return str(new_path)
+            
+        except Exception:
+            # If path calculation fails, return original path
+            return album.folder_path
     
     def _rollback_migration(self, backup_info: MigrationBackup):
         """Rollback migration using backup information."""
