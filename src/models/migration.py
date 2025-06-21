@@ -13,6 +13,7 @@ import json
 import shutil
 import time
 import os
+import re
 import logging
 from datetime import datetime
 from pydantic import BaseModel, Field
@@ -1458,7 +1459,7 @@ class BandStructureMigrator:
             
             # Update band metadata after successful migration
             if albums_migrated > 0 and integrity_check.passed:
-                self._update_band_metadata_after_migration(band_name, migration_type)
+                self._update_band_metadata_after_migration(band_name, migration_type, operations)
                 migration_log.add_entry("INFO", "METADATA_UPDATE", "Updated band metadata after migration")
             
             # Determine final status
@@ -1821,46 +1822,66 @@ class BandStructureMigrator:
             # This is common on Windows or with restricted permissions
             pass
     
-    def _update_band_metadata_after_migration(self, band_name: str, migration_type: MigrationType):
+    def _update_band_metadata_after_migration(self, band_name: str, migration_type: MigrationType, operations: List[AlbumMigrationOperation]):
         """
         Update band metadata after successful migration.
         
         Updates:
         - Folder structure type information
+        - Album metadata with type classifications  
         - Album folder paths in metadata
+        - Collection index with new structure
         - Band timestamps
+        
+        Args:
+            band_name: Name of the band that was migrated
+            migration_type: Type of migration performed
+            operations: List of migration operations that were completed
         """
         try:
             # Import here to avoid circular imports
-            from ..core.tools.storage import load_band_metadata, save_band_metadata
+            from src.core.tools.storage import load_band_metadata, save_band_metadata
             
             # Load existing metadata
             metadata = load_band_metadata(band_name)
-            if metadata:
-                # Update folder structure information
-                if hasattr(metadata, 'folder_structure'):
-                    if migration_type in [MigrationType.DEFAULT_TO_ENHANCED, MigrationType.MIXED_TO_ENHANCED]:
-                        metadata.folder_structure.structure_type = StructureType.ENHANCED
-                    elif migration_type == MigrationType.LEGACY_TO_DEFAULT:
-                        metadata.folder_structure.structure_type = StructureType.DEFAULT
-                    elif migration_type == MigrationType.ENHANCED_TO_DEFAULT:
-                        metadata.folder_structure.structure_type = StructureType.DEFAULT
-                
-                # Update album folder paths in metadata
-                self._update_album_folder_paths_in_metadata(metadata, migration_type)
-                
-                # Update timestamp
-                metadata.update_timestamp()
-                
-                # Save updated metadata
-                save_band_metadata(metadata.model_dump())
-        except Exception:
-            # Non-critical error, just continue
-            pass
+            if not metadata:
+                logger.warning(f"No metadata found for band '{band_name}', skipping metadata synchronization")
+                return
+            
+            logger.info(f"Synchronizing metadata for band '{band_name}' after {migration_type.value} migration")
+            
+            # Update folder structure information
+            self._update_folder_structure_type(metadata, migration_type)
+            
+            # Update album metadata with type classifications and folder paths
+            self._update_album_metadata_with_migration_results(metadata, migration_type, operations)
+            
+            # Preserve existing metadata (ratings, reviews, analysis) - already preserved by design
+            # The metadata loading/saving process preserves the analyze field and all other fields
+            
+            # Update timestamp to reflect migration
+            metadata.update_timestamp()
+            
+            # Save updated metadata
+            save_result = save_band_metadata(band_name, metadata)
+            if save_result.get('status') == 'success':
+                logger.info(f"Successfully updated metadata for band '{band_name}' after migration")
+            else:
+                logger.warning(f"Failed to save updated metadata for band '{band_name}': {save_result.get('message', 'Unknown error')}")
+            
+            # Synchronize collection index with new structure
+            self._synchronize_collection_index_after_migration(band_name, migration_type, metadata)
+            
+        except Exception as e:
+            logger.error(f"Error updating metadata for band '{band_name}' after migration: {str(e)}")
+            # Don't raise exception to avoid breaking migration process
 
     def _update_album_folder_paths_in_metadata(self, metadata, migration_type: MigrationType):
         """
         Update album folder paths in band metadata after migration.
+        
+        DEPRECATED: This method is replaced by _update_album_metadata_with_migration_results
+        which provides more comprehensive metadata updates including type classifications.
         
         Args:
             metadata: Band metadata object
@@ -1872,15 +1893,19 @@ class BandStructureMigrator:
                 if hasattr(metadata, album_list_name):
                     album_list = getattr(metadata, album_list_name)
                     if album_list:
+                        albums_updated = 0
                         for album in album_list:
                             if hasattr(album, 'folder_path') and album.folder_path:
                                 # Update the folder path based on migration type
-                                album.folder_path = self._calculate_new_album_path(
-                                    album, migration_type
-                                )
-        except Exception:
-            # Non-critical error, continue
-            pass
+                                old_path = album.folder_path
+                                album.folder_path = self._calculate_new_album_path(album, migration_type)
+                                if old_path != album.folder_path:
+                                    albums_updated += 1
+                        
+                        if albums_updated > 0:
+                            logger.debug(f"Updated folder paths for {albums_updated} albums in {album_list_name} list")
+        except Exception as e:
+            logger.warning(f"Failed to update album folder paths: {str(e)}")
 
     def _calculate_new_album_path(self, album, migration_type: MigrationType) -> str:
         """
@@ -1894,29 +1919,268 @@ class BandStructureMigrator:
             str: New folder path for the album
         """
         try:
-            current_path = Path(album.folder_path)
-            band_folder = current_path.parent
+            current_path = album.folder_path
+            if not current_path:
+                return ""
             
-            # Parse album information
-            parsed = self.parser.parse_enhanced_folder_structure(str(current_path))
+            # Handle relative paths - just use the folder name
+            if not os.path.isabs(current_path):
+                # This is likely just the folder name, parse it directly
+                parsed_info = self._parse_album_folder_name(current_path)
+            else:
+                # This is an absolute path, extract just the folder name
+                folder_name = Path(current_path).name
+                parsed_info = self._parse_album_folder_name(folder_name)
             
             # Determine album type
             album_type = getattr(album, 'type', AlbumType.ALBUM)
             if isinstance(album_type, str):
-                album_type = AlbumType(album_type)
+                try:
+                    album_type = AlbumType(album_type)
+                except ValueError:
+                    album_type = AlbumType.ALBUM
             
-            # Generate new path based on migration type
-            new_path = self._generate_target_path(
-                band_folder, current_path, migration_type, album_type, parsed
-            )
+            # Generate new folder name based on migration type
+            new_folder_name = self._generate_new_folder_name(parsed_info, migration_type, album_type)
             
-            return str(new_path)
+            return new_folder_name
             
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to calculate new album path for '{getattr(album, 'album_name', 'unknown')}': {str(e)}")
             # If path calculation fails, return original path
             return album.folder_path
+    
+    def _parse_album_folder_name(self, folder_name: str) -> Dict[str, str]:
+        """
+        Parse album folder name to extract components.
+        
+        Args:
+            folder_name: Name of the album folder
+            
+        Returns:
+            Dict containing parsed components: album_name, year, edition
+        """
+        try:
+            # Use the existing parser if available
+            if hasattr(self, 'parser') and self.parser:
+                return self.parser.parse_album_folder(folder_name)
+            else:
+                # Fallback parsing logic
+                parsed = {
+                    'album_name': folder_name,
+                    'year': '',
+                    'edition': ''
+                }
+                
+                # Try to extract year prefix (YYYY - )
+                year_match = re.match(r'^(\d{4})\s*-\s*(.+)$', folder_name)
+                if year_match:
+                    parsed['year'] = year_match.group(1)
+                    remaining = year_match.group(2)
+                    
+                    # Try to extract edition suffix ( (Edition) )
+                    edition_match = re.match(r'^(.+?)\s*\(([^)]+)\)$', remaining)
+                    if edition_match:
+                        parsed['album_name'] = edition_match.group(1).strip()
+                        parsed['edition'] = edition_match.group(2).strip()
+                    else:
+                        parsed['album_name'] = remaining.strip()
+                else:
+                    # No year prefix, check for edition suffix
+                    edition_match = re.match(r'^(.+?)\s*\(([^)]+)\)$', folder_name)
+                    if edition_match:
+                        parsed['album_name'] = edition_match.group(1).strip()
+                        parsed['edition'] = edition_match.group(2).strip()
+                    else:
+                        parsed['album_name'] = folder_name.strip()
+                
+                return parsed
+        except Exception:
+            return {
+                'album_name': folder_name,
+                'year': '',
+                'edition': ''
+            }
+    
+    def _generate_new_folder_name(self, parsed_info: Dict[str, str], migration_type: MigrationType, album_type: AlbumType) -> str:
+        """
+        Generate new folder name based on migration type and album information.
+        
+        Args:
+            parsed_info: Parsed album information
+            migration_type: Type of migration performed
+            album_type: Album type
+            
+        Returns:
+            str: New folder name
+        """
+        try:
+            album_name = parsed_info.get('album_name', 'Unknown Album')
+            year = parsed_info.get('year', '')
+            edition = parsed_info.get('edition', '')
+            
+            if migration_type in [MigrationType.DEFAULT_TO_ENHANCED, MigrationType.MIXED_TO_ENHANCED]:
+                # Enhanced structure: Type/YYYY - Album Name (Edition)
+                folder_name = f"{year} - {album_name}" if year else album_name
+                if edition and not any(keyword in edition.lower() for keyword in ['demo', 'live', 'instrumental', 'split', 'compilation', 'ep']):
+                    folder_name += f" ({edition})"
+                return f"{album_type.value}/{folder_name}"
+            
+            elif migration_type == MigrationType.LEGACY_TO_DEFAULT:
+                # Default structure: YYYY - Album Name (Edition)
+                if not year:
+                    # Try to determine year from album metadata or use current year as fallback
+                    year = "1970"  # Default fallback year
+                folder_name = f"{year} - {album_name}"
+                if edition:
+                    folder_name += f" ({edition})"
+                return folder_name
+            
+            elif migration_type == MigrationType.ENHANCED_TO_DEFAULT:
+                # Default structure: YYYY - Album Name (Edition)
+                folder_name = f"{year} - {album_name}" if year else album_name
+                if edition:
+                    folder_name += f" ({edition})"
+                return folder_name
+            
+            else:
+                # Unknown migration type, return original
+                return f"{year} - {album_name}" if year else album_name
+            
+        except Exception:
+            return parsed_info.get('album_name', 'Unknown Album')
     
     def _report_progress(self, message: str, percentage: float):
         """Report migration progress."""
         if self.progress_callback:
-            self.progress_callback(message, percentage) 
+            self.progress_callback(message, percentage)
+    
+    def _update_folder_structure_type(self, metadata, migration_type: MigrationType):
+        """
+        Update folder structure type information in band metadata.
+        
+        Args:
+            metadata: Band metadata object
+            migration_type: Type of migration performed
+        """
+        try:
+            if hasattr(metadata, 'folder_structure') and metadata.folder_structure:
+                if migration_type in [MigrationType.DEFAULT_TO_ENHANCED, MigrationType.MIXED_TO_ENHANCED]:
+                    metadata.folder_structure.structure_type = StructureType.ENHANCED
+                elif migration_type == MigrationType.LEGACY_TO_DEFAULT:
+                    metadata.folder_structure.structure_type = StructureType.DEFAULT
+                elif migration_type == MigrationType.ENHANCED_TO_DEFAULT:
+                    metadata.folder_structure.structure_type = StructureType.DEFAULT
+                
+                logger.debug(f"Updated folder structure type to {metadata.folder_structure.structure_type.value}")
+        except Exception as e:
+            logger.warning(f"Failed to update folder structure type: {str(e)}")
+    
+    def _update_album_metadata_with_migration_results(self, metadata, migration_type: MigrationType, operations: List[AlbumMigrationOperation]):
+        """
+        Update album metadata with type classifications and folder paths based on migration results.
+        
+        Args:
+            metadata: Band metadata object
+            migration_type: Type of migration performed
+            operations: List of completed migration operations
+        """
+        try:
+            # Create a mapping of album names to their migration results
+            operation_map = {op.album_name: op for op in operations if op.completed}
+            
+            # Update paths for both local albums and missing albums
+            for album_list_name in ['albums', 'albums_missing']:
+                if hasattr(metadata, album_list_name):
+                    album_list = getattr(metadata, album_list_name)
+                    if album_list:
+                        albums_updated = 0
+                        for album in album_list:
+                            # Update album type classification if migration operation exists
+                            if album.album_name in operation_map:
+                                operation = operation_map[album.album_name]
+                                
+                                # Update album type based on migration result
+                                if hasattr(album, 'type'):
+                                    album.type = operation.album_type
+                                
+                                # Update folder path based on migration result
+                                if hasattr(album, 'folder_path'):
+                                    # Calculate relative path from target path
+                                    target_path = Path(operation.target_path)
+                                    # Use just the album folder name as the relative path
+                                    album.folder_path = target_path.name
+                                
+                                albums_updated += 1
+                            else:
+                                # No migration operation for this album, update path based on migration type
+                                if hasattr(album, 'folder_path') and album.folder_path:
+                                    album.folder_path = self._calculate_new_album_path(album, migration_type)
+                        
+                        if albums_updated > 0:
+                            logger.debug(f"Updated {albums_updated} albums in {album_list_name} list")
+        except Exception as e:
+            logger.warning(f"Failed to update album metadata: {str(e)}")
+    
+    def _synchronize_collection_index_after_migration(self, band_name: str, migration_type: MigrationType, metadata):
+        """
+        Synchronize collection index with new structure information after migration.
+        
+        Args:
+            band_name: Name of the band that was migrated
+            migration_type: Type of migration performed
+            metadata: Updated band metadata
+        """
+        try:
+            # Import here to avoid circular imports
+            from src.core.tools.storage import load_collection_index, update_collection_index
+            
+            # Load current collection index
+            index = load_collection_index()
+            if not index:
+                logger.warning("No collection index found, skipping index synchronization")
+                return
+            
+            # Find the band entry in the index
+            band_entry = None
+            for entry in index.bands:
+                if entry.band_name == band_name:
+                    band_entry = entry
+                    break
+            
+            if not band_entry:
+                logger.warning(f"Band '{band_name}' not found in collection index, skipping index synchronization")
+                return
+            
+            # Update band entry with new structure information
+            if hasattr(metadata, 'folder_structure') and metadata.folder_structure:
+                if hasattr(band_entry, 'structure_type'):
+                    band_entry.structure_type = metadata.folder_structure.structure_type.value
+                if hasattr(band_entry, 'compliance_score'):
+                    band_entry.compliance_score = getattr(metadata.folder_structure, 'score', 0)
+            
+            # Update album type distribution in band entry
+            if hasattr(band_entry, 'album_type_distribution'):
+                type_counts = {}
+                for album in metadata.albums:
+                    album_type = getattr(album, 'type', AlbumType.ALBUM)
+                    if isinstance(album_type, str):
+                        album_type = AlbumType(album_type)
+                    type_name = album_type.value
+                    type_counts[type_name] = type_counts.get(type_name, 0) + 1
+                
+                band_entry.album_type_distribution = type_counts
+            
+            # Update last updated timestamp in band entry
+            band_entry.last_updated = datetime.now().isoformat()
+            
+            # Save updated collection index
+            update_result = update_collection_index(index)
+            if update_result.get('status') == 'success':
+                logger.info(f"Successfully synchronized collection index for band '{band_name}' after migration")
+            else:
+                logger.warning(f"Failed to update collection index for band '{band_name}': {update_result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            logger.error(f"Error synchronizing collection index for band '{band_name}': {str(e)}")
+            # Don't raise exception to avoid breaking migration process 
