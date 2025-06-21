@@ -1757,6 +1757,11 @@ class BandStructureMigrator:
         source_path = Path(operation.source_path)
         target_path = Path(operation.target_path)
         
+        # Check if source and target are the same - no operation needed
+        if source_path.resolve() == target_path.resolve():
+            operation.completed = True
+            return
+        
         # Create target directory if it doesn't exist
         target_path.parent.mkdir(parents=True, exist_ok=True)
         

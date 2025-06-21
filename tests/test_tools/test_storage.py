@@ -739,7 +739,7 @@ class TestErrorHandling:
         with patch('src.core.tools.storage.JSONStorage.save_json', side_effect=PermissionError("Access denied")):
             metadata = BandMetadata(band_name="Test Band")
             
-            with pytest.raises(StorageError, match="Storage save band metadata failed"):
+            with pytest.raises(StorageError, match="Storage operation 'save band metadata' failed"):
                 save_band_metadata("Test Band", metadata)
 
     def test_load_metadata_corrupted_file(self):
