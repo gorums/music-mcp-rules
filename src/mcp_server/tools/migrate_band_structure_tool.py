@@ -19,6 +19,7 @@ from src.models.migration import (
     MigrationStatus,
     MigrationResult
 )
+from src.models.migration_analytics import migration_analytics
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -80,7 +81,15 @@ class MigrateBandStructureHandler(BaseToolHandler):
                 exclude_albums=exclude_albums
             )
             
-            # Build response
+            # Generate comprehensive migration report
+            from pathlib import Path
+            from src.config import Config
+            config = Config()
+            band_folder_path = Path(config.MUSIC_ROOT_PATH) / band_name
+            
+            migration_report = migration_analytics.generate_migration_report(result, band_folder_path)
+            
+            # Build response with analytics
             response = {
                 'status': 'success',
                 'migration_result': {
@@ -106,7 +115,72 @@ class MigrateBandStructureHandler(BaseToolHandler):
                     for op in result.operations
                 ],
                 'progress_tracking': progress_messages,
-                'backup_info': None
+                'backup_info': None,
+                
+                # Enhanced analytics and reporting
+                'migration_analytics': {
+                    'report_id': migration_report.report_id,
+                    'structure_comparison': {
+                        'before_structure': migration_report.structure_comparison.before_structure.value,
+                        'after_structure': migration_report.structure_comparison.after_structure.value,
+                        'albums_reorganized': migration_report.structure_comparison.albums_reorganized,
+                        'new_type_folders_created': migration_report.structure_comparison.new_type_folders_created,
+                        'compliance_improvement': migration_report.structure_comparison.compliance_improvement
+                    },
+                    'success_metrics': {
+                        'total_operations': migration_report.success_metrics.total_operations,
+                        'successful_operations': migration_report.success_metrics.successful_operations,
+                        'failed_operations': migration_report.success_metrics.failed_operations,
+                        'success_rate': migration_report.success_metrics.success_rate,
+                        'error_breakdown': migration_report.success_metrics.error_breakdown
+                    },
+                    'type_distribution': [
+                        {
+                            'album_type': dist.album_type.value,
+                            'before_count': dist.before_count,
+                            'after_count': dist.after_count,
+                            'change': dist.change
+                        }
+                        for dist in migration_report.type_distribution_analysis
+                        if dist.before_count > 0 or dist.after_count > 0
+                    ],
+                    'organization_improvements': [
+                        {
+                            'metric_name': imp.metric_name,
+                            'improvement_percentage': imp.improvement_percentage,
+                            'description': imp.improvement_description
+                        }
+                        for imp in migration_report.organization_improvements
+                    ],
+                    'performance_metrics': [
+                        {
+                            'name': metric.name,
+                            'value': metric.value,
+                            'unit': metric.unit,
+                            'description': metric.description
+                        }
+                        for metric in migration_report.performance_metrics
+                    ],
+                    'unmigrated_recommendations': [
+                        {
+                            'album_name': rec.album_name,
+                            'current_path': rec.current_path,
+                            'recommended_path': rec.recommended_path,
+                            'recommended_type': rec.recommended_type.value,
+                            'reason': rec.reason
+                        }
+                        for rec in migration_report.unmigrated_recommendations
+                    ]
+                },
+                
+                # Migration history summary
+                'migration_history': {
+                    'previous_migrations': len(migration_analytics.get_migration_history(band_name)),
+                    'overall_statistics': migration_analytics.get_migration_statistics()
+                },
+                
+                # Markdown report for easy reading
+                'markdown_report': migration_analytics.generate_markdown_report(migration_report)
             }
             
             # Add backup information if available

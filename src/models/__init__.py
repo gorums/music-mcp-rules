@@ -72,6 +72,18 @@ from .migration import (
     MigrationStatus,
     MigrationType,
 )
+from .migration_analytics import (
+    AlbumTypeDistribution,
+    MigrationAnalytics,
+    MigrationHistoryEntry,
+    MigrationMetric,
+    MigrationReport,
+    MigrationSuccessRate,
+    OrganizationImprovement,
+    StructureComparisonResult,
+    UnmigratedAlbumRecommendation,
+    migration_analytics,
+)
 
 # Rebuild models to resolve forward references
 BandMetadata.model_rebuild()
@@ -138,4 +150,16 @@ __all__ = [
     'MigrationResult',
     'MigrationStatus',
     'MigrationType',
+    
+    # Migration analytics
+    'AlbumTypeDistribution',
+    'MigrationAnalytics',
+    'MigrationHistoryEntry',
+    'MigrationMetric',
+    'MigrationReport',
+    'MigrationSuccessRate',
+    'OrganizationImprovement',
+    'StructureComparisonResult',
+    'UnmigratedAlbumRecommendation',
+    'migration_analytics',
 ] 
