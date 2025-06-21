@@ -31,6 +31,7 @@ class ErrorCategory(Enum):
     OPERATION = "operation"
     DATA = "data"
     SYSTEM = "system"
+    MIGRATION = "migration"  # New category for migration errors
 
 
 class MusicMCPError(Exception):
@@ -249,6 +250,7 @@ class NetworkError(MusicMCPError):
         message: str,
         url: Optional[str] = None,
         status_code: Optional[int] = None,
+        timeout: Optional[float] = None,
         **kwargs
     ):
         details = kwargs.get('details', {})
@@ -256,6 +258,8 @@ class NetworkError(MusicMCPError):
             details['url'] = url
         if status_code:
             details['status_code'] = status_code
+        if timeout:
+            details['timeout'] = timeout
         
         user_message = kwargs.get('user_message', f"Network operation failed: {message}")
         
@@ -273,7 +277,7 @@ class PermissionError(MusicMCPError):
     """
     Exception for permission and access errors.
     
-    Used for file system permissions, access denied errors.
+    Used for file permission issues, access denied errors, etc.
     """
     
     def __init__(
@@ -305,7 +309,7 @@ class ResourceError(MusicMCPError):
     """
     Exception for resource-related errors.
     
-    Used for missing resources, resource conflicts, resource exhaustion.
+    Used for missing resources, invalid resource access, etc.
     """
     
     def __init__(
@@ -335,9 +339,9 @@ class ResourceError(MusicMCPError):
 
 class DataError(MusicMCPError):
     """
-    Exception for data consistency and integrity errors.
+    Exception for data-related errors.
     
-    Used for corrupted data, inconsistent states, data migration errors.
+    Used for data corruption, format errors, consistency issues.
     """
     
     def __init__(
@@ -365,78 +369,302 @@ class DataError(MusicMCPError):
         )
 
 
-# Legacy exception compatibility
 class CacheError(StorageError):
-    """Legacy cache error - now inherits from StorageError."""
+    """Exception for cache-related operations."""
     
     def __init__(self, message: str, **kwargs):
         super().__init__(
             message=message,
-            operation="cache",
-            user_message=f"Cache operation failed: {message}",
+            operation=kwargs.get('operation', 'cache_operation'),
+            user_message=kwargs.get('user_message', f"Cache operation failed: {message}"),
             **kwargs
         )
 
 
-# Utility functions for exception handling
+class MigrationError(MusicMCPError):
+    """
+    Exception for band structure migration errors.
+    
+    Used for migration validation, execution, and rollback errors.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        migration_type: Optional[str] = None,
+        band_name: Optional[str] = None,
+        album_name: Optional[str] = None,
+        source_path: Optional[str] = None,
+        target_path: Optional[str] = None,
+        rollback_available: bool = False,
+        manual_intervention_required: bool = False,
+        **kwargs
+    ):
+        details = kwargs.get('details', {})
+        if migration_type:
+            details['migration_type'] = migration_type
+        if band_name:
+            details['band_name'] = band_name
+        if album_name:
+            details['album_name'] = album_name
+        if source_path:
+            details['source_path'] = source_path
+        if target_path:
+            details['target_path'] = target_path
+        details['rollback_available'] = rollback_available
+        details['manual_intervention_required'] = manual_intervention_required
+        
+        user_message = kwargs.get('user_message', f"Migration failed: {message}")
+        
+        super().__init__(
+            message=message,
+            severity=kwargs.get('severity', ErrorSeverity.HIGH),
+            category=ErrorCategory.MIGRATION,
+            user_message=user_message,
+            details=details,
+            original_exception=kwargs.get('original_exception')
+        )
+
+
+class MigrationPermissionError(MigrationError):
+    """
+    Exception for migration permission errors.
+    
+    Used when migration fails due to file system permission issues.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        resource_path: str,
+        required_permission: str = "read/write",
+        **kwargs
+    ):
+        super().__init__(
+            message=message,
+            severity=ErrorSeverity.CRITICAL,
+            rollback_available=True,
+            manual_intervention_required=True,
+            user_message=f"Permission denied during migration: {message}. Check file permissions for '{resource_path}'.",
+            details={
+                **kwargs.get('details', {}),
+                'resource_path': resource_path,
+                'required_permission': required_permission,
+                'solution': f"Grant {required_permission} permissions to '{resource_path}' and retry migration."
+            },
+            **kwargs
+        )
+
+
+class MigrationDiskSpaceError(MigrationError):
+    """
+    Exception for migration disk space errors.
+    
+    Used when migration fails due to insufficient disk space.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        required_space: int,
+        available_space: int,
+        target_path: str,
+        **kwargs
+    ):
+        super().__init__(
+            message=message,
+            severity=ErrorSeverity.CRITICAL,
+            rollback_available=True,
+            manual_intervention_required=True,
+            user_message=f"Insufficient disk space for migration: {message}. Need {required_space} bytes, have {available_space} bytes.",
+            details={
+                **kwargs.get('details', {}),
+                'required_space': required_space,
+                'available_space': available_space,
+                'target_path': target_path,
+                'solution': f"Free up {required_space - available_space} bytes of disk space and retry migration."
+            },
+            **kwargs
+        )
+
+
+class MigrationFileLockError(MigrationError):
+    """
+    Exception for migration file lock errors.
+    
+    Used when migration fails due to locked files or directories.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        locked_resource: str,
+        **kwargs
+    ):
+        super().__init__(
+            message=message,
+            severity=ErrorSeverity.HIGH,
+            rollback_available=True,
+            manual_intervention_required=True,
+            user_message=f"File or directory is locked during migration: {message}. Resource '{locked_resource}' is in use.",
+            details={
+                **kwargs.get('details', {}),
+                'locked_resource': locked_resource,
+                'solution': f"Close any applications using '{locked_resource}' and retry migration."
+            },
+            **kwargs
+        )
+
+
+class MigrationPartialFailureError(MigrationError):
+    """
+    Exception for partial migration failures.
+    
+    Used when some albums migrate successfully but others fail.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        albums_migrated: int,
+        albums_failed: int,
+        failed_albums: List[str],
+        **kwargs
+    ):
+        super().__init__(
+            message=message,
+            severity=ErrorSeverity.HIGH,
+            rollback_available=True,
+            manual_intervention_required=False,
+            user_message=f"Migration partially completed: {albums_migrated} albums migrated, {albums_failed} failed. {message}",
+            details={
+                **kwargs.get('details', {}),
+                'albums_migrated': albums_migrated,
+                'albums_failed': albums_failed,
+                'failed_albums': failed_albums,
+                'solution': "Review failed albums, resolve issues, and retry migration for failed albums only."
+            },
+            **kwargs
+        )
+
+
+class MigrationRollbackError(MigrationError):
+    """
+    Exception for migration rollback errors.
+    
+    Used when rollback fails after a migration error.
+    """
+    
+    def __init__(
+        self,
+        message: str,
+        original_error: str,
+        **kwargs
+    ):
+        super().__init__(
+            message=message,
+            severity=ErrorSeverity.CRITICAL,
+            rollback_available=False,
+            manual_intervention_required=True,
+            user_message=f"Migration rollback failed: {message}. Original error: {original_error}",
+            details={
+                **kwargs.get('details', {}),
+                'original_error': original_error,
+                'solution': "Manual intervention required. Check backup folder and restore manually if needed."
+            },
+            **kwargs
+        )
+
+
 def wrap_exception(original_exception: Exception, error_class: type = MusicMCPError, **kwargs) -> MusicMCPError:
     """
-    Wrap a generic exception into a MusicMCPError subclass.
+    Wrap an original exception in a Music MCP error.
     
     Args:
         original_exception: The original exception to wrap
-        error_class: The MusicMCPError subclass to use
+        error_class: The Music MCP error class to use
         **kwargs: Additional arguments for the error class
-        
-    Returns:
-        MusicMCPError instance with wrapped exception
-    """
-    message = kwargs.get('message', str(original_exception))
-    kwargs['original_exception'] = original_exception
     
-    return error_class(message, **kwargs)
+    Returns:
+        The wrapped exception
+    """
+    return error_class(
+        message=str(original_exception),
+        original_exception=original_exception,
+        **kwargs
+    )
 
 
 def create_validation_error(field_name: str, field_value: Any, message: str, **kwargs) -> ValidationError:
     """
-    Create a validation error with standardized formatting.
+    Create a validation error with standard formatting.
     
     Args:
         field_name: Name of the field that failed validation
         field_value: Value that failed validation
         message: Validation error message
-        **kwargs: Additional error arguments
-        
+        **kwargs: Additional arguments
+    
     Returns:
         ValidationError instance
     """
     return ValidationError(
-        message=f"Validation failed for field '{field_name}': {message}",
+        message=message,
         field_name=field_name,
         field_value=field_value,
-        user_message=f"Invalid {field_name}: {message}",
+        user_message=f"Invalid value for {field_name}: {message}",
         **kwargs
     )
 
 
 def create_storage_error(operation: str, file_path: str, original_error: Exception, **kwargs) -> StorageError:
     """
-    Create a storage error with standardized formatting.
+    Create a storage error with standard formatting.
     
     Args:
         operation: The storage operation that failed
-        file_path: Path to the file involved in the operation
-        original_error: The original exception that occurred
-        **kwargs: Additional error arguments
-        
+        file_path: Path to the file involved
+        original_error: The original exception
+        **kwargs: Additional arguments
+    
     Returns:
         StorageError instance
     """
     return StorageError(
-        message=f"Storage {operation} failed for {file_path}: {str(original_error)}",
+        message=f"Storage operation '{operation}' failed for file '{file_path}': {str(original_error)}",
         operation=operation,
         file_path=file_path,
         original_exception=original_error,
-        user_message=f"Failed to {operation} data. Please check file permissions and disk space.",
+        user_message=f"Failed to {operation} file '{file_path}': {str(original_error)}",
+        **kwargs
+    )
+
+
+def create_migration_error(
+    operation: str, 
+    band_name: str, 
+    album_name: str, 
+    original_error: Exception, 
+    **kwargs
+) -> MigrationError:
+    """
+    Create a migration error with standard formatting.
+    
+    Args:
+        operation: The migration operation that failed
+        band_name: Name of the band being migrated
+        album_name: Name of the album being migrated
+        original_error: The original exception
+        **kwargs: Additional arguments
+    
+    Returns:
+        MigrationError instance
+    """
+    return MigrationError(
+        message=f"Migration operation '{operation}' failed for band '{band_name}', album '{album_name}': {str(original_error)}",
+        band_name=band_name,
+        album_name=album_name,
+        original_exception=original_error,
+        user_message=f"Failed to {operation} album '{album_name}' for band '{band_name}': {str(original_error)}",
         **kwargs
     ) 

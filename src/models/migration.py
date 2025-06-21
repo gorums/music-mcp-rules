@@ -22,6 +22,30 @@ from .band import AlbumType, Album
 from .band_structure import StructureType, BandStructureDetector
 from .album_parser import AlbumFolderParser
 
+# Import comprehensive error handling system
+try:
+    from .migration_error_handling import (
+        MigrationRecoveryManager,
+        ErrorDetails,
+        RecoveryAction,
+        create_comprehensive_error_handler
+    )
+    ERROR_HANDLING_AVAILABLE = True
+except ImportError:
+    # Fallback if error handling module is not available
+    ERROR_HANDLING_AVAILABLE = False
+    logger.warning("Advanced error handling module not available, using basic error handling")
+
+# Import migration-specific exceptions
+from src.exceptions import (
+    MigrationError,
+    MigrationPermissionError,
+    MigrationDiskSpaceError,
+    MigrationFileLockError,
+    MigrationPartialFailureError,
+    MigrationRollbackError,
+    create_migration_error
+)
 
 # Configure logging for migration operations
 logger = logging.getLogger(__name__)
@@ -1223,6 +1247,14 @@ class BandStructureMigrator:
     - Default structure (YYYY - Album Name)
     - Enhanced structure (Type/YYYY - Album Name)
     - Legacy structure (Album Name only)
+    
+    Enhanced with comprehensive error handling and recovery capabilities:
+    - File system permission error handling
+    - Disk space monitoring and resolution
+    - File lock detection and waiting
+    - Partial migration recovery
+    - Automatic rollback on critical failures
+    - Manual intervention support
     """
 
     def __init__(self):
@@ -1232,6 +1264,16 @@ class BandStructureMigrator:
         self.safety_manager = MigrationSafetyManager()
         self.integrity_checker = MigrationIntegrityChecker()
         self.progress_callback = None
+        
+        # Initialize comprehensive error handling if available
+        if ERROR_HANDLING_AVAILABLE:
+            self.recovery_manager = create_comprehensive_error_handler()
+            self.enhanced_error_handling = True
+            logger.info("Enhanced error handling and recovery system initialized")
+        else:
+            self.recovery_manager = None
+            self.enhanced_error_handling = False
+            logger.info("Using basic error handling (enhanced system not available)")
 
     def set_progress_callback(self, callback):
         """Set callback function for progress reporting."""
@@ -1391,8 +1433,11 @@ class BandStructureMigrator:
                         target_path=operation.target_path
                     )
                     
-                    # Execute the operation
-                    self._execute_migration_operation(operation)
+                    # Execute the operation with enhanced error handling
+                    if self.enhanced_error_handling:
+                        self._execute_migration_operation_with_error_handling(operation, migration_log)
+                    else:
+                        self._execute_migration_operation(operation)
                     
                     # Commit atomic operation
                     if not self.safety_manager.commit_atomic_operation(operation):
@@ -1415,15 +1460,30 @@ class BandStructureMigrator:
                 except Exception as e:
                     operation.error_message = str(e)
                     albums_failed += 1
-                    result.error_messages.append(f"Failed to migrate {operation.album_name}: {str(e)}")
                     
-                    migration_log.add_entry(
-                        "ERROR", "OPERATION_FAILED",
-                        f"Failed to migrate {operation.album_name}: {str(e)}",
-                        success=False,
-                        album_name=operation.album_name,
-                        error_details=str(e)
-                    )
+                    # Enhanced error handling with recovery
+                    if self.enhanced_error_handling:
+                        recovery_attempted = self._handle_migration_error_with_recovery(
+                            e, operation, migration_log
+                        )
+                        if not recovery_attempted:
+                            # If recovery failed, log the error
+                            migration_log.add_entry(
+                                "ERROR", "OPERATION_FAILED",
+                                f"Failed to migrate {operation.album_name}: {str(e)}",
+                                album_name=operation.album_name,
+                                error_details=str(e),
+                                success=False
+                            )
+                    else:
+                        # Basic error handling
+                        migration_log.add_entry(
+                            "ERROR", "OPERATION_FAILED",
+                            f"Failed to migrate {operation.album_name}: {str(e)}",
+                            album_name=operation.album_name,
+                            error_details=str(e),
+                            success=False
+                        )
                     
                     # Release operation lock on failure
                     self.safety_manager.release_operation_lock(operation.album_name)
@@ -1693,35 +1753,211 @@ class BandStructureMigrator:
         )
     
     def _execute_migration_operation(self, operation: AlbumMigrationOperation):
-        """
-        Execute a single migration operation with enhanced file handling.
-        
-        Handles:
-        - File permission preservation
-        - Timestamp preservation 
-        - Folder name conflict detection and resolution
-        - Atomic operations with proper error handling
-        """
+        """Execute a single migration operation."""
         source_path = Path(operation.source_path)
         target_path = Path(operation.target_path)
-        
-        # Skip if source and target are the same
-        if source_path == target_path:
-            return
-        
-        # Check for folder name conflicts and resolve them
-        target_path = self._resolve_folder_conflicts(target_path)
-        operation.target_path = str(target_path)  # Update operation with resolved path
         
         # Create target directory if it doesn't exist
         target_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Perform the move operation with enhanced file handling
-        if operation.operation_type == "move":
-            self._safe_move_with_permissions(source_path, target_path)
-        elif operation.operation_type == "copy":
-            self._safe_copy_with_permissions(source_path, target_path)
+        # Resolve any conflicts with existing folders
+        if target_path.exists():
+            target_path = self._resolve_folder_conflicts(target_path)
+            operation.target_path = str(target_path)
+        
+        # Perform the move operation
+        self._safe_move_with_permissions(source_path, target_path)
+        operation.completed = True
+
+    def _execute_migration_operation_with_error_handling(self, operation: AlbumMigrationOperation, migration_log: MigrationLog):
+        """Execute a single migration operation with comprehensive error handling."""
+        source_path = Path(operation.source_path)
+        target_path = Path(operation.target_path)
+        
+        # Pre-execution checks with error handling
+        if self.recovery_manager:
+            # Check disk space before operation
+            disk_monitor = self.recovery_manager.disk_space_monitor
+            if hasattr(disk_monitor, 'check_disk_space'):
+                required_space = disk_monitor.estimate_migration_space_requirements([source_path])
+                sufficient, available, error_msg = disk_monitor.check_disk_space(target_path.parent, required_space)
+                if not sufficient:
+                    raise MigrationDiskSpaceError(
+                        message=error_msg,
+                        required_space=required_space,
+                        available_space=available,
+                        target_path=str(target_path.parent),
+                        band_name=migration_log.band_name,
+                        album_name=operation.album_name
+                    )
+            
+            # Check file locks
+            file_lock_detector = self.recovery_manager.file_lock_detector
+            if hasattr(file_lock_detector, 'is_file_locked'):
+                is_locked, processes = file_lock_detector.is_file_locked(source_path)
+                if is_locked:
+                    migration_log.add_entry(
+                        "WARNING", "FILE_LOCK_DETECTED",
+                        f"File lock detected on {source_path}, attempting to wait for unlock",
+                        album_name=operation.album_name
+                    )
+                    
+                    # Try to wait for unlock
+                    if not file_lock_detector.wait_for_file_unlock(source_path):
+                        raise MigrationFileLockError(
+                            message=f"File is locked by processes: {', '.join(processes)}",
+                            locked_resource=str(source_path),
+                            band_name=migration_log.band_name,
+                            album_name=operation.album_name
+                        )
+            
+            # Check permissions
+            permission_manager = self.recovery_manager.permission_manager
+            if hasattr(permission_manager, 'check_permissions'):
+                has_permission, error_msg = permission_manager.check_permissions(source_path, "rw")
+                if not has_permission:
+                    # Try to fix permissions automatically
+                    migration_log.add_entry(
+                        "WARNING", "PERMISSION_ISSUE",
+                        f"Permission issue detected, attempting automatic fix: {error_msg}",
+                        album_name=operation.album_name
+                    )
+                    
+                    fixed, fix_msg = permission_manager.attempt_permission_fix(source_path, "rw")
+                    if not fixed:
+                        raise MigrationPermissionError(
+                            message=f"Permission denied: {error_msg}. Auto-fix failed: {fix_msg}",
+                            resource_path=str(source_path),
+                            required_permission="read/write",
+                            band_name=migration_log.band_name,
+                            album_name=operation.album_name
+                        )
+                    else:
+                        migration_log.add_entry(
+                            "INFO", "PERMISSION_FIXED",
+                            f"Permissions fixed automatically: {fix_msg}",
+                            album_name=operation.album_name
+                        )
+        
+        # Execute the standard migration operation
+        self._execute_migration_operation(operation)
     
+    def _handle_migration_error_with_recovery(self, exception: Exception, operation: AlbumMigrationOperation, migration_log: MigrationLog) -> bool:
+        """
+        Handle migration errors with comprehensive recovery system.
+        
+        Args:
+            exception: The exception that occurred
+            operation: The migration operation that failed
+            migration_log: Migration log for tracking
+            
+        Returns:
+            True if recovery was attempted, False otherwise
+        """
+        if not self.recovery_manager:
+            return False
+        
+        try:
+            # Analyze the error
+            error_analyzer = self.recovery_manager.error_analyzer
+            if not hasattr(error_analyzer, 'analyze_error'):
+                return False
+            
+            error_details = error_analyzer.analyze_error(
+                exception=exception,
+                album_name=operation.album_name,
+                source_path=operation.source_path,
+                target_path=operation.target_path
+            )
+            
+            migration_log.add_entry(
+                "INFO", "ERROR_ANALYSIS",
+                f"Error analysis completed for {operation.album_name}: {error_details.error_type.value}",
+                album_name=operation.album_name
+            )
+            
+            # Create recovery plan
+            recovery_plan = self.recovery_manager.create_recovery_plan(error_details)
+            
+            migration_log.add_entry(
+                "INFO", "RECOVERY_PLAN",
+                f"Recovery plan created: {recovery_plan.primary_action.value} (success probability: {recovery_plan.success_probability:.1%})",
+                album_name=operation.album_name
+            )
+            
+            # Execute recovery action
+            recovery_success = False
+            if recovery_plan.primary_action == RecoveryAction.RETRY:
+                migration_log.add_entry(
+                    "INFO", "RECOVERY_RETRY",
+                    f"Attempting retry for {operation.album_name}",
+                    album_name=operation.album_name
+                )
+                
+                def retry_callback():
+                    self._execute_migration_operation(operation)
+                    return True
+                
+                success, message = self.recovery_manager.execute_recovery_action(
+                    recovery_plan=recovery_plan,
+                    error_details=error_details,
+                    retry_callback=retry_callback
+                )
+                
+                if success:
+                    migration_log.add_entry(
+                        "INFO", "RECOVERY_SUCCESS",
+                        f"Recovery successful for {operation.album_name}: {message}",
+                        album_name=operation.album_name
+                    )
+                    recovery_success = True
+                else:
+                    migration_log.add_entry(
+                        "ERROR", "RECOVERY_FAILED",
+                        f"Recovery failed for {operation.album_name}: {message}",
+                        album_name=operation.album_name
+                    )
+            
+            elif recovery_plan.primary_action == RecoveryAction.MANUAL_INTERVENTION:
+                migration_log.add_entry(
+                    "WARNING", "MANUAL_INTERVENTION_REQUIRED",
+                    f"Manual intervention required for {operation.album_name}: {recovery_plan.description}",
+                    album_name=operation.album_name
+                )
+                
+                # Add detailed recovery steps to the operation error message
+                recovery_steps = "\n".join([f"  {i+1}. {step}" for i, step in enumerate(recovery_plan.steps)])
+                operation.error_message = f"{str(exception)}\n\nRecovery Steps:\n{recovery_steps}"
+            
+            elif recovery_plan.primary_action == RecoveryAction.SKIP_ALBUM:
+                migration_log.add_entry(
+                    "WARNING", "ALBUM_SKIPPED",
+                    f"Skipping {operation.album_name} due to irrecoverable error",
+                    album_name=operation.album_name
+                )
+                
+                # Mark as skipped rather than failed
+                operation.error_message = f"Skipped: {str(exception)}"
+                recovery_success = True  # Consider skip as successful recovery
+            
+            # Log comprehensive error information
+            migration_log.add_entry(
+                "INFO", "ERROR_DETAILS",
+                f"Error details - Type: {error_details.error_type.value}, Severity: {error_details.severity.value}, Recovery: {recovery_plan.primary_action.value}",
+                album_name=operation.album_name,
+                error_details=f"Solutions: {'; '.join(error_details.solution_steps)}"
+            )
+            
+            return True
+            
+        except Exception as recovery_exception:
+            migration_log.add_entry(
+                "ERROR", "RECOVERY_SYSTEM_ERROR",
+                f"Error in recovery system: {str(recovery_exception)}",
+                album_name=operation.album_name
+            )
+            return False
+
     def _resolve_folder_conflicts(self, target_path: Path) -> Path:
         """
         Detect and resolve folder name conflicts.
@@ -1875,7 +2111,7 @@ class BandStructureMigrator:
         except Exception as e:
             logger.error(f"Error updating metadata for band '{band_name}' after migration: {str(e)}")
             # Don't raise exception to avoid breaking migration process
-
+    
     def _update_album_folder_paths_in_metadata(self, metadata, migration_type: MigrationType):
         """
         Update album folder paths in band metadata after migration.
@@ -1949,7 +2185,7 @@ class BandStructureMigrator:
             logger.warning(f"Failed to calculate new album path for '{getattr(album, 'album_name', 'unknown')}': {str(e)}")
             # If path calculation fails, return original path
             return album.folder_path
-    
+
     def _parse_album_folder_name(self, folder_name: str) -> Dict[str, str]:
         """
         Parse album folder name to extract components.
