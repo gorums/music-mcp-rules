@@ -6,7 +6,7 @@ A powerful Model Context Protocol (MCP) server that provides intelligent access 
 
 - **🎵 Smart Music Discovery**: Intelligent scanning with 8-type album classification (Album, EP, Live, Demo, Compilation, Single, Instrumental, Split)
 - **📊 Advanced Analytics**: Collection maturity assessment, health scoring, and personalized recommendations
-- **🏗️ Flexible Organization**: Support for multiple folder structures with automated compliance scoring
+- **🏗️ Flexible Organization**: Support for multiple folder structures with automated migration and compliance scoring
 - **⚡ High Performance**: Optimized scanning (20-30% faster), batch operations, and intelligent caching
 - **🤖 AI Integration**: Works seamlessly with Claude Desktop and other MCP clients
 - **🔄 Automated Setup**: One-command installation with configuration generation
@@ -116,13 +116,15 @@ Band Name/
 
 ## 🛠️ MCP Capabilities
 
-### Tools (8 total)
+### Tools (10 total)
 - **Music Discovery**: `scan_music_folders` - Smart scanning with type detection
 - **Collection Management**: `get_band_list` - Advanced filtering and search
 - **Metadata Storage**: `save_band_metadata`, `save_band_analyze`, `save_collection_insight`
 - **Validation**: `validate_band_metadata` - Dry-run validation
 - **Advanced Search**: `advanced_search_albums` - 13-parameter filtering system
 - **Analytics**: `analyze_collection_insights` - Comprehensive collection analysis
+- **Structure Migration**: `migrate_band_structure` - Safe folder organization migration
+- **Migration Reporting**: `migration_reporting` - Migration history and analytics
 
 ### Resources (3 total)
 - **Band Info**: `band://info/{band_name}` - Detailed band information
@@ -184,6 +186,7 @@ python -m pytest tests/ -v
 ## 📊 What's New
 
 ### Recent Improvements
+- **Migration Tools**: Safe folder structure migration with backup and rollback
 - **Advanced Analytics**: Collection maturity assessment and health scoring
 - **Performance**: 20-30% faster scanning with optimized file operations
 - **Separated Schema**: Local vs missing albums for better management

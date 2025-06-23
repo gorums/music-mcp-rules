@@ -195,6 +195,16 @@ Get detailed insights about your collection:
 - Missing album detection
 - Organization compliance scoring
 
+### Collection Organization Migration
+Upgrade your folder organization safely:
+```
+Can you preview migrating Metallica from default to enhanced structure?
+```
+
+```
+Migrate my collection to use type-based folders (Album/, Live/, Demo/, etc.)
+```
+
 ### Advanced Search
 Use powerful filtering:
 ```

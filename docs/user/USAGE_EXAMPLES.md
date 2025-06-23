@@ -706,6 +706,99 @@ Pink Floyd revolutionized progressive rock with their atmospheric soundscapes an
 }
 ```
 
+#### Preview Migration (Dry Run)
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migrate_band_structure",
+    "arguments": {
+      "band_name": "Metallica",
+      "migration_type": "default_to_enhanced",
+      "dry_run": true
+    }
+  }
+}
+```
+
+#### Migrate Band Structure with Type Overrides
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migrate_band_structure",
+    "arguments": {
+      "band_name": "Pink Floyd",
+      "migration_type": "default_to_enhanced",
+      "dry_run": false,
+      "album_type_overrides": {
+        "Live at Pompeii": "live",
+        "Echoes - Best Of": "compilation"
+      },
+      "backup_original": true
+    }
+  }
+}
+```
+
+#### Migration with Exclusions
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migrate_band_structure",
+    "arguments": {
+      "band_name": "Led Zeppelin",
+      "migration_type": "default_to_enhanced",
+      "dry_run": false,
+      "exclude_albums": ["Bootleg Collection"],
+      "backup_original": true
+    }
+  }
+}
+```
+
+#### Get Migration History
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migration_reporting",
+    "arguments": {
+      "report_type": "history",
+      "band_name": "Metallica",
+      "limit": 10
+    }
+  }
+}
+```
+
+#### Get Migration Statistics
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migration_reporting",
+    "arguments": {
+      "report_type": "statistics"
+    }
+  }
+}
+```
+
+#### Get Migration Summary Report
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migration_reporting",
+    "arguments": {
+      "report_type": "summary"
+    }
+  }
+}
+```
+
 #### Get Migration Recommendations
 ```json
 {
@@ -900,7 +993,34 @@ Resource: collection://summary
 Resource: band://info/Pink Floyd
 ```
 
-### Workflow 3: Collection Analysis and Insights
+### Workflow 3: Collection Organization Migration
+
+1. **Identify Bands for Migration**
+```json
+{"method": "tools/call", "params": {"name": "get_band_list", "arguments": {"filter_structure_type": "default", "sort_by": "albums_count", "sort_order": "desc"}}}
+```
+
+2. **Preview Migration (Dry Run)**
+```json
+{"method": "tools/call", "params": {"name": "migrate_band_structure", "arguments": {"band_name": "Metallica", "migration_type": "default_to_enhanced", "dry_run": true}}}
+```
+
+3. **Execute Migration**
+```json
+{"method": "tools/call", "params": {"name": "migrate_band_structure", "arguments": {"band_name": "Metallica", "migration_type": "default_to_enhanced", "dry_run": false, "backup_original": true}}}
+```
+
+4. **Verify Migration Results**
+```json
+{"method": "tools/call", "params": {"name": "migration_reporting", "arguments": {"report_type": "history", "band_name": "Metallica", "limit": 5}}}
+```
+
+5. **Check Updated Band Structure**
+```
+Resource: band://info/Metallica
+```
+
+### Workflow 4: Collection Analysis and Insights
 
 1. **Compare Top Bands**
 ```json

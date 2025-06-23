@@ -158,9 +158,9 @@ The system now uses separated arrays for optimal album management and performanc
 
 ### Modular Architecture Components
 
-#### 1. MCP Server Layer (`src/mcp_server/`) - 8 Tools, 3 Resources, 4 Prompts
+#### 1. MCP Server Layer (`src/mcp_server/`) - 10 Tools, 3 Resources, 4 Prompts
 
-**Tools (8 total)**:
+**Tools (10 total)**:
 1. **`scan_music_folders`** - Advanced scanning with type detection, structure analysis, and progress reporting
 2. **`get_band_list`** - Comprehensive filtering by types, compliance, structure with pagination
 3. **`save_band_metadata`** - Separated schema storage with validation and album preservation
@@ -169,6 +169,8 @@ The system now uses separated arrays for optimal album management and performanc
 6. **`validate_band_metadata`** - Dry-run validation with compliance checking
 7. **`advanced_search_albums`** - 13-parameter search with type/edition/rating filtering
 8. **`analyze_collection_insights`** - Maturity assessment and comprehensive analytics
+9. **`migrate_band_structure`** - Safe folder organization migration with backup and rollback
+10. **`migration_reporting`** - Migration history, analytics, and reporting system
 
 **Resources (3 total)**:
 1. **`band://info/{band_name}`** - Detailed band information with type organization and compliance

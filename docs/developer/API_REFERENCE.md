@@ -6,7 +6,7 @@ The Music Collection MCP Server provides a comprehensive API for managing and ac
 
 ## Quick Reference
 
-### Tools (8 available)
+### Tools (10 available)
 - [`scan_music_folders`](#scan_music_folders) - Scan and index music collection with type detection
 - [`get_band_list`](#get_band_list) - List bands and albums with type filtering and structure analysis
 - [`save_band_metadata`](#save_band_metadata) - Store band metadata with separated album arrays
@@ -15,6 +15,8 @@ The Music Collection MCP Server provides a comprehensive API for managing and ac
 - [`validate_band_metadata`](#validate_band_metadata) - Validate band metadata structure
 - [`advanced_search_albums`](#advanced_search_albums) - Advanced album search with 13 parameters
 - [`analyze_collection_insights`](#analyze_collection_insights) - Generate collection analytics and insights
+- [`migrate_band_structure`](#migrate_band_structure) - Migrate band folder organization patterns
+- [`migration_reporting`](#migration_reporting) - Access migration history and analytics
 
 ### Resources (3 available)
 - [`band://info/{band_name}`](#band-info-resource) - Get band information with type organization
@@ -559,6 +561,147 @@ Stores collection-wide insights including album type distribution and structure 
     "Add missing album type classifications for 23 albums",
     "Improve compliance for 12 bands with poor scores"
   ]
+}
+```
+
+---
+
+### migrate_band_structure
+
+Migrate a band's folder structure between different organization patterns with comprehensive safety features.
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `band_name` | string | Yes | - | Name of the band to migrate |
+| `migration_type` | string | Yes | - | Migration type: `default_to_enhanced`, `legacy_to_default`, `mixed_to_enhanced`, `enhanced_to_default` |
+| `dry_run` | boolean | No | `false` | Preview changes without executing |
+| `album_type_overrides` | object | No | `{}` | Manual album type assignments |
+| `backup_original` | boolean | No | `true` | Create backup before migration |
+| `force` | boolean | No | `false` | Override safety checks |
+| `exclude_albums` | array | No | `[]` | Albums to skip during migration |
+
+#### Migration Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| `default_to_enhanced` | Flat → Type-based folders | Organize albums by type (Album/, Live/, etc.) |
+| `legacy_to_default` | No year → Year prefixes | Add YYYY prefix to album folders |
+| `mixed_to_enhanced` | Mixed → Unified enhanced | Clean up inconsistent organization |
+| `enhanced_to_default` | Type-based → Flat | Rollback to simpler structure |
+
+#### Response Schema
+
+```json
+{
+  "status": "success",
+  "migration_result": {
+    "status": "completed",
+    "band_name": "Metallica",
+    "migration_type": "default_to_enhanced",
+    "albums_migrated": 5,
+    "albums_failed": 0,
+    "migration_time_seconds": 2.3,
+    "dry_run": false
+  },
+  "operations": [
+    {
+      "album_name": "The Black Album",
+      "source_path": "1991 - The Black Album",
+      "target_path": "Album/1991 - The Black Album",
+      "album_type": "album",
+      "operation_type": "move_folder",
+      "completed": true
+    }
+  ],
+  "migration_analytics": {
+    "structure_comparison": {
+      "before_structure": "default",
+      "after_structure": "enhanced",
+      "albums_reorganized": 5,
+      "compliance_improvement": 45.2
+    },
+    "success_metrics": {
+      "success_rate": 100.0,
+      "total_operations": 5
+    }
+  },
+  "backup_info": {
+    "backup_folder_path": "/music/Metallica_backup_20250130_143022",
+    "timestamp": "2025-01-30T14:30:22"
+  }
+}
+```
+
+#### Usage Example
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migrate_band_structure",
+    "arguments": {
+      "band_name": "Metallica",
+      "migration_type": "default_to_enhanced",
+      "dry_run": false,
+      "album_type_overrides": {
+        "S&M": "live",
+        "Garage Inc.": "compilation"
+      },
+      "backup_original": true
+    }
+  }
+}
+```
+
+---
+
+### migration_reporting
+
+Access migration history, statistics, and analytics for understanding migration patterns.
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `report_type` | string | No | `"history"` | Report type: `history`, `statistics`, `summary` |
+| `band_name` | string | No | - | Filter history by band name |
+| `limit` | integer | No | `50` | Maximum history entries (1-1000) |
+
+#### Response Schema
+
+```json
+{
+  "status": "success",
+  "report_type": "history",
+  "migration_history": [
+    {
+      "migration_id": "migrate_20250130_143022",
+      "timestamp": "2025-01-30T14:30:22",
+      "band_name": "Metallica",
+      "migration_type": "default_to_enhanced",
+      "status": "completed",
+      "albums_migrated": 5,
+      "duration_seconds": 2.3,
+      "success_rate": 100.0
+    }
+  ],
+  "total_entries": 1
+}
+```
+
+#### Usage Example
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "migration_reporting",
+    "arguments": {
+      "report_type": "statistics"
+    }
+  }
 }
 ```
 
