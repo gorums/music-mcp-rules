@@ -125,7 +125,16 @@ class DiskSpaceMonitor:
             Tuple of (sufficient_space, available_bytes, error_message)
         """
         try:
-            disk_usage = shutil.disk_usage(path)
+            # Find the nearest existing parent directory for disk space check
+            check_path = path
+            while not check_path.exists() and check_path != check_path.parent:
+                check_path = check_path.parent
+            
+            # If we couldn't find any existing parent, use the root of the drive
+            if not check_path.exists():
+                check_path = Path(path.drive) if hasattr(path, 'drive') and path.drive else Path('/')
+            
+            disk_usage = shutil.disk_usage(check_path)
             available_bytes = disk_usage.free
             
             total_required = required_space_bytes + self.minimum_free_space_bytes
@@ -143,7 +152,7 @@ class DiskSpaceMonitor:
                 return False, available_bytes, error_msg
                 
         except Exception as e:
-            logger.error(f"Failed to check disk space for {path}: {e}")
+            logger.error(f"Failed to check disk space for {check_path}: {e}")
             return False, 0, f"Failed to check disk space: {str(e)}"
     
     def estimate_migration_space_requirements(self, album_paths: List[Path]) -> int:

@@ -1336,7 +1336,10 @@ class BandStructureMigrator:
             if not band_info:
                 raise ValueError(f"Band '{band_name}' not found in collection")
             
-            band_folder_path = Path(band_info['folder_path'])
+            # Get the full folder path
+            from ..di import get_config
+            config = get_config()
+            band_folder_path = Path(config.MUSIC_ROOT_PATH) / band_info['folder_path']
             if not band_folder_path.exists():
                 raise ValueError(f"Band folder not found: {band_folder_path}")
             
@@ -1583,13 +1586,23 @@ class BandStructureMigrator:
             )
             
             if band_list_result.get('status') == 'success':
-                bands = band_list_result.get('results', {}).get('bands', [])
+                bands = band_list_result.get('bands', [])
                 for band in bands:
-                    if band.get('band_name', '').lower() == band_name.lower():
-                        return band
+                    # Handle both 'name' and 'band_name' keys for compatibility
+                    found_band_name = band.get('band_name', band.get('name', ''))
+                    if found_band_name.lower() == band_name.lower():
+                        return {
+                            'band_name': found_band_name,
+                            'folder_path': band.get('folder_path'),
+                            'albums_count': band.get('albums_count', 0)
+                        }
             
             return None
-        except Exception:
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting band info for '{band_name}': {e}")
             return None
     
     def _plan_migration_operations(
@@ -1782,7 +1795,7 @@ class BandStructureMigrator:
         # Pre-execution checks with error handling
         if self.recovery_manager:
             # Check disk space before operation
-            disk_monitor = self.recovery_manager.disk_space_monitor
+            disk_monitor = self.recovery_manager.error_analyzer.disk_monitor
             if hasattr(disk_monitor, 'check_disk_space'):
                 required_space = disk_monitor.estimate_migration_space_requirements([source_path])
                 sufficient, available, error_msg = disk_monitor.check_disk_space(target_path.parent, required_space)
@@ -1797,7 +1810,7 @@ class BandStructureMigrator:
                     )
             
             # Check file locks
-            file_lock_detector = self.recovery_manager.file_lock_detector
+            file_lock_detector = self.recovery_manager.error_analyzer.lock_detector
             if hasattr(file_lock_detector, 'is_file_locked'):
                 is_locked, processes = file_lock_detector.is_file_locked(source_path)
                 if is_locked:
@@ -1817,7 +1830,7 @@ class BandStructureMigrator:
                         )
             
             # Check permissions
-            permission_manager = self.recovery_manager.permission_manager
+            permission_manager = self.recovery_manager.error_analyzer.permission_manager
             if hasattr(permission_manager, 'check_permissions'):
                 has_permission, error_msg = permission_manager.check_permissions(source_path, "rw")
                 if not has_permission:
@@ -2385,7 +2398,7 @@ class BandStructureMigrator:
             # Find the band entry in the index
             band_entry = None
             for entry in index.bands:
-                if entry.band_name == band_name:
+                if entry.name == band_name:
                     band_entry = entry
                     break
             

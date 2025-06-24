@@ -43,7 +43,9 @@ class MigrateBandStructureHandler(BaseToolHandler):
         exclude_albums = kwargs.get('exclude_albums', [])
         
         # Validate required parameters
-        self.validate_required_params(kwargs, ['band_name', 'migration_type'])
+        validation_error = self._validate_required_params(kwargs, ['band_name', 'migration_type'])
+        if validation_error:
+            return validation_error.to_dict()
         
         if not band_name:
             raise ValueError("Band name cannot be empty")
@@ -83,8 +85,8 @@ class MigrateBandStructureHandler(BaseToolHandler):
             
             # Generate comprehensive migration report
             from pathlib import Path
-            from src.config import Config
-            config = Config()
+            from src.di import get_config
+            config = get_config()
             band_folder_path = Path(config.MUSIC_ROOT_PATH) / band_name
             
             migration_report = migration_analytics.generate_migration_report(result, band_folder_path)
