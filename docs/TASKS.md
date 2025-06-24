@@ -2201,154 +2201,178 @@ Slash/
 
 ## Phase 9: Metadata Enrichment and External Integration
 
+### Task 9.1: Enhanced Album Metadata Processing in save_band_metadata_tool - PRIORITY HIGH
+- [ ] **Intelligent Album Metadata Enrichment**
+  - [ ] Modify `save_band_metadata_tool` in `src/mcp_server/tools/save_band_metadata_tool.py` to enhance album objects during save
+  - [ ] Add album metadata enrichment logic that updates each album with:
+    - [ ] Correct year from external metadata vs folder year
+    - [ ] Album type classification (Album, EP, Live, Demo, Compilation, etc.)
+    - [ ] Genre information from external sources
+    - [ ] Official album name vs folder-based name handling
+  - [ ] Implement album name normalization and official name detection
+  - [ ] Create album metadata comparison and conflict resolution logic
+
+- [ ] **Folder Name and Year Preservation System**
+  - [ ] Add `folder_album_name` field to Album model in `src/models/band.py`
+  - [ ] Add `folder_year` field to Album model in `src/models/band.py`
+  - [ ] Implement logic to detect when official album name differs from folder name
+  - [ ] Implement logic to detect when official year differs from folder year
+  - [ ] When `album_name` ≠ folder name:
+    - [ ] Override `album_name` with official name from external metadata
+    - [ ] Store original folder name in `folder_album_name` field
+  - [ ] When `year` ≠ folder year:
+    - [ ] Override `year` with official year from external metadata
+    - [ ] Store original folder year in `folder_year` field
+  - [ ] Preserve folder path references for file system operations
+  - [ ] Add validation to ensure folder fields are only set when values differ
+  - [ ] Update Album model serialization to handle new fields
+
+- [ ] **Album Data Integration and Validation**
+  - [ ] Create `AlbumMetadataEnricher` class in `src/tools/metadata.py` with methods:
+    - [ ] `enrich_album_with_external_data()` - Merge external metadata with local album data
+    - [ ] `detect_official_album_name()` - Identify official vs folder-based naming
+    - [ ] `classify_album_type()` - Determine album type from metadata and folder analysis
+    - [ ] `extract_album_genres()` - Extract genre information for individual albums
+    - [ ] `validate_album_year()` - Validate and correct album year information
+  - [ ] Implement album matching logic using fuzzy string matching for name comparison
+  - [ ] Add confidence scoring for metadata enrichment decisions
+  - [ ] Create fallback logic when external metadata is incomplete
+
+- [ ] **Enhanced save_band_metadata_tool Logic**
+  - [ ] Integrate AlbumMetadataEnricher into existing save workflow (no new parameters):
+    - [ ] Load existing band metadata and albums
+    - [ ] Automatically process each album through enrichment pipeline
+    - [ ] Apply official name overrides with folder name preservation when detected
+    - [ ] Update album types, years, and genres from external metadata
+    - [ ] Use built-in confidence threshold (0.8) for automatic changes
+    - [ ] Validate enriched data before saving
+  - [ ] Add detailed response information showing enrichment changes made
+  - [ ] Maintain existing tool parameter schema without additions
+
+- [ ] **Album Enrichment Response and Reporting**
+  - [ ] Enhance tool response to include enrichment statistics:
+    - [ ] `albums_enriched: int` - Number of albums enhanced
+    - [ ] `names_updated: int` - Number of album names corrected
+    - [ ] `years_updated: int` - Number of album years corrected
+    - [ ] `types_assigned: int` - Number of album types classified
+    - [ ] `genres_added: int` - Number of albums with new genre information
+    - [ ] `enrichment_details: List[AlbumEnrichmentDetail]` - Per-album changes
+  - [ ] Create `AlbumEnrichmentDetail` model to track changes:
+    - [ ] `album_name: str` - Album identifier
+    - [ ] `changes_made: List[str]` - List of changes applied
+    - [ ] `official_name_used: bool` - Whether official name was applied
+    - [ ] `official_year_used: bool` - Whether official year was applied
+    - [ ] `folder_name_preserved: str` - Original folder name if different
+    - [ ] `folder_year_preserved: str` - Original folder year if different
+    - [ ] `confidence_score: float` - Confidence in enrichment decisions
+
+- [ ] **Data Migration and Backward Compatibility**
+  - [ ] Add migration logic to handle existing albums without `folder_album_name` field
+  - [ ] Ensure backward compatibility with existing band metadata files
+  - [ ] Create schema validation for enhanced Album model
+  - [ ] Update collection index synchronization to handle new field
+  - [ ] Preserve all existing functionality while adding enrichment features
+
+- [ ] **Integration with Existing Systems**
+  - [ ] Update band info resource to display folder vs official names when different
+  - [ ] Integrate with existing album type classification system (from Phase 6)
+  - [ ] Ensure compatibility with folder structure compliance validation
+  - [ ] Update album search and filtering to consider both names
+  - [ ] Maintain compatibility with all existing tools and resources
+
+- [ ] **Testing and Quality Assurance**
+  - [ ] Create comprehensive unit tests for AlbumMetadataEnricher class
+  - [ ] Add integration tests for enhanced save_band_metadata_tool
+  - [ ] Test album name detection and official name override scenarios
+  - [ ] Verify folder name preservation and conflict resolution
+  - [ ] Test enrichment confidence scoring and fallback logic
+  - [ ] Ensure no regression in existing save_band_metadata_tool functionality
+
+**Implementation Priority**: HIGH - This enhancement significantly improves metadata quality and user experience
+
+**Estimated Effort**: 1-2 weeks
+**Dependencies**: 
+- Phase 6 album type classification system (completed)
+- Phase 7 separated albums schema (completed)
+- External metadata integration capabilities
+**Success Criteria**: 
+- Automatic album metadata enrichment during save operations
+- Intelligent official name detection and folder name preservation
+- Enhanced album type, year, and genre assignment
+- Comprehensive enrichment reporting and validation
+- Full backward compatibility with existing data
+**Breaking Changes**: None (additive schema changes with migration support)
+
+**Example Usage Scenario**:
+
+**Input Metadata (External Source)**:
+```json
+{
+  "band_name": "Metallica",
+  "albums": [
+    {
+      "album_name": "Master of Puppets",
+      "year": "1986",
+      "type": "Album",
+      "genres": ["Thrash Metal", "Heavy Metal"]
+    }
+  ]
+}
+```
+
+**Existing Local Album (From Folder)**:
+```json
+{
+  "album_name": "Master Of Puppets (Remastered)",
+  "year": "2017",
+  "folder_path": "2017 - Master Of Puppets (Remastered)"
+}
+```
+
+**Enriched Result After save_band_metadata_tool**:
+```json
+{
+  "album_name": "Master of Puppets",
+  "folder_album_name": "Master Of Puppets (Remastered)",
+  "year": "1986",
+  "folder_year": "2017",
+  "type": "Album",
+  "genres": ["Thrash Metal", "Heavy Metal"],
+  "folder_path": "2017 - Master Of Puppets (Remastered)"
+}
+```
+
+**Tool Response**:
+```json
+{
+  "success": true,
+  "albums_enriched": 1,
+  "names_updated": 1,
+  "years_updated": 1,
+  "types_assigned": 1,
+  "genres_added": 1,
+  "enrichment_details": [
+    {
+      "album_name": "Master of Puppets",
+      "changes_made": [
+        "Updated album name to official version",
+        "Preserved folder name as 'Master Of Puppets (Remastered)'",
+        "Updated year to official release year (1986)",
+        "Preserved folder year as '2017'",
+        "Added album type: Album",
+        "Added genres: Thrash Metal, Heavy Metal"
+      ],
+      "official_name_used": true,
+      "official_year_used": true,
+      "folder_name_preserved": "Master Of Puppets (Remastered)",
+      "folder_year_preserved": "2017",
+      "confidence_score": 0.95
+    }
+  ]
+}
+```
+
 ### Task 9.2: Enhanced Band Information System - PRIORITY HIGH
-- [ ] **Band Status and Activity Tracking**
-  - [ ] Add `band_status` field to BandMetadata: "active", "disbanded", "hiatus", "unknown"
-  - [ ] Add `active_years` field as List[str] for date ranges: ["1968-1980", "1985-present"]
-  - [ ] Create `BandStatus` enum with validation rules
-  - [ ] Add status change tracking with timestamps
-  - [ ] Update band info resource to display status with appropriate badges
-  - [ ] Create collection analytics for band status distribution
 
-- [ ] **Website and Social Media Integration**
-  - [ ] Add `websites` field to BandMetadata with sub-fields:
-    - [ ] `official: Optional[str]` - Official band website
-    - [ ] `wikipedia: Optional[str]` - Wikipedia page URL
-    - [ ] `social_media: Dict[str, str]` - Social media profiles
-  - [ ] Create `SocialMediaProfiles` model with platform validation
-  - [ ] Add URL validation for all website fields
-  - [ ] Update band info resource to display links with icons
-  - [ ] Create tools for social media profile discovery
-  - [ ] Add social media activity tracking (optional)
-
-- [ ] **Lineup History and Member Tracking**
-  - [ ] Create `LineupPeriod` model with fields:
-    - [ ] `period: str` - Date range (e.g., "1968-1973")
-    - [ ] `members: List[str]` - Member names for this period
-    - [ ] `lineup_name: Optional[str]` - Period name (e.g., "Mark I")
-    - [ ] `albums: List[str]` - Albums recorded during this period
-  - [ ] Add `lineup_history: List[LineupPeriod]` to BandMetadata
-  - [ ] Update member tracking to handle roles and instruments
-  - [ ] Create timeline visualization data for lineup changes
-  - [ ] Add member overlap analysis between bands
-  - [ ] Update band info resource with interactive lineup history
-
-- [ ] **Record Label and Business Information**
-  - [ ] Add `record_labels: List[str]` field to BandMetadata
-  - [ ] Create `RecordLabelInfo` model with:
-    - [ ] `label_name: str` - Record label name
-    - [ ] `period: str` - Time period with label
-    - [ ] `albums: List[str]` - Albums released on label
-  - [ ] Add label history tracking and analytics
-  - [ ] Create collection insights by record label
-  - [ ] Add label-based recommendations and discovery
-
-**Implementation Priority**: Enhanced biographical and business data
-
-**Estimated Effort**: 2 weeks
-**Dependencies**: Task 9.1 (External Database Integration)
-**Success Criteria**: 
-- Comprehensive band status and activity tracking
-- Website and social media profile management
-- Detailed lineup history with timeline support
-- Record label tracking and analytics
-**Breaking Changes**: None (additive schema changes only)
-
-### Task 9.3: Advanced Album Metadata Enhancement - PRIORITY MEDIUM
-- [ ] **Production and Technical Metadata**
-  - [ ] Create `AlbumProductionInfo` model with fields:
-    - [ ] `producer: Optional[str]` - Album producer name
-    - [ ] `engineer: Optional[str]` - Recording engineer
-    - [ ] `studio: Optional[str]` - Recording studio name
-  - [ ] Add `production_info: Optional[AlbumProductionInfo]` to Album model
-  - [ ] Create validation for date formats and professional roles
-  - [ ] Add studio and producer analytics to collection insights
-  - [ ] Update album displays with production credits
-
-- [ ] **Commercial Performance Data**
-  - [ ] Create `ChartPerformance` model with fields:
-    - [ ] `chart_positions: Dict[str, int]` - Chart positions by country
-    - [ ] `peak_position: Optional[int]` - Highest chart position
-    - [ ] `weeks_on_chart: Optional[int]` - Chart duration
-    - [ ] `chart_date: Optional[str]` - Chart entry date
-  - [ ] Create `Certification` model with fields:
-    - [ ] `certification_type: str` - Gold, Platinum, Diamond, etc.
-    - [ ] `country: str` - Certification country
-    - [ ] `date_certified: Optional[str]` - Certification date
-    - [ ] `units_sold: Optional[int]` - Units required for certification
-  - [ ] Add `chart_performance` and `certifications` to Album model
-  - [ ] Create commercial success analytics and rankings
-  - [ ] Add collection value assessment based on certifications
-
-- [ ] **Release and Distribution Information**
-  - [ ] Create `ReleaseInfo` model with fields:
-    - [ ] `label: Optional[str]` - Record label for this release
-    - [ ] `catalog_number: Optional[str]` - Catalog number
-    - [ ] `release_date: Optional[str]` - Original release date
-    - [ ] `reissue_info: List[ReissueInfo]` - Reissue history
-    - [ ] `format_info: Dict[str, Any]` - Format-specific information
-  - [ ] Create `ReissueInfo` model for tracking reissues and remasters
-  - [ ] Add release timeline tracking and analytics
-  - [ ] Create format distribution analysis
-  - [ ] Update album displays with detailed release information
-
-**Implementation Priority**: Detailed album production and commercial data
-
-**Estimated Effort**: 2 weeks  
-**Dependencies**: Task 9.1 (External Database Integration)
-**Success Criteria**: 
-- Comprehensive production credit tracking
-- Commercial performance and certification data
-- Release and distribution information management
-- Enhanced album analytics and insights
-**Breaking Changes**: None (additive schema changes only)
-
-### Task 9.4: Musical Characteristics and Analysis - PRIORITY MEDIUM
-- [ ] **Musical Style Analysis**
-  - [ ] Create `MusicalCharacteristics` model with fields:
-    - [ ] `tempo_range: Optional[str]` - Tempo description (e.g., "slow to moderate")
-    - [ ] `key_signatures: List[str]` - Common keys used
-    - [ ] `time_signatures: List[str]` - Time signatures used
-    - [ ] `instruments: List[str]` - Primary instruments
-    - [ ] `vocal_style: Optional[str]` - Vocal characteristics
-    - [ ] `production_style: Optional[str]` - Production characteristics
-  - [ ] Add `musical_characteristics` to BandMetadata
-  - [ ] Create musical analysis tools and algorithms
-  - [ ] Add musical similarity scoring between bands
-  - [ ] Update band comparison tools with musical analysis
-
-- [ ] **Influence and Legacy Tracking**
-  - [ ] Add `influences: List[str]` field to BandMetadata for musical influences
-  - [ ] Add `influenced_artists: List[str]` field for artists influenced by this band
-  - [ ] Create influence network analysis and visualization data
-  - [ ] Add influence-based recommendations and discovery
-  - [ ] Create timeline analysis of musical influence
-  - [ ] Update collection insights with influence patterns
-
-- [ ] **Genre Evolution and Classification**
-  - [ ] Create `GenreEvolution` model to track genre changes over time
-  - [ ] Add album-specific genre tracking vs. band-level genres
-  - [ ] Create genre transition analysis and patterns
-  - [ ] Add decade-based genre distribution analytics
-  - [ ] Create subgenre classification and validation
-  - [ ] Update genre-based recommendations with evolution data
-
-- [ ] **Musical Analysis Tools**
-  - [ ] Create `analyze_musical_characteristics` MCP tool
-  - [ ] Add audio analysis integration (optional, with external services)
-  - [ ] Create musical similarity comparison tools
-  - [ ] Add influence network analysis tools
-  - [ ] Create genre evolution tracking tools
-  - [ ] Add musical trend analysis across collection
-
-**Implementation Priority**: Musical analysis and characterization features
-
-**Estimated Effort**: 2-3 weeks
-**Dependencies**: Task 9.2 (Enhanced Band Information)
-**Success Criteria**: 
-- Comprehensive musical characteristics tracking
-- Influence and legacy network analysis
-- Genre evolution and classification system
-- Musical analysis and comparison tools
-**Breaking Changes**: None (additive schema changes only)
+// ... existing code ...
 
