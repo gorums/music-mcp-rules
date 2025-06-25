@@ -310,7 +310,7 @@ class AlbumTypeDetector:
                         
                         analysis['method_used'].append('track_count_heuristic')
                         analysis['heuristic_factors'].append(
-                            f"Track count {track_count} suggests {album_type.value}"
+                            f"Track count {track_count} suggests {album_type.value if hasattr(album_type, 'value') else str(album_type)}"
                         )
                         break
         
@@ -393,7 +393,7 @@ class AlbumTypeDetector:
             
             enhanced_album = album_data.copy()
             enhanced_album.update({
-                'detected_type': detected_type.value,
+                'detected_type': detected_type.value if hasattr(detected_type, 'value') else str(detected_type),
                 'detection_confidence': confidence,
                 'detection_analysis': analysis,
                 'type_detection_used': confidence >= confidence_threshold
@@ -401,7 +401,7 @@ class AlbumTypeDetector:
             
             # Only update type if confidence is high enough
             if confidence >= confidence_threshold:
-                enhanced_album['type'] = detected_type.value
+                enhanced_album['type'] = detected_type.value if hasattr(detected_type, 'value') else str(detected_type)
             
             results.append(enhanced_album)
         
@@ -550,7 +550,7 @@ class AlbumDataMigrator:
         enhanced_album = {
             'album_name': album_dict.get('album_name', ''),
             'year': album_dict.get('year', ''),
-            'type': album_dict.get('type', AlbumType.ALBUM.value),
+            'type': album_dict.get('type', AlbumType.ALBUM.value if hasattr(AlbumType.ALBUM, 'value') else str(AlbumType.ALBUM)),
             'edition': album_dict.get('edition', ''),
             'track_count': album_dict.get('track_count', 0),
             'missing': album_dict.get('missing', False),
@@ -562,13 +562,13 @@ class AlbumDataMigrator:
         # Auto-detect missing metadata if folder_path is available and fields are not set
         if enhanced_album['folder_path']:
             # Only auto-detect type if it's the default Album type
-            if enhanced_album['type'] == AlbumType.ALBUM.value:
+            if enhanced_album['type'] == (AlbumType.ALBUM.value if hasattr(AlbumType.ALBUM, 'value') else str(AlbumType.ALBUM)):
                 detected_type = AlbumTypeDetector.detect_type_from_folder_name(
                     enhanced_album['folder_path'], 
                     enhanced_album['album_name']
                 )
                 if detected_type != AlbumType.ALBUM:
-                    enhanced_album['type'] = detected_type.value
+                    enhanced_album['type'] = detected_type.value if hasattr(detected_type, 'value') else str(detected_type)
             
             # Only auto-detect edition if not already set
             if not enhanced_album['edition']:

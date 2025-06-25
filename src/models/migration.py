@@ -1620,7 +1620,7 @@ class BandStructureMigrator:
         for item in band_folder_path.iterdir():
             if item.is_dir() and item.name not in exclude_albums:
                 # Skip type folders in enhanced structure
-                if item.name.lower() not in [t.value.lower() for t in AlbumType]:
+                if item.name.lower() not in [(t.value if hasattr(t, 'value') else str(t)).lower() for t in AlbumType]:
                     album_folders.append(item)
                 else:
                     # This is a type folder, get albums inside it
@@ -1673,7 +1673,7 @@ class BandStructureMigrator:
         """Generate target path for album based on migration type."""
         if migration_type == MigrationType.DEFAULT_TO_ENHANCED:
             # Create type-based structure: Band/Type/YYYY - Album Name (Edition)
-            type_folder = band_folder_path / album_type.value.title()
+            type_folder = band_folder_path / (album_type.value.title() if hasattr(album_type, 'value') else str(album_type).title())
             album_name = self._format_album_name_for_enhanced(parsed)
             return type_folder / album_name
             
@@ -1684,7 +1684,7 @@ class BandStructureMigrator:
             
         elif migration_type == MigrationType.MIXED_TO_ENHANCED:
             # Convert to enhanced structure
-            type_folder = band_folder_path / album_type.value.title()
+            type_folder = band_folder_path / (album_type.value.title() if hasattr(album_type, 'value') else str(album_type).title())
             album_name = self._format_album_name_for_enhanced(parsed)
             return type_folder / album_name
             
@@ -1890,7 +1890,7 @@ class BandStructureMigrator:
             
             migration_log.add_entry(
                 "INFO", "ERROR_ANALYSIS",
-                f"Error analysis completed for {operation.album_name}: {error_details.error_type.value}",
+                f"Error analysis completed for {operation.album_name}: {error_details.error_type.value if hasattr(error_details.error_type, 'value') else str(error_details.error_type)}",
                 album_name=operation.album_name
             )
             
@@ -1899,7 +1899,7 @@ class BandStructureMigrator:
             
             migration_log.add_entry(
                 "INFO", "RECOVERY_PLAN",
-                f"Recovery plan created: {recovery_plan.primary_action.value} (success probability: {recovery_plan.success_probability:.1%})",
+                f"Recovery plan created: {recovery_plan.primary_action.value if hasattr(recovery_plan.primary_action, 'value') else str(recovery_plan.primary_action)} (success probability: {recovery_plan.success_probability:.1%})",
                 album_name=operation.album_name
             )
             
@@ -1961,7 +1961,7 @@ class BandStructureMigrator:
             # Log comprehensive error information
             migration_log.add_entry(
                 "INFO", "ERROR_DETAILS",
-                f"Error details - Type: {error_details.error_type.value}, Severity: {error_details.severity.value}, Recovery: {recovery_plan.primary_action.value}",
+                f"Error details - Type: {error_details.error_type.value if hasattr(error_details.error_type, 'value') else str(error_details.error_type)}, Severity: {error_details.severity.value if hasattr(error_details.severity, 'value') else str(error_details.severity)}, Recovery: {recovery_plan.primary_action.value if hasattr(recovery_plan.primary_action, 'value') else str(recovery_plan.primary_action)}",
                 album_name=operation.album_name,
                 error_details=f"Solutions: {'; '.join(error_details.solution_steps)}"
             )
@@ -2102,7 +2102,7 @@ class BandStructureMigrator:
                 logger.warning(f"No metadata found for band '{band_name}', skipping metadata synchronization")
                 return
             
-            logger.info(f"Synchronizing metadata for band '{band_name}' after {migration_type.value} migration")
+            logger.info(f"Synchronizing metadata for band '{band_name}' after {(migration_type.value if hasattr(migration_type, 'value') else str(migration_type))} migration")
             
             # Update folder structure information
             self._update_folder_structure_type(metadata, migration_type)
@@ -2278,7 +2278,7 @@ class BandStructureMigrator:
                 folder_name = f"{year} - {album_name}" if year else album_name
                 if edition and not any(keyword in edition.lower() for keyword in ['demo', 'live', 'instrumental', 'split', 'compilation', 'ep']):
                     folder_name += f" ({edition})"
-                return f"{album_type.value}/{folder_name}"
+                return f"{album_type.value if hasattr(album_type, 'value') else str(album_type)}/{folder_name}"
             
             elif migration_type == MigrationType.LEGACY_TO_DEFAULT:
                 # Default structure: YYYY - Album Name (Edition)
@@ -2326,7 +2326,7 @@ class BandStructureMigrator:
                 elif migration_type == MigrationType.ENHANCED_TO_DEFAULT:
                     metadata.folder_structure.structure_type = StructureType.DEFAULT
                 
-                logger.debug(f"Updated folder structure type to {metadata.folder_structure.structure_type.value}")
+                logger.debug(f"Updated folder structure type to {metadata.folder_structure.structure_type.value if hasattr(metadata.folder_structure.structure_type, 'value') else str(metadata.folder_structure.structure_type)}")
         except Exception as e:
             logger.warning(f"Failed to update folder structure type: {str(e)}")
     
@@ -2409,7 +2409,7 @@ class BandStructureMigrator:
             # Update band entry with new structure information
             if hasattr(metadata, 'folder_structure') and metadata.folder_structure:
                 if hasattr(band_entry, 'structure_type'):
-                    band_entry.structure_type = metadata.folder_structure.structure_type.value
+                    band_entry.structure_type = metadata.folder_structure.structure_type.value if hasattr(metadata.folder_structure.structure_type, 'value') else str(metadata.folder_structure.structure_type)
                 if hasattr(band_entry, 'compliance_score'):
                     band_entry.compliance_score = getattr(metadata.folder_structure, 'score', 0)
             
@@ -2420,7 +2420,7 @@ class BandStructureMigrator:
                     album_type = getattr(album, 'type', AlbumType.ALBUM)
                     if isinstance(album_type, str):
                         album_type = AlbumType(album_type)
-                    type_name = album_type.value
+                    type_name = album_type.value if hasattr(album_type, 'value') else str(album_type)
                     type_counts[type_name] = type_counts.get(type_name, 0) + 1
                 
                 band_entry.album_type_distribution = type_counts

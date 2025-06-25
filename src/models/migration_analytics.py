@@ -387,7 +387,7 @@ class MigrationAnalytics:
             "albums_successfully_migrated": migration_result.albums_migrated,
             "albums_failed_migration": migration_result.albums_failed,
             "overall_success_rate": (migration_result.albums_migrated / max(1, total_operations)) * 100,
-            "migration_type": migration_result.migration_type.value,
+            "migration_type": migration_result.migration_type.value if hasattr(migration_result.migration_type, 'value') else str(migration_result.migration_type),
             "migration_duration_minutes": migration_result.migration_time_seconds / 60,
             "dry_run": migration_result.dry_run,
             "backup_created": migration_result.backup_info is not None,
@@ -433,7 +433,7 @@ class MigrationAnalytics:
         type_folders = set()
         for operation in migration_result.operations:
             if operation.completed and operation.album_type != AlbumType.ALBUM:
-                type_folders.add(operation.album_type.value.title())
+                type_folders.add(operation.album_type.value.title() if hasattr(operation.album_type, 'value') else str(operation.album_type).title())
         return sorted(list(type_folders))
     
     def _calculate_compliance_scores(self, migration_result: MigrationResult, 
@@ -522,7 +522,7 @@ class MigrationAnalytics:
         # Migration type breakdown
         migration_types = defaultdict(int)
         for entry in self.migration_history:
-            migration_types[entry.migration_type.value] += 1
+            migration_types[entry.migration_type.value if hasattr(entry.migration_type, 'value') else str(entry.migration_type)] += 1
         
         bands_migrated = len(set(entry.band_name for entry in self.migration_history))
         
@@ -550,8 +550,8 @@ class MigrationAnalytics:
 
 **Report ID:** {report.report_id}  
 **Generated:** {report.generation_time}  
-**Migration Type:** {report.migration_result.migration_type.value}  
-**Status:** {report.migration_result.status.value}  
+**Migration Type:** {report.migration_result.migration_type.value if hasattr(report.migration_result.migration_type, 'value') else str(report.migration_result.migration_type)}  
+**Status:** {report.migration_result.status.value if hasattr(report.migration_result.status, 'value') else str(report.migration_result.status)}  
 
 ## 📊 Migration Summary
 
@@ -563,8 +563,8 @@ class MigrationAnalytics:
 
 ## 🏗️ Structure Comparison
 
-**Before:** {report.structure_comparison.before_structure.value}  
-**After:** {report.structure_comparison.after_structure.value}  
+**Before:** {report.structure_comparison.before_structure.value if hasattr(report.structure_comparison.before_structure, 'value') else str(report.structure_comparison.before_structure)}  
+**After:** {report.structure_comparison.after_structure.value if hasattr(report.structure_comparison.after_structure, 'value') else str(report.structure_comparison.after_structure)}  
 
 - **Albums Reorganized:** {report.structure_comparison.albums_reorganized}
 - **New Type Folders:** {', '.join(report.structure_comparison.new_type_folders_created)}
@@ -578,7 +578,7 @@ class MigrationAnalytics:
         
         for dist in report.type_distribution_analysis:
             if dist.before_count > 0 or dist.after_count > 0:
-                md += f"| {dist.album_type.value} | {dist.before_count} | {dist.after_count} | {dist.change:+d} | {dist.percentage_before:.1f}% | {dist.percentage_after:.1f}% |\n"
+                md += f"| {dist.album_type.value if hasattr(dist.album_type, 'value') else str(dist.album_type)} | {dist.before_count} | {dist.after_count} | {dist.change:+d} | {dist.percentage_before:.1f}% | {dist.percentage_after:.1f}% |\n"
         
         md += f"""
 ## ⚡ Performance Metrics

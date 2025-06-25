@@ -710,8 +710,8 @@ class MigrationRecoveryManager:
             self.recovery_log.append({
                 'timestamp': datetime.now().isoformat(),
                 'album_name': error_details.album_name,
-                'error_type': error_details.error_type.value,
-                'recovery_action': recovery_plan.primary_action.value,
+                'error_type': error_details.error_type.value if hasattr(error_details.error_type, 'value') else str(error_details.error_type),
+                'recovery_action': recovery_plan.primary_action.value if hasattr(recovery_plan.primary_action, 'value') else str(recovery_plan.primary_action),
                 'started': True
             })
         
