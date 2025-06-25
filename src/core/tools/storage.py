@@ -1286,9 +1286,14 @@ def _add_folder_structure_info(band_info: Dict[str, Any], metadata: BandMetadata
         metadata: BandMetadata instance
     """
     if metadata.folder_structure:
+        structure_type = metadata.folder_structure.structure_type
+        consistency = metadata.folder_structure.consistency
+        # Handle both Enum and str cases
+        structure_type_value = structure_type.value if hasattr(structure_type, 'value') else str(structure_type)
+        consistency_value = consistency.value if hasattr(consistency, 'value') else str(consistency)
         band_info["folder_structure"] = {
-            "structure_type": metadata.folder_structure.structure_type.value,
-            "consistency": metadata.folder_structure.consistency.value,
+            "structure_type": structure_type_value,
+            "consistency": consistency_value,
             "structure_score": metadata.folder_structure.structure_score,
             "organization_health": metadata.folder_structure.get_organization_health(),
             "needs_migration": metadata.folder_structure.is_migration_recommended(),
