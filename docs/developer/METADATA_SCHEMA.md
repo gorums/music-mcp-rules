@@ -11,6 +11,11 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 - **Backwards Compatibility**: Full backward compatibility with automatic schema conversion
 - **Breaking Changes**: Albums now separated into `albums` (local) and `albums_missing` arrays
 
+**NEW INPUT CONTRACT (2025-06):**
+- Clients should send only the full `albums` array (the complete discography, both local and missing albums).
+- The server will split this into local and missing albums based on what is present in the file system.
+- The client should **NOT** send `albums_missing`. If present, it will be ignored and a warning may be returned. (Deprecated as of 2025-06)
+
 ---
 
 ## Band Metadata Schema
@@ -40,25 +45,19 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "genres": ["array of strings (optional)"],
       "track_count": "integer (optional)",
       "duration": "string (e.g., '45min', optional)",
-      "folder_path": "string (relative path from band folder, optional)",
-      "folder_compliance": {
-        "score": "integer (0-100, optional)",
-        "level": "string (excellent/good/fair/poor/critical, optional)",
-        "issues": ["array of strings (optional)"],
-        "recommended_path": "string (optional)"
-      }
+      "folder_path": "string (relative path from band folder, optional)"
     }
   ],
   "albums_missing": [
-    {
-      "album_name": "string (required)",
+    // DEPRECATED: This field is now computed server-side. Do not send from client.
+    "album_name": "string (required)",
       "year": "string (YYYY format, optional)",
       "type": "string (AlbumType enum, optional, default: 'Album')",
       "edition": "string (optional)",
       "genres": ["array of strings (optional)"],
       "track_count": "integer (optional)",
-      "duration": "string (e.g., '45min', optional)"
-    }
+      "duration": "string (e.g., '45min', optional)",
+      "folder_path": "string (relative path from band folder, optional)"
   ],
   "local_albums_count": "integer (auto-calculated)",
   "missing_albums_count": "integer (auto-calculated)",
@@ -762,3 +761,6 @@ Future schema versions will support:
 - **Backward Compatibility**: Older versions work with core fields
 - **Migration Path**: Automatic migration between versions
 - **Validation Modes**: Strict and lenient modes for different use cases 
+
+**Deprecation Note:**
+- `albums_missing` is now computed server-side. Clients should send only the full `albums` array. Sending `albums_missing` is deprecated and will be ignored. 

@@ -238,15 +238,18 @@ def save_band_metadata_tool(
     metadata: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
-    Save band metadata to the local storage. Check very careful how is the metadata passed to the tool, check the examples too.
-        
-    WHAT THE MCP CLIENT MUST SEND:
-    ==============================
+    Save band metadata to the local storage.
+
+    =================================
     The MCP client must send exactly 2 parameters:
-    
+
     1. band_name (string): The exact name of the band (e.g., "Pink Floyd", "The Beatles")
     2. metadata (object): A JSON object containing the band's metadata following the schema below
-    
+
+    **IMPORTANT:**
+    - The client should send a *full* `albums` array (the complete discography, both local and missing albums).
+    - The server will automatically split this into local and missing albums based on what is present in the file system.
+
     CLIENT CALL EXAMPLE:
     ===================
     {
@@ -256,35 +259,40 @@ def save_band_metadata_tool(
             "metadata": {
                 "formed": "1965",
                 "genres": ["Progressive Rock", "Psychedelic Rock"],
-                "origin": "London, England", 
+                "origin": "London, England",
                 "members": ["David Gilmour", "Roger Waters"],
-                "description": "English rock band...",                
-                "albums_missing": [
+                "description": "English rock band...",
+                "albums": [
                     {
                         "album_name": "Wish You Were Here",
                         "year": "1975",
                         "track_count": 5,
                         "type": "Album",
                         "genres": ["Progressive Rock", "Psychedelic Rock"]
+                    },
+                    {
+                        "album_name": "Animals",
+                        "year": "1977",
+                        "track_count": 5,
+                        "type": "Album",
+                        "genres": ["Progressive Rock", "Art Rock"]
                     }
                 ]
             }
         }
     }
-    
-    NOTE: "albums_missing" are not optional.
-    
+
     Args:
         band_name: The name of the band (must match metadata.band_name if present)
         metadata: Complete metadata dictionary for the band following the schema below
-        
+
     Returns:
         Dict containing the operation status, validation results, and file operations
-    
+
     METADATA SCHEMA:
     ================
     The metadata parameter must be a JSON object with the following structure:
-    
+
     REQUIRED FIELDS:
     ================
     - formed (string): Formation year in "YYYY" format
@@ -292,41 +300,37 @@ def save_band_metadata_tool(
     - origin (string): Country/city of origin
     - members (array of strings): List of all band member names
     - description (string): Band biography or description
-    
-    OPTIONAL FIELDS:
-    ================
-    - albums_missing (array): List of missing album objects (if not provided, preserves existing data)
+    - albums (array): List of all albums (local and missing) for the band (see below)
 
     ALBUMS STRUCTURE:
-    ==================
-    Albums are now organized into TWO separate arrays based on availability:
-    
-    1. albums (array): Albums found locally in your music collection
-    2. albums_missing (array): Albums not found locally but part of band's discography
-    
-    ALBUM SCHEMA (for items in both albums and albums_missing arrays):
-    ==================================================================
+    =================
+    - The client sends a single `albums` array containing all known albums for the band (local and missing).
+    - The server will split this into local and missing albums based on the file system.
+    - Do NOT send `albums_missing` (deprecated).
+
+    ALBUM SCHEMA (for items in albums array):
+    =========================================
     REQUIRED:
     - album_name (string): Name of the album
-    - year (string): Release year in "YYYY" format  
+    - year (string): Release year in "YYYY" format
     - track_count (integer): Number of tracks (must be >= 0)
     - genres (array of strings): Album-specific genres (can differ from band genres)
     - type (string): Album type - "Album", "EP", "Live", "Demo", "Compilation", "Single", "Instrumental", "Split"
     - edition (string): Edition info like "Deluxe Edition", "Remastered", etc. (omit for standard releases)
     - duration (string): Album length (format: "43min", "1h 23min", etc.)
-        
+
     COMPLETE EXAMPLE of METADATA JSON:
-    =============================
+    ==================================
     {
-        "formed": "1965", 
+        "formed": "1965",
         "genres": ["Progressive Rock", "Psychedelic Rock", "Art Rock"],
         "origin": "London, England",
         "members": ["David Gilmour", "Roger Waters", "Nick Mason", "Richard Wright", "Syd Barrett"],
-        "description": "English rock band formed in London in 1965. Achieved international acclaim with their progressive and psychedelic music.",        
-        "albums_missing": [
+        "description": "English rock band formed in London in 1965. Achieved international acclaim with their progressive and psychedelic music.",
+        "albums": [
             {
                 "album_name": "Wish You Were Here",
-                "year": "1975", 
+                "year": "1975",
                 "track_count": 5,
                 "type": "Album",
                 "duration": "44min",
@@ -345,52 +349,21 @@ def save_band_metadata_tool(
 
     COMMON MISTAKES TO AVOID:
     ========================
-    ❌ Using "formed_year" (should be "formed")
-    ❌ Using integer for formed year (should be string "1965")
-    ❌ Using nested member structure like {"current": [...], "former": [...]} (should be flat array)
-    ❌ Using "notable_albums" or "discography" (should be "albums")
-    ❌ Using old "missing" field in albums (now use separate "albums" and "albums_missing" arrays)
+    ❌ Using "albums_missing" (deprecated, will be ignored)
+    ❌ Using old "missing" field in albums (now use only the full `albums` array)
     ❌ Using "tracks_count" (should be "track_count")
     ❌ Missing required album fields (album_name, year, track_count)
     ❌ Using integer for album year (should be string "1973")
     ❌ Negative track_count (must be >= 0)
     ❌ Invalid album type (must be: Album, EP, Live, Demo, Compilation, Single, Instrumental, Split)
-    
-    CLIENT TRANSMISSION FORMAT:
-    ===========================
-    The MCP client should send the metadata as a JSON object, not as a JSON string.
-    
-    ✅ CORRECT - Send as object:
-    {
-        "band_name": "Pink Floyd",
-        "metadata": {
-            "formed": "1965",
-            "genres": ["Progressive Rock"]
-        }
-    }
-    
-    ❌ INCORRECT - Don't send as JSON string:
-    {
-        "band_name": "Pink Floyd", 
-        "metadata": "{\"formed\": \"1965\", \"genres\": [\"Progressive Rock\"]}"
-    }
-    
+
     VALIDATION NOTES:
     ================
     - All year fields must be 4-digit strings (e.g., "1975", not 1975)
-    - Both albums and albums_missing arrays can be empty but must be present
     - Members array should include all members (past and present) as flat list
     - Duration format is flexible but should include time unit (min, h, etc.)
     - Genres should be specific and accurate music genres
-    - Albums are automatically separated: found locally go to "albums", not found go to "albums_missing"
     - The old "missing" field in individual albums is no longer used or supported
-    
-    DATA PRESERVATION:
-    ==================
-    - Existing analyze data is always preserved when updating metadata
-    - Existing folder_structure data is always preserved when updating metadata
-    - Existing albums data is always preserved when updating metadata
-    - If albums_missing array is not provided in metadata, existing missing albums are preserved
-    - Providing arrays in metadata will replace the existing data for those arrays
+    - The server will split the albums into local/missing based on the file system
     """
     return _handler.execute(band_name=band_name, metadata=metadata)

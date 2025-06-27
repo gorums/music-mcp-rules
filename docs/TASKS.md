@@ -2201,10 +2201,10 @@ Slash/
 
 
 - [ ] **Enhancement: Accept All Albums in Metadata and Split into Local/Missing**
-  - [ ] **1. Update Tool Input Contract**
-    - [ ] Update documentation for `save_band_metadata_tool` to specify that the client should send a full `albums` array (complete discography), not just `albums_missing`.
-    - [ ] Remove or deprecate the requirement for the client to send `albums_missing` (it will be computed server-side).
-    - [ ] Update all usage examples and schema docs in the tool docstring and user documentation.
+  - [X] **1. Update Tool Input Contract**
+    - [X] Update documentation for `save_band_metadata_tool` to specify that the client should send a full `albums` array (complete discography), not just `albums_missing`.
+    - [X] Remove or deprecate the requirement for the client to send `albums_missing` (it will be computed server-side).
+    - [X] Update all usage examples and schema docs in the tool docstring and user documentation.
   - [ ] **2. Implement Album Splitting Logic in Tool**
     - [ ] On receiving the `albums` array in metadata, load the list of local albums for the band (from the scanner or file system).
     - [ ] For each album in the provided `albums` array:

@@ -277,9 +277,8 @@ Start by scanning your music collection to discover all bands, albums, and autom
             "type": "Album",
             "edition": "",
             "genres": ["Progressive Rock", "Art Rock"],
-            "tracks_count": 10,
-            "duration": "43min",
-            "missing": false
+            "track_count": 10,
+            "duration": "43min"
           },
           {
             "album_name": "Live at Pompeii",
@@ -287,9 +286,8 @@ Start by scanning your music collection to discover all bands, albums, and autom
             "type": "Live",
             "edition": "",
             "genres": ["Progressive Rock", "Live"],
-            "tracks_count": 8,
-            "duration": "65min",
-            "missing": false
+            "track_count": 8,
+            "duration": "65min"
           },
           {
             "album_name": "Greatest Hits",
@@ -297,9 +295,8 @@ Start by scanning your music collection to discover all bands, albums, and autom
             "type": "Compilation",
             "edition": "",
             "genres": ["Progressive Rock"],
-            "tracks_count": 16,
-            "duration": "78min",
-            "missing": true
+            "track_count": 16,
+            "duration": "78min"
           }
         ]
       }
@@ -307,6 +304,8 @@ Start by scanning your music collection to discover all bands, albums, and autom
   }
 }
 ```
+
+> **Note:** `albums_missing` is now computed server-side. Clients should send only the full `albums` array. Sending `albums_missing` is deprecated and will be ignored.
 
 #### Save Metadata with Folder Structure Information
 ```json
