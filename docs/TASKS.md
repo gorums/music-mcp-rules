@@ -2200,3 +2200,35 @@ Slash/
 ## Task that need to be implemented
 
 
+- [ ] **Enhancement: Accept All Albums in Metadata and Split into Local/Missing**
+  - [ ] **1. Update Tool Input Contract**
+    - [ ] Update documentation for `save_band_metadata_tool` to specify that the client should send a full `albums` array (complete discography), not just `albums_missing`.
+    - [ ] Remove or deprecate the requirement for the client to send `albums_missing` (it will be computed server-side).
+    - [ ] Update all usage examples and schema docs in the tool docstring and user documentation.
+  - [ ] **2. Implement Album Splitting Logic in Tool**
+    - [ ] On receiving the `albums` array in metadata, load the list of local albums for the band (from the scanner or file system).
+    - [ ] For each album in the provided `albums` array:
+      - [ ] If the album is present locally (match by name/year/type/edition), add to `albums`.
+      - [ ] If not present locally, add to `albums_missing`.
+    - [ ] Remove any `albums_missing` array sent by the client (ignore or warn if present).
+    - [ ] Ensure no album appears in both arrays.
+  - [ ] **3. Update BandMetadata Construction**
+    - [ ] Build the `BandMetadata` object using the split `albums` and `albums_missing` arrays.
+    - [ ] Validate that the new schema is respected (no duplicates, correct counts).
+    - [ ] Ensure backward compatibility for old metadata files (with only `albums_missing`).
+  - [ ] **4. Update Storage and Index Synchronization**
+    - [ ] When saving metadata, update the collection index with correct local/missing album counts.
+    - [ ] Ensure that the local albums list is always up-to-date with the actual file system.
+    - [ ] If the local albums have changed since the last scan, trigger a rescan or warn the user.
+  - [ ] **5. Update Tests**
+    - [ ] Add/modify unit tests for `save_band_metadata_tool` to:
+      - [ ] Test with full `albums` array input (no `albums_missing`).
+      - [ ] Test edge cases (all albums local, all missing, some local/some missing).
+      - [ ] Test that no album appears in both arrays.
+      - [ ] Test backward compatibility with old input format.
+    - [ ] Update integration tests to use the new input contract.
+  - [ ] **6. Update Documentation**
+    - [ ] Update `README.md`, `docs/PLANNING.md`, and `docs/developer/METADATA_SCHEMA.md` to reflect the new workflow.
+    - [ ] Add migration notes for users/clients using the old input format.
+  - [ ] **7. (Optional) Add Warnings/Errors for Deprecated Usage**
+    - [ ] If the client sends `albums_missing`, log a warning or return a deprecation notice in the response.
