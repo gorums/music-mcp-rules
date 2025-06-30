@@ -89,6 +89,7 @@ class Album(BaseModel):
         duration: Album duration in format "67min"
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
+        track_count_missing: Number of missing tracks (if local album has fewer than expected)
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -98,6 +99,7 @@ class Album(BaseModel):
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
+    track_count_missing: Optional[int] = Field(default=None, description="Number of missing tracks (if local album has fewer than expected)")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -118,6 +120,9 @@ class Album(BaseModel):
         # Remove folder_path field if it's empty or None
         if 'folder_path' in data and (not data['folder_path'] or data['folder_path'].strip() == ""):
             del data['folder_path']
+        # Remove track_count_missing field if it's empty or None
+        if 'track_count_missing' in data and (not data['track_count_missing'] or data['track_count_missing'].strip() == ""):
+            del data['track_count_missing']
         return data
 
     @field_validator('type')

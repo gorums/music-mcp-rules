@@ -45,7 +45,8 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "genres": ["array of strings (optional)"],
       "track_count": "integer (optional)",
       "duration": "string (e.g., '45min', optional)",
-      "folder_path": "string (relative path from band folder, optional)"
+      "folder_path": "string (relative path from band folder, optional)",
+      "track_count_missing": "integer (optional, only present if local album has fewer tracks than expected)"
     }
   ],
   "albums_missing": [
@@ -127,6 +128,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `duration` | string | No | Format: "\d+min" | Album duration |
 | `missing` | boolean | No | true/false | Whether album is missing locally |
 | `folder_path` | string | No | Valid path | Relative path from band folder |
+| `track_count_missing` | integer | No | 1-999 | Number of missing tracks (only present if local album has fewer tracks than expected) |
 
 #### Album Compliance Information
 
@@ -283,6 +285,8 @@ The system supports 8 distinct album types:
       "edition": "",
       "genres": ["Progressive Rock", "Art Rock"],
       "tracks_count": 10,
+      "track_count": 10,
+      "track_count_missing": 2,
       "duration": "43min",
       "missing": false,
       "folder_path": "Album/1973 - The Dark Side of the Moon",
@@ -300,6 +304,8 @@ The system supports 8 distinct album types:
       "edition": "Deluxe Edition",
       "genres": ["Progressive Rock", "Rock Opera"],
       "tracks_count": 26,
+      "track_count": 26,
+      "track_count_missing": 0,
       "duration": "81min",
       "missing": false,
       "folder_path": "Album/1979 - The Wall (Deluxe Edition)",
@@ -317,6 +323,8 @@ The system supports 8 distinct album types:
       "edition": "",
       "genres": ["Progressive Rock", "Live"],
       "tracks_count": 8,
+      "track_count": 8,
+      "track_count_missing": 0,
       "duration": "65min",
       "missing": false,
       "folder_path": "Live/1972 - Live at Pompeii",
@@ -334,6 +342,8 @@ The system supports 8 distinct album types:
       "edition": "",
       "genres": ["Progressive Rock"],
       "tracks_count": 16,
+      "track_count": 16,
+      "track_count_missing": 0,
       "duration": "78min",
       "missing": true,
       "compliance": {

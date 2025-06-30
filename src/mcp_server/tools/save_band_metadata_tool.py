@@ -164,6 +164,18 @@ class SaveBandMetadataHandler(BaseToolHandler):
                     if (not local_album.get('folder_path')) and key in local_album_dicts_by_key:
                         # Only set if not already set
                         local_album['folder_path'] = local_album_dicts_by_key[key].get('folder_path', '')
+                    # --- Add track_count_missing if input track_count > local track_count ---
+                    if key in local_album_dicts_by_key:
+                        local_track_count = local_album_dicts_by_key[key].get('track_count', 0)
+                        input_track_count = local_album.get('track_count', 0)
+                        if isinstance(input_track_count, str):
+                            try:
+                                input_track_count = int(input_track_count)
+                            except Exception:
+                                input_track_count = 0
+                        if input_track_count > local_track_count:
+                            local_album['track_count_missing'] = input_track_count - local_track_count
+                        local_album['track_count'] = local_track_count
                     # If already set, keep as is
                     albums_local.append(local_album)
                 else:
