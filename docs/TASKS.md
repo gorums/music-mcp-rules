@@ -973,7 +973,6 @@
   - [ ] **3. Update BandMetadata Construction**
     - [ ] Build the `BandMetadata` object using the split `albums` and `albums_missing` arrays.
     - [ ] Validate that the new schema is respected (no duplicates, correct counts).
-    - [ ] Ensure backward compatibility for old metadata files (with only `albums_missing`).
   - [ ] **4. Update Storage and Index Synchronization**
     - [ ] When saving metadata, update the collection index with correct local/missing album counts.
     - [ ] Ensure that the local albums list is always up-to-date with the actual file system.

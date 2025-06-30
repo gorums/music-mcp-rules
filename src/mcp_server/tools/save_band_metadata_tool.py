@@ -5,7 +5,6 @@ Music Collection MCP Server - Save Band Metadata Tool
 This module contains the save_band_metadata_tool implementation.
 """
 
-import logging
 from typing import Any, Dict
 from datetime import datetime, timezone
 
@@ -16,9 +15,6 @@ from ..base_handlers import BaseToolHandler
 from src.core.tools.storage import save_band_metadata, load_band_metadata, load_collection_index, update_collection_index
 from src.models.band import BandMetadata
 from src.models.collection import BandIndexEntry
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class SaveBandMetadataHandler(BaseToolHandler):
@@ -79,34 +75,102 @@ class SaveBandMetadataHandler(BaseToolHandler):
         except Exception:
             existing_metadata = None
         
-        # Preserve existing albums if albums key is not provided
-        if existing_metadata and 'albums' not in metadata:
-            metadata['albums'] = [album.model_dump() for album in existing_metadata.albums]
+        # If input does NOT include 'albums', preserve existing albums and albums_missing
+        if 'albums' not in metadata or not isinstance(metadata.get('albums'), list):
+            if existing_metadata is not None:
+                # Preserve previous albums and albums_missing
+                metadata['albums'] = [a.dict() if hasattr(a, 'dict') else dict(a) for a in getattr(existing_metadata, 'albums', [])]
+                metadata['albums_missing'] = [a.dict() if hasattr(a, 'dict') else dict(a) for a in getattr(existing_metadata, 'albums_missing', [])]
+            else:
+                # No albums provided and no existing metadata, set to empty
+                metadata['albums'] = []
+                metadata['albums_missing'] = []
+        else:
+            # --- Old format conversion: only if any album has 'missing' field ---
+            input_albums = metadata.get('albums', [])
+            if any(isinstance(album, dict) and 'missing' in album for album in input_albums):
+                albums_local = []
+                albums_missing = []
+                for album in input_albums:
+                    if isinstance(album, dict):
+                        # Remove missing field if present (old format)
+                        if 'missing' in album:
+                            if album['missing']:
+                                albums_missing.append({k: v for k, v in album.items() if k != 'missing'})
+                            else:
+                                albums_local.append({k: v for k, v in album.items() if k != 'missing'})
+                        else:
+                            # No missing field, assume local
+                            albums_local.append(album)
+                # Update metadata with separated arrays
+                input_albums = albums_local + albums_missing  # Rebuild input for next step
+                # Do not set metadata['albums'] yet; let the next step handle it
+
+            # --- Split input albums into local and missing (by file system) ---
+            # Get music root path from config
+            from src.di.dependencies import get_config
+            from pathlib import Path
+            config = get_config()
+            music_root = Path(config.MUSIC_ROOT_PATH)
+            band_folder = music_root / band_name
+            if band_folder.exists():
+                for sub in band_folder.iterdir():
+                    if sub.is_dir():
+                        pass
+
+            # Discover local albums for this band (from folder structure)
+            from src.core.tools.scanner import _scan_band_albums
+            if band_folder.exists() and band_folder.is_dir():
+                local_album_dicts, _ = _scan_band_albums(band_folder)
+            else:
+                local_album_dicts = []
+
+            def album_key(album):
+                # Normalize type and edition for matching
+                album_name = album.get('album_name', '').strip().lower()
+                year = str(album.get('year', '')).strip()
+                # Default type to 'Album' if missing or empty
+                type_val = album.get('type', '').strip()
+                if not type_val:
+                    type_val = 'Album'
+                type_val = type_val.lower()
+                # Default edition to '' if missing
+                edition = album.get('edition', '').strip().lower() if album.get('edition') else ''
+                return (album_name, year, type_val, edition)
+
+            # Log local album keys
+            local_album_keys = set()
+            for a in local_album_dicts:
+                k = album_key(a)
+                local_album_keys.add(k)
+
+            # Log input album keys
+            for a in input_albums:
+                k = album_key(a)
+
+            albums_local = []
+            albums_missing = []
+            seen_keys = set()
+            for album in input_albums:
+                key = album_key(album)
+                if key in seen_keys:
+                    continue  # Prevent duplicates
+                seen_keys.add(key)
+                if key in local_album_keys:
+                    albums_local.append(album)
+                else:
+                    albums_missing.append(album)
+
+            # --- Final deduplication: ensure no album appears in both arrays ---
+            local_keys = set(album_key(a) for a in albums_local)
+            albums_missing = [a for a in albums_missing if album_key(a) not in local_keys]
+
+            metadata['albums'] = albums_local
+            metadata['albums_missing'] = albums_missing
         
         # Add band_name to metadata if not present
         if 'band_name' not in metadata:
             metadata['band_name'] = band_name
-        
-        # Convert from old format if needed
-        if 'albums' in metadata and isinstance(metadata['albums'], list):
-            albums_local = []
-            albums_missing = []
-            for album in metadata['albums']:
-                if isinstance(album, dict):
-                    # Remove missing field if present (old format)
-                    if 'missing' in album:
-                        if album['missing']:
-                            albums_missing.append({k: v for k, v in album.items() if k != 'missing'})
-                        else:
-                            albums_local.append({k: v for k, v in album.items() if k != 'missing'})
-                    else:
-                        # No missing field, assume local
-                        albums_local.append(album)
-            
-            # Update metadata with separated arrays
-            metadata['albums'] = albums_local
-            if 'albums_missing' not in metadata:
-                metadata['albums_missing'] = albums_missing
         
         # Validate metadata and create BandMetadata object
         try:
