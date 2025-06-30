@@ -369,6 +369,8 @@ class BandMetadata(BaseModel):
                 # Remove edition field if it's empty
                 if 'edition' in album_data and (not album_data['edition'] or album_data['edition'].strip() == ""):
                     del album_data['edition']
+                if 'folder_path' in album_data and (not album_data['folder_path'] or album_data['folder_path'].strip() == ""):
+                    del album_data['folder_path']
                 processed_missing.append(album_data)
             data['albums_missing'] = processed_missing
         
