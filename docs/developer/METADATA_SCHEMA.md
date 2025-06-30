@@ -123,7 +123,6 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `type` | string | No | AlbumType enum | Album type classification |
 | `edition` | string | No | Max 100 chars | Special edition information |
 | `genres` | array | No | Each string max 50 chars | Album-specific genres |
-| `tracks_count` | integer | No | 0-999 | Number of tracks |
 | `track_count` | integer | No | 0-999 | Alias for tracks_count |
 | `duration` | string | No | Format: "\d+min" | Album duration |
 | `missing` | boolean | No | true/false | Whether album is missing locally |
@@ -284,18 +283,10 @@ The system supports 8 distinct album types:
       "type": "Album",
       "edition": "",
       "genres": ["Progressive Rock", "Art Rock"],
-      "tracks_count": 10,
       "track_count": 10,
       "track_count_missing": 2,
       "duration": "43min",
-      "missing": false,
-      "folder_path": "Album/1973 - The Dark Side of the Moon",
-      "compliance": {
-        "score": 95,
-        "level": "excellent",
-        "issues": [],
-        "recommended_path": "Album/1973 - The Dark Side of the Moon"
-      }
+      "folder_path": "Album/1973 - The Dark Side of the Moon"
     },
     {
       "album_name": "The Wall",
@@ -303,18 +294,10 @@ The system supports 8 distinct album types:
       "type": "Album",
       "edition": "Deluxe Edition",
       "genres": ["Progressive Rock", "Rock Opera"],
-      "tracks_count": 26,
       "track_count": 26,
       "track_count_missing": 0,
       "duration": "81min",
-      "missing": false,
-      "folder_path": "Album/1979 - The Wall (Deluxe Edition)",
-      "compliance": {
-        "score": 100,
-        "level": "excellent",
-        "issues": [],
-        "recommended_path": "Album/1979 - The Wall (Deluxe Edition)"
-      }
+      "folder_path": "Album/1979 - The Wall (Deluxe Edition)"
     },
     {
       "album_name": "Live at Pompeii",
@@ -322,18 +305,10 @@ The system supports 8 distinct album types:
       "type": "Live",
       "edition": "",
       "genres": ["Progressive Rock", "Live"],
-      "tracks_count": 8,
       "track_count": 8,
       "track_count_missing": 0,
       "duration": "65min",
-      "missing": false,
-      "folder_path": "Live/1972 - Live at Pompeii",
-      "compliance": {
-        "score": 100,
-        "level": "excellent",
-        "issues": [],
-        "recommended_path": "Live/1972 - Live at Pompeii"
-      }
+      "folder_path": "Live/1972 - Live at Pompeii"
     },
     {
       "album_name": "Greatest Hits",
@@ -341,17 +316,9 @@ The system supports 8 distinct album types:
       "type": "Compilation",
       "edition": "",
       "genres": ["Progressive Rock"],
-      "tracks_count": 16,
       "track_count": 16,
       "track_count_missing": 0,
-      "duration": "78min",
-      "missing": true,
-      "compliance": {
-        "score": 0,
-        "level": "critical",
-        "issues": ["Album folder missing"],
-        "recommended_path": "Compilation/1996 - Greatest Hits"
-      }
+      "duration": "78min"
     }
   ],
   "last_updated": "2024-01-15T10:30:00Z",
@@ -465,42 +432,6 @@ Pink Floyd/
 │   └── 1985 - Live at Wembley/
 └── Compilation/            ← Type folder detected
     └── 1996 - Greatest Hits/
-```
-
-### Compliance Scoring Examples
-
-Albums are scored based on multiple factors:
-
-```json
-// Excellent compliance (90-100)
-{
-  "folder_path": "Album/1973 - The Dark Side of the Moon",
-  "compliance": {
-    "score": 100,
-    "level": "excellent",
-    "issues": []
-  }
-}
-
-// Good compliance (70-89)
-{
-  "folder_path": "1973 - The Dark Side of the Moon",  // Missing type folder
-  "compliance": {
-    "score": 85,
-    "level": "good", 
-    "issues": ["Could benefit from type folder organization"]
-  }
-}
-
-// Poor compliance (25-49)
-{
-  "folder_path": "Dark Side of the Moon",  // Missing year and type folder
-  "compliance": {
-    "score": 40,
-    "level": "poor",
-    "issues": ["Missing year prefix", "Missing type folder"]
-  }
-}
 ```
 
 ## Migration and Compatibility

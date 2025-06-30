@@ -153,8 +153,10 @@ class SaveBandMetadataHandler(BaseToolHandler):
             seen_keys = set()
             # Build a lookup for local_album_dicts by album_key for folder_path reference
             local_album_dicts_by_key = {album_key(a): a for a in local_album_dicts}
+            input_album_keys = set()
             for album in input_albums:
                 key = album_key(album)
+                input_album_keys.add(key)
                 if key in seen_keys:
                     continue  # Prevent duplicates
                 seen_keys.add(key)
@@ -164,15 +166,12 @@ class SaveBandMetadataHandler(BaseToolHandler):
                     if (not local_album.get('folder_path')) and key in local_album_dicts_by_key:
                         # Only set if not already set
                         local_album['folder_path'] = local_album_dicts_by_key[key].get('folder_path', '')
+                        
                     # --- Add track_count_missing if input track_count > local track_count ---
                     if key in local_album_dicts_by_key:
                         local_track_count = local_album_dicts_by_key[key].get('track_count', 0)
                         input_track_count = local_album.get('track_count', 0)
-                        if isinstance(input_track_count, str):
-                            try:
-                                input_track_count = int(input_track_count)
-                            except Exception:
-                                input_track_count = 0
+                        input_track_count = int(input_track_count)
                         if input_track_count > local_track_count:
                             local_album['track_count_missing'] = input_track_count - local_track_count
                         local_album['track_count'] = local_track_count
@@ -180,6 +179,11 @@ class SaveBandMetadataHandler(BaseToolHandler):
                     albums_local.append(local_album)
                 else:
                     albums_missing.append(album)
+
+            # --- Add local albums not present in input albums ---
+            for key, local_album in local_album_dicts_by_key.items():
+                if key not in input_album_keys:
+                    albums_local.append(local_album)  # Add as-is from file system
 
             # --- Final deduplication: ensure no album appears in both arrays ---
             local_keys = set(album_key(a) for a in albums_local)

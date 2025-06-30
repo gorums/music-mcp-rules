@@ -121,7 +121,7 @@ class Album(BaseModel):
         if 'folder_path' in data and (not data['folder_path'] or data['folder_path'].strip() == ""):
             del data['folder_path']
         # Remove track_count_missing field if it's empty or None
-        if 'track_count_missing' in data and (not data['track_count_missing'] or data['track_count_missing'].strip() == ""):
+        if 'track_count_missing' in data and (not data['track_count_missing'] or data['track_count_missing'] == None):
             del data['track_count_missing']
         return data
 
@@ -376,6 +376,8 @@ class BandMetadata(BaseModel):
                     del album_data['edition']
                 if 'folder_path' in album_data and (not album_data['folder_path'] or album_data['folder_path'].strip() == ""):
                     del album_data['folder_path']
+                if 'track_count_missing' in album_data and (not album_data['track_count_missing'] or album_data['track_count_missing'] == None):
+                    del album_data['track_count_missing']
                 processed_missing.append(album_data)
             data['albums_missing'] = processed_missing
         
