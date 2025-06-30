@@ -151,13 +151,21 @@ class SaveBandMetadataHandler(BaseToolHandler):
             albums_local = []
             albums_missing = []
             seen_keys = set()
+            # Build a lookup for local_album_dicts by album_key for folder_path reference
+            local_album_dicts_by_key = {album_key(a): a for a in local_album_dicts}
             for album in input_albums:
                 key = album_key(album)
                 if key in seen_keys:
                     continue  # Prevent duplicates
                 seen_keys.add(key)
                 if key in local_album_keys:
-                    albums_local.append(album)
+                    # Preserve folder_path if already set and non-empty, otherwise use from local scan
+                    local_album = dict(album)  # Copy to avoid mutating input
+                    if (not local_album.get('folder_path')) and key in local_album_dicts_by_key:
+                        # Only set if not already set
+                        local_album['folder_path'] = local_album_dicts_by_key[key].get('folder_path', '')
+                    # If already set, keep as is
+                    albums_local.append(local_album)
                 else:
                     albums_missing.append(album)
 
