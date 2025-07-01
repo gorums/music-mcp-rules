@@ -79,8 +79,8 @@ class SaveBandMetadataHandler(BaseToolHandler):
         if 'albums' not in metadata or not isinstance(metadata.get('albums'), list):
             if existing_metadata is not None:
                 # Preserve previous albums and albums_missing
-                metadata['albums'] = [a.dict() if hasattr(a, 'dict') else dict(a) for a in getattr(existing_metadata, 'albums', [])]
-                metadata['albums_missing'] = [a.dict() if hasattr(a, 'dict') else dict(a) for a in getattr(existing_metadata, 'albums_missing', [])]
+                metadata['albums'] = [a.model_dump() if hasattr(a, 'model_dump') else dict(a) for a in getattr(existing_metadata, 'albums', [])]
+                metadata['albums_missing'] = [a.model_dump() if hasattr(a, 'model_dump') else dict(a) for a in getattr(existing_metadata, 'albums_missing', [])]
             else:
                 # No albums provided and no existing metadata, set to empty
                 metadata['albums'] = []
