@@ -48,13 +48,6 @@ from .collection import (
     CollectionInsight,
     CollectionStats,
 )
-from .compliance import (
-    BandComplianceReport,
-    ComplianceIssue,
-    ComplianceIssueType,
-    ComplianceLevel,
-    ComplianceValidator,
-)
 from .validation import (
     AlbumDataMigrator,
     AlbumTypeDetector,
@@ -122,13 +115,6 @@ __all__ = [
     'StructureAnalyzer',
     'StructureConsistency',
     'StructureType',
-    
-    # Compliance validation
-    'BandComplianceReport',
-    'ComplianceIssue',
-    'ComplianceIssueType',
-    'ComplianceLevel',
-    'ComplianceValidator',
     
     # Advanced analytics
     'AdvancedCollectionInsights',

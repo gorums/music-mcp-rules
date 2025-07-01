@@ -23,7 +23,6 @@ from src.models import (
     BandMetadata,
     BandStructureDetector,
     CollectionIndex,
-    ComplianceValidator,
     FolderCompliance,
 )
 
@@ -395,7 +394,6 @@ def _scan_band_albums(band_folder: Path) -> Tuple[List[Dict], int]:
     """
     # Initialize enhanced detection components
     album_parser = AlbumFolderParser()
-    compliance_validator = ComplianceValidator()
     
     # Discover album folders (including type folders)
     album_folders = _discover_album_folders_enhanced(band_folder, album_parser)
@@ -405,7 +403,7 @@ def _scan_band_albums(band_folder: Path) -> Tuple[List[Dict], int]:
     total_tracks = 0
     
     for album_folder_info in album_folders:
-        album_info = _scan_album_folder_enhanced(album_folder_info, album_parser, compliance_validator)
+        album_info = _scan_album_folder_enhanced(album_folder_info, album_parser)
         if album_info:
             albums.append(album_info)
             total_tracks += album_info['track_count']
@@ -881,14 +879,13 @@ def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolde
     return sorted(album_folders, key=lambda x: x['path'].name.lower())
 
 
-def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFolderParser, compliance_validator: ComplianceValidator) -> Optional[Dict]:
+def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFolderParser) -> Optional[Dict]:
     """
     Scan a single album folder with enhanced metadata detection.
     
     Args:
         album_folder_info: Dictionary with album folder path and metadata
         album_parser: AlbumFolderParser instance for parsing folder names
-        compliance_validator: ComplianceValidator for compliance analysis (unused)
         
     Returns:
         Dictionary with enhanced album information or None if invalid
