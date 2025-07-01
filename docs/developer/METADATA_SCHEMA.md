@@ -46,7 +46,8 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "track_count": "integer (optional)",
       "duration": "string (e.g., '45min', optional)",
       "folder_path": "string (relative path from band folder, optional)",
-      "track_count_missing": "integer (optional, only present if local album has fewer tracks than expected)"
+      "track_count_missing": "integer (optional, only present if local album has fewer tracks than expected)",
+      "not_found" : "boolean (optional, only present if local album was not found from the imput)" 
     }
   ],
   "albums_missing": [
@@ -128,6 +129,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `missing` | boolean | No | true/false | Whether album is missing locally |
 | `folder_path` | string | No | Valid path | Relative path from band folder |
 | `track_count_missing` | integer | No | 1-999 | Number of missing tracks (only present if local album has fewer tracks than expected) |
+| `not_found` | boolena| No | true/false | Whether album is found locally |
 
 #### Album Compliance Information
 
@@ -320,7 +322,7 @@ The system supports 8 distinct album types:
       "track_count_missing": 0,
       "duration": "78min"
     }
-  ],
+  ],  
   "last_updated": "2024-01-15T10:30:00Z",
   "analyze": {
     "review": "Pink Floyd revolutionized progressive rock with their atmospheric soundscapes and conceptual albums. Their ability to blend experimental music with accessible melodies created a unique sound that influenced countless artists. The band's exploration of philosophical themes, combined with innovative use of studio effects and extended compositions, set new standards for rock music.",

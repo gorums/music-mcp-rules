@@ -183,6 +183,7 @@ class SaveBandMetadataHandler(BaseToolHandler):
             # --- Add local albums not present in input albums ---
             for key, local_album in local_album_dicts_by_key.items():
                 if key not in input_album_keys:
+                    local_album['not_found'] = True
                     albums_local.append(local_album)  # Add as-is from file system
 
             # --- Final deduplication: ensure no album appears in both arrays ---
@@ -335,7 +336,7 @@ def save_band_metadata_tool(
     2. metadata (object): A JSON object containing the band's metadata following the schema below
 
     **IMPORTANT:**
-    - The client should send a *full* `albums` array (the complete discography, both local and missing albums).
+    - The client should send a *full* `albums` array (the complete discography, both local and missing albums including all the albums editions).
     - The server will automatically split this into local and missing albums based on what is present in the file system.
 
     CLIENT CALL EXAMPLE:
@@ -421,6 +422,7 @@ def save_band_metadata_tool(
                 "year": "1975",
                 "track_count": 5,
                 "type": "Album",
+                "edition": "Deluxe Edition",
                 "duration": "44min",
                 "genres": ["Progressive Rock", "Art Rock"]
             },

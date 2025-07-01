@@ -90,6 +90,7 @@ class Album(BaseModel):
         genres: List of genres for this album
         folder_path: Original folder name/path for this album
         track_count_missing: Number of missing tracks (if local album has fewer than expected)
+        not_found: True if album is not found locally
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -100,6 +101,7 @@ class Album(BaseModel):
     genres: List[str] = Field(default_factory=list, description="List of album genres")
     folder_path: str = Field(default="", description="Original folder name/path")
     track_count_missing: Optional[int] = Field(default=None, description="Number of missing tracks (if local album has fewer than expected)")
+    not_found: bool = Field(default=False, description="True if album is not found locally")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -123,6 +125,9 @@ class Album(BaseModel):
         # Remove track_count_missing field if it's empty or None
         if 'track_count_missing' in data and (not data['track_count_missing'] or data['track_count_missing'] == None):
             del data['track_count_missing']
+        # Remove not_found field if it's True
+        if 'not_found' in data and data['not_found'] == False:
+            del data['not_found']
         return data
 
     @field_validator('type')
@@ -364,6 +369,10 @@ class BandMetadata(BaseModel):
                 # Remove edition field if it's empty
                 if 'edition' in album_data and (not album_data['edition'] or album_data['edition'].strip() == ""):
                     del album_data['edition']
+                if 'track_count_missing' in album_data and (not album_data['track_count_missing'] or album_data['track_count_missing'] == None):
+                    del album_data['track_count_missing']
+                if 'not_found' in album_data and album_data['not_found'] == False:
+                    del album_data['not_found']
                 processed_albums.append(album_data)
             data['albums'] = processed_albums
         
@@ -378,6 +387,8 @@ class BandMetadata(BaseModel):
                     del album_data['folder_path']
                 if 'track_count_missing' in album_data and (not album_data['track_count_missing'] or album_data['track_count_missing'] == None):
                     del album_data['track_count_missing']
+                if 'not_found' in album_data and album_data['not_found'] == False:
+                    del album_data['not_found']
                 processed_missing.append(album_data)
             data['albums_missing'] = processed_missing
         
