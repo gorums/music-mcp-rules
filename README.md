@@ -124,7 +124,6 @@ Band Name/
 - **Advanced Search**: `advanced_search_albums` - 13-parameter filtering system
 - **Analytics**: `analyze_collection_insights` - Comprehensive collection analysis
 - **Structure Migration**: `migrate_band_structure` - Safe folder organization migration
-- **Migration Reporting**: `migration_reporting` - Migration history and analytics
 
 ### Resources (3 total)
 - **Band Info**: `band://info/{band_name}` - Detailed band information

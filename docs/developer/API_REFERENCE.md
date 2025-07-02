@@ -16,7 +16,6 @@ The Music Collection MCP Server provides a comprehensive API for managing and ac
 - [`advanced_search_albums`](#advanced_search_albums) - Advanced album search with 13 parameters
 - [`analyze_collection_insights`](#analyze_collection_insights) - Generate collection analytics and insights
 - [`migrate_band_structure`](#migrate_band_structure) - Migrate band folder organization patterns
-- [`migration_reporting`](#migration_reporting) - Access migration history and analytics
 
 ### Resources (3 available)
 - [`band://info/{band_name}`](#band-info-resource) - Get band information with type organization
@@ -650,56 +649,6 @@ Migrate a band's folder structure between different organization patterns with c
         "Garage Inc.": "compilation"
       },
       "backup_original": true
-    }
-  }
-}
-```
-
----
-
-### migration_reporting
-
-Access migration history, statistics, and analytics for understanding migration patterns.
-
-#### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `report_type` | string | No | `"history"` | Report type: `history`, `statistics`, `summary` |
-| `band_name` | string | No | - | Filter history by band name |
-| `limit` | integer | No | `50` | Maximum history entries (1-1000) |
-
-#### Response Schema
-
-```json
-{
-  "status": "success",
-  "report_type": "history",
-  "migration_history": [
-    {
-      "migration_id": "migrate_20250130_143022",
-      "timestamp": "2025-01-30T14:30:22",
-      "band_name": "Metallica",
-      "migration_type": "default_to_enhanced",
-      "status": "completed",
-      "albums_migrated": 5,
-      "duration_seconds": 2.3,
-      "success_rate": 100.0
-    }
-  ],
-  "total_entries": 1
-}
-```
-
-#### Usage Example
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "migration_reporting",
-    "arguments": {
-      "report_type": "statistics"
     }
   }
 }

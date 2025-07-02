@@ -757,59 +757,6 @@ Pink Floyd revolutionized progressive rock with their atmospheric soundscapes an
 }
 ```
 
-#### Get Migration History
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "migration_reporting",
-    "arguments": {
-      "report_type": "history",
-      "band_name": "Metallica",
-      "limit": 10
-    }
-  }
-}
-```
-
-#### Get Migration Statistics
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "migration_reporting",
-    "arguments": {
-      "report_type": "statistics"
-    }
-  }
-}
-```
-
-#### Get Migration Summary Report
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "migration_reporting",
-    "arguments": {
-      "report_type": "summary"
-    }
-  }
-}
-```
-
-#### Get Migration Recommendations
-```json
-{
-  "method": "resources/read",
-  "params": {
-    "uri": "band://info/Led Zeppelin"
-  }
-}
-```
-
-*Response includes specific migration suggestions for improving folder structure and organization.*
-
 ## MCP Prompts Usage Examples
 
 ### Prompt 1: fetch_band_info

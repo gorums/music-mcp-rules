@@ -16,7 +16,6 @@ from .validate_band_metadata_tool import validate_band_metadata_tool
 from .advanced_search_albums_tool import advanced_search_albums_tool
 from .analyze_collection_insights_tool import analyze_collection_insights_tool
 from .migrate_band_structure_tool import migrate_band_structure
-from .migration_reporting_tool import migration_reporting
 
 __all__ = [
     "scan_music_folders",
@@ -27,6 +26,5 @@ __all__ = [
     "validate_band_metadata_tool",
     "advanced_search_albums_tool",
     "analyze_collection_insights_tool",
-    "migrate_band_structure",
-    "migration_reporting"
+    "migrate_band_structure"
 ] 
