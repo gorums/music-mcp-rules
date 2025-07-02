@@ -5,7 +5,7 @@ This module provides utilities for validating album types, detecting types from
 folder names, and migrating existing album data to the enhanced schema.
 """
 
-from typing import List, Dict, Optional, Tuple, Set
+from typing import List, Dict, Optional, Tuple
 import re
 from .band import Album, AlbumType
 

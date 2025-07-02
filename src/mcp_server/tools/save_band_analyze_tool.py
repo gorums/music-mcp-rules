@@ -5,7 +5,6 @@ Music Collection MCP Server - Save Band Analyze Tool
 This module contains the save_band_analyze_tool implementation.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -15,9 +14,6 @@ from ..base_handlers import BaseToolHandler
 # Import tool implementation - using absolute imports
 from src.core.tools.storage import save_band_analyze, load_collection_index, update_collection_index, load_band_metadata
 from src.models.band import BandAnalysis, AlbumAnalysis
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class SaveBandAnalyzeHandler(BaseToolHandler):

@@ -5,18 +5,11 @@ Music Collection MCP Server - Analyze Band Prompt
 This module contains the analyze_band_prompt implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..mcp_instance import mcp
 from ..base_handlers import BasePromptHandler
-
-# Import prompt implementation - using absolute imports
 from src.core.prompts.analyze_band import get_analyze_band_prompt
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class AnalyzeBandPromptHandler(BasePromptHandler):
     """Handler for the analyze_band prompt."""
@@ -34,7 +27,6 @@ class AnalyzeBandPromptHandler(BasePromptHandler):
         return get_analyze_band_prompt(band_name, albums, analyze_missing_albums, analysis_scope)
 
 
-# Create handler instance
 _handler = AnalyzeBandPromptHandler()
 
 @mcp.prompt()

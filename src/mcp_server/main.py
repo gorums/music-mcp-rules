@@ -22,20 +22,6 @@ from .mcp_instance import mcp
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Local imports - Import handlers to register decorators
-from . import prompts, resources
-from .tools import (
-    advanced_search_albums_tool,
-    analyze_collection_insights_tool,
-    get_band_list_tool,
-    migrate_band_structure,
-    save_band_analyze_tool,
-    save_band_metadata_tool,
-    save_collection_insight_tool,
-    scan_music_folders,
-    validate_band_metadata_tool,
-)
-
 def create_server() -> FastMCP:
     """Create and configure the MCP server instance"""
     logger.info("Initializing Music Collection MCP Server...")

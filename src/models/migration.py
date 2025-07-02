@@ -22,20 +22,6 @@ from .band import AlbumType, Album
 from .band_structure import StructureType, BandStructureDetector
 from .album_parser import AlbumFolderParser
 
-# Import comprehensive error handling system
-try:
-    from .migration_error_handling import (
-        MigrationRecoveryManager,
-        ErrorDetails,
-        RecoveryAction,
-        create_comprehensive_error_handler
-    )
-    ERROR_HANDLING_AVAILABLE = True
-except ImportError:
-    # Fallback if error handling module is not available
-    ERROR_HANDLING_AVAILABLE = False
-    logger.warning("Advanced error handling module not available, using basic error handling")
-
 # Import migration-specific exceptions
 from src.exceptions import (
     MigrationError,
@@ -49,6 +35,9 @@ from src.exceptions import (
 
 # Configure logging for migration operations
 logger = logging.getLogger(__name__)
+
+# Set error handling flag to False since advanced error handling is not available
+ERROR_HANDLING_AVAILABLE = False
 
 
 class MigrationType(str, Enum):

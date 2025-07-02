@@ -211,7 +211,6 @@ def _generate_enhanced_statistics_section(index: CollectionIndex) -> str:
     
     # Collect enhanced metadata
     album_types = {}
-    compliance_scores = []
     structure_types = {}
     editions_count = 0
     total_analyzed_albums = 0

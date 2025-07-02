@@ -116,7 +116,6 @@ class SimpleCache:
 
 # Global cache instances
 _collection_cache = SimpleCache(max_size=50, ttl_seconds=300)  # 5 minute TTL
-_metadata_cache = SimpleCache(max_size=200, ttl_seconds=180)   # 3 minute TTL
 
 
 class AtomicFileWriter:
@@ -280,11 +279,6 @@ class JSONStorage:
             )
         except Exception as e:
             raise create_storage_error("load", str(file_path), e)
-    
-    @staticmethod
-    def file_exists(file_path: Path) -> bool:
-        """Check if file exists."""
-        return file_path.exists()
     
     @staticmethod
     def create_backup(file_path: Path) -> Path:
@@ -1087,67 +1081,6 @@ def _filter_bands_by_genre(bands: List[BandIndexEntry], genre_filter: str) -> Li
                 # Check if any of the band's genres match the filter
                 band_genres = [g.lower() for g in metadata.genres]
                 if any(genre_filter in genre for genre in band_genres):
-                    filtered_bands.append(band)
-        except Exception:
-            # Skip bands with corrupted metadata
-            continue
-    
-    return filtered_bands
-
-
-def _sort_bands(bands: List[BandIndexEntry], sort_by: str, sort_order: str) -> List[BandIndexEntry]:
-    """Sort bands by specified field and order."""
-    reverse = sort_order.lower() == "desc"
-    
-    if sort_by == "name":
-        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
-    elif sort_by == "albums_count":
-        return sorted(bands, key=lambda b: b.albums_count, reverse=reverse)
-    elif sort_by == "last_updated":
-        return sorted(bands, key=lambda b: b.last_updated, reverse=reverse)
-    elif sort_by == "completion":
-        def completion_percentage(band):
-            if band.albums_count == 0:
-                return 100.0
-            return ((band.albums_count - band.missing_albums_count) / band.albums_count) * 100
-        return sorted(bands, key=completion_percentage, reverse=reverse)
-    else:
-        # Default to name sorting
-        return sorted(bands, key=lambda b: b.name.lower(), reverse=reverse)
-
-
-def _filter_bands_by_album_type(bands: List[BandIndexEntry], album_type: str) -> List[BandIndexEntry]:
-    """Filter bands that contain albums of specified type (local or missing)."""
-    filtered_bands = []
-    for band in bands:
-        try:
-            metadata = load_band_metadata(band.name)
-            if metadata:
-                # Check both local and missing albums
-                for album in (metadata.albums or []) + (metadata.albums_missing or []):
-                    album_type_str = album.type.value if hasattr(album.type, 'value') else str(album.type)
-                    if album_type.lower() == album_type_str.lower():
-                        filtered_bands.append(band)
-                        break
-        except Exception:
-            continue
-    return filtered_bands
-
-
-def _filter_bands_by_compliance(bands: List[BandIndexEntry], compliance_level: str) -> List[BandIndexEntry]:
-    """Filter bands by compliance level."""
-    return bands
-
-
-def _filter_bands_by_structure_type(bands: List[BandIndexEntry], structure_type: str) -> List[BandIndexEntry]:
-    """Filter bands by folder structure type."""
-    filtered_bands = []
-    
-    for band in bands:
-        try:
-            metadata = load_band_metadata(band.name)
-            if metadata and metadata.folder_structure:
-                if structure_type.lower() == metadata.folder_structure.structure_type.value.lower():
                     filtered_bands.append(band)
         except Exception:
             # Skip bands with corrupted metadata

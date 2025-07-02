@@ -5,36 +5,11 @@ Music Collection MCP Server - Compare Bands Prompt
 This module contains the compare_bands_prompt implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Any
 
 from ..mcp_instance import mcp
-from ..base_handlers import BasePromptHandler
-
 # Import prompt implementation - using absolute imports
 from src.core.prompts.compare_bands import get_compare_bands_prompt
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
-
-class CompareBandsPromptHandler(BasePromptHandler):
-    """Handler for the compare_bands prompt."""
-    
-    def __init__(self):
-        super().__init__("compare_bands", "1.0.0")
-    
-    def _generate_prompt(self, **kwargs) -> Dict[str, Any]:
-        """Generate the compare bands prompt template."""
-        band_names = kwargs.get('band_names')
-        comparison_aspects = kwargs.get('comparison_aspects')
-        comparison_scope = kwargs.get('comparison_scope', 'full')
-        
-        return get_compare_bands_prompt(band_names, comparison_aspects, comparison_scope)
-
-
-# Create handler instance
-_handler = CompareBandsPromptHandler()
 
 @mcp.prompt()
 def compare_bands_prompt(
@@ -79,8 +54,4 @@ def compare_bands_prompt(
         The prompt generates instructions for creating comparison data in JSON format
         with rankings, assessments, and detailed analysis for each comparison dimension.
     """
-    return _handler.generate(
-        band_names=band_names,
-        comparison_aspects=comparison_aspects,
-        comparison_scope=comparison_scope
-    ) 
+    return get_compare_bands_prompt(band_names, comparison_aspects, comparison_scope) 

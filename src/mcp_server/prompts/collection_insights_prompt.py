@@ -5,7 +5,6 @@ Music Collection MCP Server - Collection Insights Prompt
 This module contains the collection_insights_prompt implementation.
 """
 
-import logging
 from typing import Any, Dict
 
 from ..mcp_instance import mcp
@@ -13,9 +12,6 @@ from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
 from src.core.prompts.collection_insights import get_collection_insights_prompt
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class CollectionInsightsPromptHandler(BasePromptHandler):

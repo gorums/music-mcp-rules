@@ -5,17 +5,13 @@ Music Collection MCP Server - Fetch Band Info Prompt
 This module contains the fetch_band_info_prompt implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..mcp_instance import mcp
 from ..base_handlers import BasePromptHandler
 
 # Import prompt implementation - using absolute imports
 from src.core.prompts.fetch_band_info import get_fetch_band_info_prompt
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class FetchBandInfoPromptHandler(BasePromptHandler):

@@ -126,7 +126,7 @@ class DependencyContainer:
             self._factories.clear()
             self._config_instance = None
             logger.debug("Cleared all dependency instances and factories")
-    
+
     def has_instance(self, dependency_type: Type[T]) -> bool:
         """
         Check if an instance exists for the given dependency type.
@@ -141,31 +141,6 @@ class DependencyContainer:
             return dependency_type in self._instances or (
                 dependency_type == Config and self._config_instance is not None
             )
-    
-    def get_registered_types(self) -> Dict[str, bool]:
-        """
-        Get information about registered dependency types.
-        
-        Returns:
-            Dictionary mapping type names to whether they have instances
-        """
-        with self._lock:
-            registered = {}
-            
-            # Add factory-registered types
-            for dep_type in self._factories:
-                registered[dep_type.__name__] = dep_type in self._instances
-            
-            # Add instance-registered types
-            for dep_type in self._instances:
-                if dep_type.__name__ not in registered:
-                    registered[dep_type.__name__] = True
-            
-            # Add Config if it has an instance
-            if self._config_instance is not None:
-                registered["Config"] = True
-            
-            return registered
 
 
 # Global dependency container instance
@@ -250,21 +225,6 @@ def override_dependency(dependency_type: Type[T], instance: T):
 def clear_dependencies() -> None:
     """Clear all dependencies (useful for testing)."""
     _container.clear()
-
-
-def get_dependency_info() -> Dict[str, Any]:
-    """
-    Get information about registered dependencies.
-    
-    Returns:
-        Dictionary with dependency information
-    """
-    return {
-        "registered_types": _container.get_registered_types(),
-        "container_id": id(_container),
-        "total_instances": len(_container._instances),
-        "total_factories": len(_container._factories)
-    }
 
 
 # Initialize default config factory

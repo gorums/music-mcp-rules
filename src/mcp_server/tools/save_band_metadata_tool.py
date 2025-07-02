@@ -14,7 +14,6 @@ from ..base_handlers import BaseToolHandler
 # Import tool implementation - using absolute imports
 from src.core.tools.storage import save_band_metadata, load_band_metadata, load_collection_index, update_collection_index
 from src.models.band import BandMetadata
-from src.models.collection import BandIndexEntry
 
 
 class SaveBandMetadataHandler(BaseToolHandler):
@@ -113,10 +112,11 @@ class SaveBandMetadataHandler(BaseToolHandler):
             config = get_config()
             music_root = Path(config.MUSIC_ROOT_PATH)
             band_folder = music_root / band_name
-            if band_folder.exists():
-                for sub in band_folder.iterdir():
-                    if sub.is_dir():
-                        pass
+            # The following loop is a no-op and can be removed
+            # if band_folder.exists():
+            #     for sub in band_folder.iterdir():
+            #         if sub.is_dir():
+            #             pass
 
             # Discover local albums for this band (from folder structure)
             from src.core.tools.scanner import _scan_band_albums

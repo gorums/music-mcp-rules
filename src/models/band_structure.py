@@ -9,7 +9,6 @@ from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict
-import re
 
 from .band import AlbumType
 from .album_parser import AlbumFolderParser

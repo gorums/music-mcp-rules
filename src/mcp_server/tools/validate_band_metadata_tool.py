@@ -5,15 +5,10 @@ Music Collection MCP Server - Validate Band Metadata Tool
 This module contains the validate_band_metadata_tool implementation.
 """
 
-import logging
 from typing import Any, Dict
 
 from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class ValidateBandMetadataHandler(BaseToolHandler):
     """Handler for the validate_band_metadata tool."""

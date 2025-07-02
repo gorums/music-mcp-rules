@@ -11,7 +11,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, TypeVar
+from typing import Any, Callable, Dict, Generator, List, Optional
 import threading
 
 # Try to import psutil for memory monitoring
@@ -20,8 +20,6 @@ try:
     HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
-
-F = TypeVar('F', bound=Callable[..., Any])
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +182,7 @@ def performance_monitor(operation_name: Optional[str] = None, track_memory: bool
         operation_name: Name for the operation (defaults to function name)
         track_memory: Whether to track memory usage
     """
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             name = operation_name or f"{func.__module__}.{func.__name__}"

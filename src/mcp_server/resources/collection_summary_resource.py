@@ -5,18 +5,11 @@ Music Collection MCP Server - Collection Summary Resource
 This module contains the collection_summary_resource implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
-
 from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.core.resources.collection_summary import get_collection_summary
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class CollectionSummaryResourceHandler(BaseResourceHandler):
     """Handler for the collection_summary resource."""

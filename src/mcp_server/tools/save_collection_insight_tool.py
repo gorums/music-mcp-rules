@@ -5,7 +5,6 @@ Music Collection MCP Server - Save Collection Insight Tool
 This module contains the save_collection_insight_tool implementation.
 """
 
-import logging
 from datetime import datetime, timezone
 from typing import Any, Dict
 
@@ -15,9 +14,6 @@ from ..base_handlers import BaseToolHandler
 # Import tool implementation - using absolute imports
 from src.core.tools.storage import save_collection_insight, load_collection_index
 from src.models.collection import CollectionInsight
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class SaveCollectionInsightHandler(BaseToolHandler):

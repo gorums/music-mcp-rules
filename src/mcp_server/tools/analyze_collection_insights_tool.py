@@ -26,8 +26,6 @@ class AnalyzeCollectionInsightsHandler(BaseToolHandler):
     
     def _execute_tool(self, **kwargs) -> Dict[str, Any]:
         """Execute the analyze collection insights tool logic."""
-        from src.models.analytics import CollectionAnalyzer
-        
         # Load collection index and band metadata
         collection_index = load_collection_index()
         if not collection_index:

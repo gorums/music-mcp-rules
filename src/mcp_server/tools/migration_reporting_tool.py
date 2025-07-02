@@ -7,7 +7,7 @@ migration history, statistics, and detailed reports.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler

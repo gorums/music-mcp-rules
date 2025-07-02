@@ -5,18 +5,11 @@ Music Collection MCP Server - Band Info Resource
 This module contains the band_info_resource implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
-
 from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.core.resources.band_info import get_band_info_markdown
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class BandInfoResourceHandler(BaseResourceHandler):
     """Handler for the band_info resource."""
@@ -49,7 +42,6 @@ Please check that the band name is correct and that the band has been scanned in
 
 **Timestamp:** {self._get_timestamp()}
 """
-
 
 # Create handler instance
 _handler = BandInfoResourceHandler()

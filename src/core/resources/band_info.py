@@ -8,8 +8,7 @@ detailed metadata, album information, analysis data, and missing album tracking.
 # Standard library imports
 import logging
 from datetime import datetime
-from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 # Local imports
 from src.models import Album, AlbumAnalysis, BandMetadata

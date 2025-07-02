@@ -990,4 +990,8 @@
   - [X] **7. (Optional) Add Warnings/Errors for Deprecated Usage** - ✅ **COMPLETED** (2025-01-31)
     - [X] If the client sends `albums_missing`, log a warning or return a deprecation notice in the response.
 
+- [x] **Cleanup: Remove unused FolderCompliance class from src/models/band.py** (2024-06-09)
+  - [x] Deleted FolderCompliance class and all references from models/__init__.py
+  - [x] Verified all tests pass after removal
+
 

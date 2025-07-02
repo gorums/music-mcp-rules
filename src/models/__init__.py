@@ -15,7 +15,6 @@ from .band import (
     AlbumType,
     BandAnalysis, 
     BandMetadata,
-    FolderCompliance,
 )
 
 from .album_parser import (
@@ -88,7 +87,6 @@ __all__ = [
     'AlbumType',
     'BandAnalysis',
     'BandMetadata',
-    'FolderCompliance',
     
     # Collection models
     'BandIndexEntry',

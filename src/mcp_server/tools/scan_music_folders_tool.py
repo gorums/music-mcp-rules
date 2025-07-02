@@ -5,7 +5,6 @@ Music Collection MCP Server - Scan Music Folders Tool
 This module contains the scan_music_folders tool implementation.
 """
 
-import logging
 from typing import Any, Dict
 
 from ..mcp_instance import mcp
@@ -13,9 +12,6 @@ from ..base_handlers import BaseToolHandler
 
 # Import tool implementation - using absolute imports
 from src.core.tools.scanner import scan_music_folders as scanner_scan_music_folders
-
-# Configure logging
-logger = logging.getLogger(__name__)
 
 
 class ScanMusicFoldersHandler(BaseToolHandler):

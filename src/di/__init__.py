@@ -11,8 +11,7 @@ from .dependencies import (
     register_dependency_factory,
     register_dependency_instance,
     override_dependency,
-    clear_dependencies,
-    get_dependency_info
+    clear_dependencies
 )
 
 __all__ = [
@@ -21,6 +20,5 @@ __all__ = [
     'register_dependency_factory',
     'register_dependency_instance',
     'override_dependency',
-    'clear_dependencies',
-    'get_dependency_info'
+    'clear_dependencies'
 ] 

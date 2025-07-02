@@ -1,5 +1,4 @@
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 
 
 def get_fetch_band_info_prompt(band_name: str = "", existing_albums: List[str] = None, information_scope: str = "full") -> Dict[str, Any]:

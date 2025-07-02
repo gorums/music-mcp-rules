@@ -5,18 +5,11 @@ Music Collection MCP Server - Advanced Analytics Resource
 This module contains the advanced_analytics_resource implementation.
 """
 
-import logging
-from typing import Any, Dict, List, Optional
-
 from ..mcp_instance import mcp
 from ..base_handlers import BaseResourceHandler
 
 # Import resource implementation - using absolute imports
 from src.core.resources.advanced_analytics import get_advanced_analytics_markdown
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class AdvancedAnalyticsResourceHandler(BaseResourceHandler):
     """Handler for the advanced_analytics resource."""
@@ -27,7 +20,6 @@ class AdvancedAnalyticsResourceHandler(BaseResourceHandler):
     def _get_resource_content(self, **kwargs) -> str:
         """Get advanced analytics in markdown format."""
         return get_advanced_analytics_markdown()
-
 
 # Create handler instance
 _handler = AdvancedAnalyticsResourceHandler()

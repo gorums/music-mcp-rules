@@ -6,7 +6,6 @@ This module contains the migrate_band_structure tool implementation for migratin
 band folder organization patterns between different structure types.
 """
 
-import logging
 from typing import Any, Dict, List, Optional
 
 from ..mcp_instance import mcp
@@ -21,9 +20,8 @@ from src.models.migration import (
 )
 from src.models.migration_analytics import migration_analytics
 
-# Configure logging
+import logging
 logger = logging.getLogger(__name__)
-
 
 class MigrateBandStructureHandler(BaseToolHandler):
     """Handler for the migrate_band_structure tool."""
@@ -83,7 +81,6 @@ class MigrateBandStructureHandler(BaseToolHandler):
                 exclude_albums=exclude_albums
             )
             
-            # Generate comprehensive migration report
             from pathlib import Path
             from src.di import get_config
             config = get_config()

@@ -35,47 +35,6 @@ class AlbumType(str, Enum):
     SPLIT = "Split"
 
 
-class FolderCompliance(BaseModel):
-    """
-    Folder compliance tracking for individual albums.
-    
-    Attributes:
-        has_year_prefix: True if folder name has year prefix (YYYY - )
-        has_edition_suffix: True if edition is properly formatted in folder name
-        using_type_folders: True if album is organized in type folders
-        compliance_score: Numerical score (0-100) representing folder naming compliance
-        issues: List of identified compliance issues
-        recommended_path: Recommended folder path for optimal organization
-        original_path: Original folder path as found
-        needs_migration: True if folder should be migrated for better organization
-    """
-    has_year_prefix: bool = Field(default=False, description="Has year prefix in folder name")
-    has_edition_suffix: bool = Field(default=False, description="Has proper edition suffix")
-    using_type_folders: bool = Field(default=False, description="Uses type-based folder organization")
-    compliance_score: int = Field(default=0, ge=0, le=100, description="Compliance score (0-100)")
-    issues: List[str] = Field(default_factory=list, description="List of compliance issues")
-    recommended_path: str = Field(default="", description="Recommended folder path")
-    original_path: str = Field(default="", description="Original folder path")
-    needs_migration: bool = Field(default=False, description="Whether migration is recommended")
-
-    def get_compliance_level(self) -> str:
-        """Get compliance level based on score."""
-        if self.compliance_score >= 90:
-            return "excellent"
-        elif self.compliance_score >= 75:
-            return "good"
-        elif self.compliance_score >= 50:
-            return "fair"
-        elif self.compliance_score >= 25:
-            return "poor"
-        else:
-            return "critical"
-
-    def is_compliant(self) -> bool:
-        """Check if folder is considered compliant (score >= 75)."""
-        return self.compliance_score >= 75
-
-
 class Album(BaseModel):
     """
     Enhanced album metadata model with type, edition, and track information.

@@ -15,11 +15,6 @@ from .storage import (
     update_collection_index,
     cleanup_backups
 )
-from .metadata import (
-    save_band_metadata as metadata_save_band_metadata,
-    save_band_analyze as metadata_save_band_analyze,
-    save_collection_insight as metadata_save_collection_insight
-)
 from .cache import (
     CacheManager,
     CacheStatus,
