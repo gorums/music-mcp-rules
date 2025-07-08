@@ -959,51 +959,88 @@
 ## Phase 9: Web-Based Collection Navigator Tool
 
 ### Task 9.1: Implement Web-Based Collection Navigator Tool (Dynamic Data Loading)
-- [ ] **Goal:** Create an MCP tool that generates a single `index.html` file in the root directory. This file will, when opened in a browser, use JavaScript to dynamically load `.collection_index.json` and per-band `.band_metadata.json` files to render the collection and band details. CSS themes will adapt based on the genre distribution found in the loaded data.
+- [ ] **Goal:** Create an MCP tool that generates a single `index.html` file in the root directory. This file will, when opened in a browser, use JavaScript to dynamically load `.collection_index.json` and per-band `.band_metadata.json` files to render the collection and band details if we navigat the the band. CSS themes will adapt based on the genre distribution found in the loaded data.
 
-  - [ ] **Design & Planning**
-    - [ ] Define the HTML structure for collection navigation (overview, band list, band details).
-    - [ ] Specify the JavaScript logic for:
-      - [ ] Fetching `.collection_index.json` using `fetch()` or `XMLHttpRequest` (supporting `file://` protocol).
-      - [ ] Rendering the collection overview and band list.
-      - [ ] Navigating to a band and fetching its `.band_metadata.json`.
-      - [ ] Handling browser navigation (history, back/forward).
-      - [ ] Dynamically updating the UI without page reloads.
+  #### 9.1.1: Design & Planning
+    - [ ] Define a responsive HTML layout:
+      - [ ] Header: Collection title, summary stats, theme switcher (optional)
+      - [ ] Sidebar: Band list (searchable/filterable)
+      - [ ] Main content: Collection overview, band details, album details (expandable)
+      - [ ] Footer: Version info, credits, documentation links
+    - [ ] Sketch wireframes for main views (overview, band, album)
+    - [ ] Define JS data model for in-memory representation
 
-  - [ ] **Tool Implementation**
-    - [ ] Create a new MCP tool (e.g., `generate_collection_web_navigator_tool.py`) in `src/mcp_server/tools/`.
-    - [ ] Implement logic to:
-      - [ ] Generate a single `index.html` file in the root directory containing:
-        - [ ] Embedded HTML, CSS, and JS (no external dependencies).
-        - [ ] All logic for dynamic navigation and rendering.
-        - [ ] JS code to fetch `.collection_index.json` and `.band_metadata.json` files at runtime.
-    - [ ] Ensure the tool is idempotent (re-running it updates `_index.html` as needed).
+  #### 9.1.2: JavaScript Logic
+    - [ ] Implement robust data loading:
+      - [ ] Use `fetch()` with fallback to `XMLHttpRequest` for `file://` protocol
+      - [ ] Load `.collection_index.json` on page load
+      - [ ] Load `.band_metadata.json` when a band is selected
+      - [ ] Handle errors (missing/corrupt files, network issues) with user-friendly messages
+    - [ ] Rendering logic:
+      - [ ] Render collection stats (bands, albums, genres, completion %)
+      - [ ] Render band list with search/filter (by name, genre, type)
+      - [ ] Render band details: metadata, albums (local/missing), analysis, similar bands
+      - [ ] Render album details: year, type, edition, track count, compliance
+    - [ ] Navigation:
+      - [ ] Use browser history API (`pushState`, `popstate`) for navigation (back/forward support)
+      - [ ] Support direct linking to a band (e.g., `index.html#band=Metallica`)
+      - [ ] Update UI dynamically without full page reloads
+    - [ ] UI state management:
+      - [ ] Maintain current view state (overview, band, album)
+      - [ ] Show loading indicators during data fetch
+      - [ ] Handle empty/edge cases (no bands, no albums, all missing)
+    - [ ] Accessibility:
+      - [ ] Ensure keyboard navigation and ARIA roles for major UI elements
 
-  - [ ] **Genre-Based Theming**
-    - [ ] The tool will link to an external CSS file for theming (not embed CSS directly).
-    - [ ] Document the expected location and name of the CSS file (e.g., `_index.css`).
-    - [ ] Ensure the HTML uses the external CSS for theming, with a fallback to a default style if the file is missing.
-    - [ ] Document how the MCP client should generate and supply the CSS file.
+  #### 9.1.3: Theming & CSS Integration
+    - [ ] Reference an external CSS file (e.g., `_index.css`)
+    - [ ] Fallback to minimal inline style if CSS is missing
+    - [ ] Document CSS file requirements and expected location
 
-## Task 9.2: Implement Collection Theme CSS Generator Tool
+  #### 9.1.4: Tool Implementation
+    - [ ] Create `generate_collection_web_navigator_tool.py` in `src/mcp/tools/`
+    - [ ] Generate a single `_index.html` file in the project root:
+      - [ ] Embed all HTML, JS, and minimal inline CSS (only for fallback)
+      - [ ] Reference external `_index.css` for theming
+      - [ ] Include all JS logic in a `<script>` tag (no external dependencies)
+      - [ ] Document expected location of `.collection_index.json` and `.band_metadata.json` (relative to `_index.html`)
+      - [ ] Add a comment at the top of the generated file indicating it is auto-generated
+    - [ ] Ensure idempotency: re-running the tool overwrites/updates `_index.html` as needed
+    - [ ] Add CLI parameters (output path, overwrite confirmation)
+
+  #### 9.1.5: Testing & Documentation
+    - [ ] Open `_index.html` in multiple browsers (Chrome, Firefox, Edge) using `file://` and `http://` protocols
+    - [ ] Test with large collections, empty collections, all albums missing, only one band, corrupted/missing JSON files
+    - [ ] Validate navigation, search, and rendering
+    - [ ] Update `README.md` and `docs/`:
+      - [ ] Describe how to generate and use the web navigator
+      - [ ] Explain expected file structure and how to update the collection
+      - [ ] Document how to customize the theme via `_index.css`
+      - [ ] Provide screenshots or animated GIFs (optional)
+
+### Task 9.2: Implement Collection Theme CSS Generator Tool
 - [ ] **Goal:** Create a separate MCP tool (e.g., `generate_collection_theme_css_tool.py`) that generates a CSS file (e.g., `_index.css`) in the root directory, based on the collection's genre distribution and prompt output.
 
-  - [ ] **Design & Planning**
-    - [ ] Define the prompt format and parameters for generating CSS based on collection genres.
-    - [ ] Specify the expected output structure for the CSS file.
+  #### 9.2.1: Design & Planning
+    - [ ] Define prompt format for LLM (or template) that takes genre distribution as input and outputs CSS variables/colors
+    - [ ] Specify expected output structure (CSS custom properties for each genre)
+    - [ ] Use CSS variables for easy theming (e.g., `--genre-color`)
+    - [ ] Define base styles for backgrounds, text, highlights, badges
 
-  - [ ] **Tool Implementation**
-    - [ ] Implement the tool to:
-      - [ ] Analyze `.collection_index.json` to determine genre distribution.
-      - [ ] Use a prompt (LLM or similar) to generate CSS values for the theme.
-      - [ ] Write the generated CSS to `_index.css` in the root directory.
-      - [ ] Ensure the tool is idempotent (re-running it updates the CSS as needed).
+  #### 9.2.2: Tool Implementation
+    - [ ] Create `generate_collection_theme_css_tool.py` in `src/mcp/tools/`
+    - [ ] Analyze `.collection_index.json` to determine genre distribution
+    - [ ] Use a prompt (LLM or template) to generate CSS based on genres
+    - [ ] Write generated CSS to `_index.css` in the root directory
+    - [ ] Ensure idempotency: re-running the tool updates the CSS as needed
 
-  - [ ] **Testing**
-    - [ ] Write unit tests for CSS generation with different genre distributions.
-    - [ ] Test prompt integration and output parsing.
-    - [ ] Test that only `_index.css` is created/overwritten.
+  #### 9.2.3: Testing & Validation
+    - [ ] Unit tests for CSS generation with different genre distributions
+    - [ ] Test prompt integration and output parsing
+    - [ ] Test that only `_index.css` is created/overwritten
+    - [ ] Manual test with generated HTML
 
-  - [ ] **Documentation**
-    - [ ] Update `README.md` and relevant docs to describe the new tool and how to use the generated CSS file.
-    - [ ] Document the prompt format and how to customize/add new themes.
+  #### 9.2.4: Documentation
+    - [ ] Update `README.md` and relevant docs:
+      - [ ] Describe how to generate and use the CSS file
+      - [ ] Document the prompt format and how to customize/add new themes
