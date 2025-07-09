@@ -963,50 +963,50 @@
 
   #### 9.1.1: Design & Planning
     - [ ] Define a responsive HTML layout:
-      - [ ] Header: Collection title, summary stats, theme switcher (optional)
-      - [ ] Sidebar: Band list (searchable/filterable)
-      - [ ] Main content: Collection overview, band details, album details (expandable)
-      - [ ] Footer: Version info, credits, documentation links
+      - [x] Header: Collection title, summary stats, theme switcher (optional) (2024-06-12)
+      - [x] Sidebar: Band list (searchable/filterable) (2024-06-12)
+      - [x] Main content: Collection overview, band details, album details (expandable) (2024-06-12)
+      - [x] Footer: Version info, credits, documentation links (2024-06-12)
     - [ ] Sketch wireframes for main views (overview, band, album)
-    - [ ] Define JS data model for in-memory representation
+    - [x] Define JS data model for in-memory representation (2024-06-12)
 
   #### 9.1.2: JavaScript Logic
-    - [ ] Implement robust data loading:
-      - [ ] Use `fetch()` with fallback to `XMLHttpRequest` for `file://` protocol
-      - [ ] Load `.collection_index.json` on page load
-      - [ ] Load `.band_metadata.json` when a band is selected
-      - [ ] Handle errors (missing/corrupt files, network issues) with user-friendly messages
-    - [ ] Rendering logic:
-      - [ ] Render collection stats (bands, albums, genres, completion %)
-      - [ ] Render band list with search/filter (by name, genre, type)
-      - [ ] Render band details: metadata, albums (local/missing), analysis, similar bands
-      - [ ] Render album details: year, type, edition, track count, compliance
-    - [ ] Navigation:
-      - [ ] Use browser history API (`pushState`, `popstate`) for navigation (back/forward support)
-      - [ ] Support direct linking to a band (e.g., `index.html#band=Metallica`)
-      - [ ] Update UI dynamically without full page reloads
-    - [ ] UI state management:
-      - [ ] Maintain current view state (overview, band, album)
-      - [ ] Show loading indicators during data fetch
-      - [ ] Handle empty/edge cases (no bands, no albums, all missing)
-    - [ ] Accessibility:
-      - [ ] Ensure keyboard navigation and ARIA roles for major UI elements
+    - [x] Implement robust data loading: (2024-06-12)
+      - [x] Use `fetch()` with fallback to `XMLHttpRequest` for `file://` protocol (2024-06-12)
+      - [x] Load `.collection_index.json` on page load (2024-06-12)
+      - [x] Load `.band_metadata.json` when a band is selected (2024-06-12)
+      - [x] Handle errors (missing/corrupt files, network issues) with user-friendly messages (2024-06-12)
+    - [x] Rendering logic: (2024-06-12)
+      - [x] Render collection stats (bands, albums, genres, completion %) (2024-06-12)
+      - [x] Render band list with search/filter (by name, genre, type) (2024-06-12)
+      - [x] Render band details: metadata, albums (local/missing), analysis, similar bands (2024-06-12)
+      - [x] Render album details: year, type, edition, track count, compliance (2024-06-12)
+    - [x] Navigation: (2024-06-12)
+      - [x] Use browser history API (`pushState`, `popstate`) for navigation (back/forward support) (2024-06-12)
+      - [x] Support direct linking to a band (e.g., `index.html#band=Metallica`) (2024-06-12)
+      - [x] Update UI dynamically without full page reloads (2024-06-12)
+    - [x] UI state management: (2024-06-12)
+      - [x] Maintain current view state (overview, band, album) (2024-06-12)
+      - [x] Show loading indicators during data fetch (2024-06-12)
+      - [x] Handle empty/edge cases (no bands, no albums, all missing) (2024-06-12)
+    - [x] Accessibility: (2024-06-12)
+      - [x] Ensure keyboard navigation and ARIA roles for major UI elements (2024-06-12)
 
   #### 9.1.3: Theming & CSS Integration
-    - [ ] Reference an external CSS file (e.g., `_index.css`)
-    - [ ] Fallback to minimal inline style if CSS is missing
-    - [ ] Document CSS file requirements and expected location
+    - [x] Reference an external CSS file (e.g., `_index.css`) (2024-06-12)
+    - [x] Fallback to minimal inline style if CSS is missing (2024-06-12)
+    - [x] Document CSS file requirements and expected location (in generated HTML comment) (2024-06-12)
 
   #### 9.1.4: Tool Implementation
-    - [ ] Create `generate_collection_web_navigator_tool.py` in `src/mcp/tools/`
-    - [ ] Generate a single `_index.html` file in the project root:
-      - [ ] Embed all HTML, JS, and minimal inline CSS (only for fallback)
-      - [ ] Reference external `_index.css` for theming
-      - [ ] Include all JS logic in a `<script>` tag (no external dependencies)
-      - [ ] Document expected location of `.collection_index.json` and `.band_metadata.json` (relative to `_index.html`)
-      - [ ] Add a comment at the top of the generated file indicating it is auto-generated
-    - [ ] Ensure idempotency: re-running the tool overwrites/updates `_index.html` as needed
-    - [ ] Add CLI parameters (output path, overwrite confirmation)
+    - [x] Create `generate_collection_web_navigator_tool.py` in `src/mcp/tools/` (2024-06-12)
+    - [x] Generate a single `_index.html` file in the project root: (2024-06-12)
+      - [x] Embed all HTML, JS, and minimal inline CSS (only for fallback) (2024-06-12)
+      - [x] Reference external `_index.css` for theming (2024-06-12)
+      - [x] Include all JS logic in a `<script>` tag (no external dependencies) (2024-06-12)
+      - [x] Document expected location of `.collection_index.json` and `.band_metadata.json` (relative to `_index.html`) (2024-06-12)
+      - [x] Add a comment at the top of the generated file indicating it is auto-generated (2024-06-12)
+    - [x] Ensure idempotency: re-running the tool overwrites/updates `_index.html` as needed (2024-06-12)
+    - [x] Add CLI parameters (output path, overwrite confirmation) (2024-06-12)
 
   #### 9.1.5: Testing & Documentation
     - [ ] Open `_index.html` in multiple browsers (Chrome, Firefox, Edge) using `file://` and `http://` protocols

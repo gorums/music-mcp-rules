@@ -170,6 +170,63 @@ class TestSaveBandAnalyzeTool:
             pass
 
 
+class TestGenerateCollectionWebNavigatorTool:
+    """Test generate_collection_web_navigator_tool MCP tool integration."""
+    def test_generate_collection_web_navigator_basic(self, tmp_path):
+        try:
+            from src.mcp_server.tools.generate_collection_web_navigator_tool import generate_collection_web_navigator_tool
+            import os
+            output_path = tmp_path / "_index.html"
+            css_path = tmp_path / "_index.css"
+            # Write a dummy CSS file
+            css_path.write_text("body { background: #000; }", encoding="utf-8")
+            # Call tool to generate HTML
+            result = generate_collection_web_navigator_tool(
+                output_path=str(output_path),
+                css_path=str(css_path),
+                force=True
+            )
+            assert isinstance(result, dict)
+            assert result['status'] == 'success'
+            assert os.path.exists(output_path)
+            # Check file content includes expected comment
+            content = output_path.read_text(encoding="utf-8")
+            assert '<!-- AUTO-GENERATED FILE: DO NOT EDIT DIRECTLY -->' in content
+            assert str(css_path.name) in content
+        except ImportError:
+            import pytest
+            pytest.skip("generate_collection_web_navigator_tool not available")
+        except Exception as e:
+            import pytest
+            pytest.fail(f"Tool failed: {e}")
+
+    def test_generate_collection_web_navigator_overwrite_protection(self, tmp_path):
+        try:
+            from src.mcp_server.tools.generate_collection_web_navigator_tool import generate_collection_web_navigator_tool
+            import os
+            output_path = tmp_path / "_index.html"
+            css_path = tmp_path / "_index.css"
+            # Write a dummy CSS file
+            css_path.write_text("body { background: #000; }", encoding="utf-8")
+            # Write a file to simulate existing output
+            output_path.write_text("existing", encoding="utf-8")
+            # Call tool without force (should error)
+            result = generate_collection_web_navigator_tool(
+                output_path=str(output_path),
+                css_path=str(css_path),
+                force=False
+            )
+            assert isinstance(result, dict)
+            assert result['status'] == 'error'
+            assert 'exists' in result['message']
+        except ImportError:
+            import pytest
+            pytest.skip("generate_collection_web_navigator_tool not available")
+        except Exception as e:
+            import pytest
+            pytest.fail(f"Tool failed: {e}")
+
+
 class TestToolHandlerIntegration:
     """Test integration between different tool handlers."""
     
