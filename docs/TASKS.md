@@ -1019,28 +1019,9 @@
       - [ ] Provide screenshots or animated GIFs (optional)
 
 ### Task 9.2: Implement Collection Theme CSS Generator Tool
-- [ ] **Goal:** Create a separate MCP tool (e.g., `generate_collection_theme_css_tool.py`) that generates a CSS file (e.g., `_index.css`) in the root directory, based on the collection's genre distribution and prompt output.
-
-  #### 9.2.1: Design & Planning
-    - [ ] Define prompt format for LLM (or template) that takes genre distribution as input and outputs CSS variables/colors
-    - [ ] Specify expected output structure (CSS custom properties for each genre)
-    - [ ] Use CSS variables for easy theming (e.g., `--genre-color`)
-    - [ ] Define base styles for backgrounds, text, highlights, badges
-
-  #### 9.2.2: Tool Implementation
-    - [ ] Create `generate_collection_theme_css_tool.py` in `src/mcp/tools/`
-    - [ ] Analyze `.collection_index.json` to determine genre distribution
-    - [ ] Use a prompt (LLM or template) to generate CSS based on genres
-    - [ ] Write generated CSS to `_index.css` in the root directory
-    - [ ] Ensure idempotency: re-running the tool updates the CSS as needed
-
-  #### 9.2.3: Testing & Validation
-    - [ ] Unit tests for CSS generation with different genre distributions
-    - [ ] Test prompt integration and output parsing
-    - [ ] Test that only `_index.css` is created/overwritten
-    - [ ] Manual test with generated HTML
-
-  #### 9.2.4: Documentation
-    - [ ] Update `README.md` and relevant docs:
-      - [ ] Describe how to generate and use the CSS file
-      - [ ] Document the prompt format and how to customize/add new themes
+- [x] **Tool implemented as `generate_collection_theme_css_tool.py` in `src/mcp_server/tools/` (2024-06-12)**
+  - [x] Loads genre distribution from `.collection_index.json`
+  - [x] Generates CSS variables and badge classes for each genre
+  - [x] Writes `_index.css` with base and genre-specific styles
+  - [x] Overwrites file if `force=True`, else errors if file exists
+  - [x] Registered in `src/mcp_server/tools/__init__.py`

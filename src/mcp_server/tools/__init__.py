@@ -16,6 +16,8 @@ from .validate_band_metadata_tool import validate_band_metadata_tool
 from .advanced_search_albums_tool import advanced_search_albums_tool
 from .analyze_collection_insights_tool import analyze_collection_insights_tool
 from .migrate_band_structure_tool import migrate_band_structure
+from .generate_collection_web_navigator_tool import generate_collection_web_navigator_tool
+from .generate_collection_theme_css_tool import generate_collection_theme_css_tool
 
 __all__ = [
     "scan_music_folders",
@@ -26,5 +28,7 @@ __all__ = [
     "validate_band_metadata_tool",
     "advanced_search_albums_tool",
     "analyze_collection_insights_tool",
-    "migrate_band_structure"
+    "migrate_band_structure",
+    "generate_collection_web_navigator_tool",
+    "generate_collection_theme_css_tool"
 ] 

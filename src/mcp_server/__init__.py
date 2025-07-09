@@ -21,7 +21,9 @@ from .tools import (
     save_collection_insight_tool,
     validate_band_metadata_tool,
     advanced_search_albums_tool,
-    analyze_collection_insights_tool
+    analyze_collection_insights_tool,
+    generate_collection_web_navigator_tool,
+    generate_collection_theme_css_tool
 )
 
 # Import all resources to ensure they are registered
@@ -51,6 +53,8 @@ __all__ = [
     "validate_band_metadata_tool",
     "advanced_search_albums_tool",
     "analyze_collection_insights_tool",
+    "generate_collection_web_navigator_tool",
+    "generate_collection_theme_css_tool",
     # Resources
     "band_info_resource",
     "collection_summary_resource",
