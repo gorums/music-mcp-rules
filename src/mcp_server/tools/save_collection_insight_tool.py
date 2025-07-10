@@ -146,6 +146,48 @@ class SaveCollectionInsightHandler(BaseToolHandler):
         response['validation_results']['suggested_purchases_count'] = len(collection_insight.suggested_purchases)
         response['validation_results']['collection_health_valid'] = bool(collection_insight.collection_health)
         
+        # --- Aggregate genres, album types, and editions before saving insights ---
+        from src.core.tools.storage import load_band_metadata, update_collection_index, load_collection_index
+        from collections import Counter
+        index = load_collection_index()
+        if index:
+            genre_counter = Counter()
+            type_counter = Counter()
+            edition_counter = Counter()
+            for band in index.bands:
+                if not band.has_metadata:
+                    continue
+                try:
+                    metadata = load_band_metadata(band.name)
+                except Exception:
+                    continue
+                if not metadata:
+                    continue
+                for album in getattr(metadata, 'albums', []):
+                    for genre in getattr(album, 'genres', []) or []:
+                        if genre:
+                            genre_counter[genre] += 1
+                    album_type = getattr(album, 'type', None)
+                    if album_type:
+                        type_counter[str(album_type)] += 1
+                    edition = getattr(album, 'edition', None)
+                    if edition and edition.strip():
+                        edition_counter[edition.strip()] += 1
+                for album in getattr(metadata, 'albums_missing', []):
+                    for genre in getattr(album, 'genres', []) or []:
+                        if genre:
+                            genre_counter[genre] += 1
+                    album_type = getattr(album, 'type', None)
+                    if album_type:
+                        type_counter[str(album_type)] += 1
+                    edition = getattr(album, 'edition', None)
+                    if edition and edition.strip():
+                        edition_counter[edition.strip()] += 1
+            index.stats.top_genres = dict(genre_counter)
+            index.stats.album_type_distribution = dict(type_counter)
+            index.stats.edition_distribution = dict(edition_counter)
+            update_collection_index(index)
+
         # Save insights to storage
         try:
             # Check if collection index exists before saving

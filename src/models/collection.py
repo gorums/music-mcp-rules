@@ -244,13 +244,13 @@ class CollectionIndex(BaseModel):
         self.stats.total_local_albums = sum(band.local_albums_count for band in self.bands)
         self.stats.total_missing_albums = sum(band.missing_albums_count for band in self.bands)
         self.stats.bands_with_metadata = sum(1 for band in self.bands if band.has_metadata)
-        
+
         # Calculate average albums per band
         if self.stats.total_bands > 0:
             self.stats.avg_albums_per_band = round(self.stats.total_albums / self.stats.total_bands, 2)
         else:
             self.stats.avg_albums_per_band = 0.0
-        
+
         # Calculate completion percentage based on local albums vs total albums
         if self.stats.total_albums == 0:
             self.stats.completion_percentage = 100.0
