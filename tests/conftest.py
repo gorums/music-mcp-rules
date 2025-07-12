@@ -52,7 +52,7 @@ def sample_album():
     )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def setup_test_environment(monkeypatch, tmp_path):
     """Set up test environment variables."""
     test_music_path = tmp_path / "test_music"

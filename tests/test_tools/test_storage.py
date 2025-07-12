@@ -230,19 +230,26 @@ class TestJSONStorage:
 
 
 class TestMetadataOperations:
-    """Test metadata save/load operations."""
+    """Test band metadata and analysis operations."""
 
-    def setup_method(self):
-        """Set up test environment."""
+    def setup_method(self, method, monkeypatch=None):
+        import tempfile
+        import shutil
+        from pathlib import Path
         self.temp_dir = tempfile.mkdtemp()
+        if monkeypatch is not None:
+            monkeypatch.setenv("MUSIC_ROOT_PATH", self.temp_dir)
+        # Clean up any existing .collection_index.json (from other tests)
+        index_file = Path(self.temp_dir) / ".collection_index.json"
+        if index_file.exists():
+            index_file.unlink()
 
-    def teardown_method(self):
-        """Clean up test environment."""
+    def teardown_method(self, method):
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    def test_save_band_metadata_success(self):
-        """Test successful metadata save operation."""
+    def test_save_band_metadata_success(self, monkeypatch):
+        self.setup_method(self.test_save_band_metadata_success, monkeypatch)
         from src.di import override_dependency
         from src.config import Config
         
@@ -274,9 +281,10 @@ class TestMetadataOperations:
             # Verify file was created
             metadata_file = Path(self.temp_dir) / band_name / ".band_metadata.json"
             assert metadata_file.exists() == True
+        self.teardown_method(self.test_save_band_metadata_success)
 
-    def test_save_band_metadata_updates_timestamp(self):
-        """Test that saving metadata updates timestamp."""
+    def test_save_band_metadata_updates_timestamp(self, monkeypatch):
+        self.setup_method(self.test_save_band_metadata_updates_timestamp, monkeypatch)
         band_name = "Test Band"
         metadata = BandMetadata(band_name=band_name)
         original_timestamp = metadata.last_updated
@@ -288,9 +296,10 @@ class TestMetadataOperations:
         
         # Timestamp should be updated
         assert result["last_updated"] != original_timestamp
+        self.teardown_method(self.test_save_band_metadata_updates_timestamp)
 
-    def test_save_band_metadata_updates_last_metadata_saved(self):
-        """Test that saving metadata updates last_metadata_saved timestamp."""
+    def test_save_band_metadata_updates_last_metadata_saved(self, monkeypatch):
+        self.setup_method(self.test_save_band_metadata_updates_last_metadata_saved, monkeypatch)
         band_name = "Test Band"
         metadata = BandMetadata(band_name=band_name)
         
@@ -313,9 +322,10 @@ class TestMetadataOperations:
         # Verify it's a valid ISO timestamp
         from datetime import datetime
         datetime.fromisoformat(loaded_metadata.last_metadata_saved)
+        self.teardown_method(self.test_save_band_metadata_updates_last_metadata_saved)
 
-    def test_save_band_analyze_new_metadata(self):
-        """Test saving analysis for band without existing metadata."""
+    def test_save_band_analyze_new_metadata(self, monkeypatch):
+        self.setup_method(self.test_save_band_analyze_new_metadata, monkeypatch)
         band_name = "New Band"
         analysis = BandAnalysis(
             review="Great band!",
@@ -330,9 +340,10 @@ class TestMetadataOperations:
         assert result["band_rating"] == 8
         assert result["albums_analyzed"] == 1
         assert result["similar_bands_count"] == 2
+        self.teardown_method(self.test_save_band_analyze_new_metadata)
 
-    def test_save_band_analyze_existing_metadata(self):
-        """Test saving analysis for band with existing metadata."""
+    def test_save_band_analyze_existing_metadata(self, monkeypatch):
+        self.setup_method(self.test_save_band_analyze_existing_metadata, monkeypatch)
         band_name = "Existing Band"
         
         # Create existing metadata first
@@ -359,9 +370,10 @@ class TestMetadataOperations:
         assert loaded_metadata.formed == "1995"
         assert loaded_metadata.genres == ["Alternative"]
         assert loaded_metadata.analyze.review == "Updated review"
+        self.teardown_method(self.test_save_band_analyze_existing_metadata)
 
-    def test_save_band_analyze_with_all_albums(self):
-        """Test save_band_analyze now always includes all albums."""
+    def test_save_band_analyze_with_all_albums(self, monkeypatch):
+        self.setup_method(self.test_save_band_analyze_with_all_albums, monkeypatch)
         band_name = "All Albums Test Band"
         
         # Create metadata with separated albums arrays
@@ -407,9 +419,10 @@ class TestMetadataOperations:
         album_names = {album.album_name for album in loaded_metadata.analyze.albums}
         assert "Local Album" in album_names
         assert "Missing Album" in album_names
+        self.teardown_method(self.test_save_band_analyze_with_all_albums)
 
-    def test_save_collection_insight_new_index(self):
-        """Test saving insights for new collection."""
+    def test_save_collection_insight_new_index(self, monkeypatch):
+        self.setup_method(self.test_save_collection_insight_new_index, monkeypatch)
         insights = CollectionInsight(
             insights=["Great collection!", "Needs more variety"],
             recommendations=["Buy more jazz albums"],
@@ -423,9 +436,10 @@ class TestMetadataOperations:
         assert result["insights_count"] == 2
         assert result["recommendations_count"] == 1
         assert result["collection_health"] == "Good"
+        self.teardown_method(self.test_save_collection_insight_new_index)
 
-    def test_save_collection_insight_existing_index(self):
-        """Test saving insights for existing collection."""
+    def test_save_collection_insight_existing_index(self, monkeypatch):
+        self.setup_method(self.test_save_collection_insight_existing_index, monkeypatch)
         # Create initial collection index
         initial_index = CollectionIndex()
         update_collection_index(initial_index)
@@ -439,6 +453,7 @@ class TestMetadataOperations:
         
         assert result["status"] == "success"
         assert result["collection_health"] == "Excellent"
+        self.teardown_method(self.test_save_collection_insight_existing_index)
 
 
 class TestBandListOperations:

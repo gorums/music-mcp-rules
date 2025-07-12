@@ -19,6 +19,7 @@ import os
 from datetime import datetime
 from typing import Dict, Any, Optional
 from src.core.tools.storage import load_collection_index
+from src.di import get_config
 
 DEFAULT_OUTPUT = "_index.css"
 
@@ -89,7 +90,10 @@ class GenerateCollectionThemeCSSHandler(BaseToolHandler):
         super().__init__("generate_collection_theme_css", "1.0.0")
 
     def _execute_tool(self, output_path: Optional[str] = None, force: bool = False) -> Dict[str, Any]:
+        config = get_config()
+        music_root = os.path.abspath(config.MUSIC_ROOT_PATH)
         output_path = output_path or DEFAULT_OUTPUT
+        output_file = os.path.join(music_root, output_path)
         response = {
             'status': 'success',
             'message': '',
@@ -105,9 +109,9 @@ class GenerateCollectionThemeCSSHandler(BaseToolHandler):
                 'parameters_used': {'output_path': output_path, 'force': force}
             }
         }
-        if os.path.exists(output_path) and not force:
+        if os.path.exists(output_file) and not force:
             response['status'] = 'error'
-            response['message'] = f"{output_path} exists. Use force=True to overwrite."
+            response['message'] = f"{output_file} exists. Use force=True to overwrite."
             return response
         # Load collection index
         try:
@@ -131,11 +135,17 @@ class GenerateCollectionThemeCSSHandler(BaseToolHandler):
             genre_vars=genre_vars,
             genre_badges=genre_badges
         )
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(css)
         response['file_operations']['overwritten'] = True
         response['file_operations']['last_updated'] = datetime.now().isoformat(timespec='seconds')
-        response['message'] = f"Generated {output_path} with {len(genres)} genre variables."
+        response['file_operations']['output_file_path'] = os.path.abspath(output_file)
+        # Check if file exists
+        if not os.path.exists(output_file):
+            response['status'] = 'error'
+            response['message'] = f"Failed to generate {output_file}. File does not exist after writing."
+            return response
+        response['message'] = f"Generated {output_file} with {len(genres)} genre variables."
         return response
 
 _handler = GenerateCollectionThemeCSSHandler()

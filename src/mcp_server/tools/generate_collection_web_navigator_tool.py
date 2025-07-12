@@ -13,6 +13,7 @@ Auto-generated file: Do not edit _index.html manually. Regenerate using this too
 
 from ..mcp_instance import mcp
 from ..base_handlers import BaseToolHandler
+from src.di import get_config
 
 import os
 from datetime import datetime
@@ -215,8 +216,12 @@ class GenerateCollectionWebNavigatorHandler(BaseToolHandler):
         super().__init__("generate_collection_web_navigator", "1.0.0")
 
     def _execute_tool(self, output_path: Optional[str] = None, css_path: Optional[str] = None, force: bool = False) -> Dict[str, Any]:
+        config = get_config()
+        music_root = os.path.abspath(config.MUSIC_ROOT_PATH)
         output_path = output_path or DEFAULT_OUTPUT
         css_path = css_path or DEFAULT_CSS
+        output_file = os.path.join(music_root, output_path)
+        css_file = os.path.join(music_root, css_path)
         response = {
             'status': 'success',
             'message': '',
@@ -233,16 +238,27 @@ class GenerateCollectionWebNavigatorHandler(BaseToolHandler):
                 'parameters_used': {'output_path': output_path, 'css_path': css_path, 'force': force}
             }
         }
-        if os.path.exists(output_path) and not force:
+        if os.path.exists(output_file) and not force:
             response['status'] = 'error'
-            response['message'] = f"{output_path} exists. Use force=True to overwrite."
+            response['message'] = f"{output_file} exists. Use force=True to overwrite."
             return response
         html = HTML_TEMPLATE.format(date=datetime.now().isoformat(timespec='seconds'), css_path=css_path)
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(html)
         response['file_operations']['overwritten'] = True
         response['file_operations']['last_updated'] = datetime.now().isoformat(timespec='seconds')
-        response['message'] = f"Generated {output_path} (references {css_path})"
+        response['file_operations']['output_file_path'] = os.path.abspath(output_file)
+        response['file_operations']['css_file_path'] = os.path.abspath(css_file)
+        # Check if files exist
+        if not os.path.exists(output_file):
+            response['status'] = 'error'
+            response['message'] = f"Failed to generate {output_file}. File does not exist after writing."
+            return response
+        if not os.path.exists(css_file):
+            response['status'] = 'error'
+            response['message'] = f"Referenced CSS file {css_file} does not exist. Please generate it first."
+            return response
+        response['message'] = f"Generated {output_file} (references {css_file})"
         return response
 
 _handler = GenerateCollectionWebNavigatorHandler()
