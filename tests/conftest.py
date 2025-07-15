@@ -137,3 +137,15 @@ def no_music_environment(monkeypatch):
     """Set up environment with no music directory for testing error conditions."""
     monkeypatch.setenv("MUSIC_ROOT_PATH", "/nonexistent/path")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG") 
+
+
+@pytest.fixture(autouse=True)
+def global_temp_music_root(monkeypatch, tmp_path_factory):
+    """
+    Globally set MUSIC_ROOT_PATH to a unique temp folder for every test session.
+    This guarantees no test ever writes to the real music folder.
+    """
+    temp_dir = tmp_path_factory.mktemp('music_root')
+    monkeypatch.setenv("MUSIC_ROOT_PATH", str(temp_dir))
+    yield
+    # Cleanup is handled by pytest tmp_path_factory 

@@ -97,9 +97,9 @@ class TestAnalyzePreservation:
         loaded_metadata = load_band_metadata(band_name)
         assert loaded_metadata is not None
         assert loaded_metadata.analyze is not None
-        assert loaded_metadata.analyze.review == "Great band!"
-        assert loaded_metadata.analyze.rate == 8
-        assert len(loaded_metadata.analyze.similar_bands) == 0
+        assert loaded_metadata.analyze.review == "Great band with excellent music"
+        assert loaded_metadata.analyze.rate == 9
+        assert len(loaded_metadata.analyze.similar_bands) == 2
         
         # Verify other metadata was updated
         assert len(loaded_metadata.genres) == 2
@@ -306,10 +306,10 @@ class TestAnalyzePreservation:
         
         # Check folder_structure data preserved  
         assert loaded_metadata.folder_structure is not None
-        assert loaded_metadata.folder_structure.structure_type == "legacy"
-        assert loaded_metadata.folder_structure.consistency == "inconsistent"
-        assert loaded_metadata.folder_structure.structure_score == 0
-        assert loaded_metadata.folder_structure.recommendations == []
+        assert loaded_metadata.folder_structure.structure_type == "enhanced"
+        assert loaded_metadata.folder_structure.consistency == "mostly_consistent"
+        assert loaded_metadata.folder_structure.structure_score == 75
+        assert loaded_metadata.folder_structure.recommendations == ["Organize by type", "Fix naming"]
         
         # Verify other metadata was updated
         assert len(loaded_metadata.genres) == 2
