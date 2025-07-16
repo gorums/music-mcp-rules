@@ -34,14 +34,14 @@ HTML_TEMPLATE = """<!-- AUTO-GENERATED FILE: DO NOT EDIT DIRECTLY -->
   <link rel=\"stylesheet\" href=\"{css_path}\">
   <style id=\"fallback-style\">
     /* Minimal fallback styles for layout and readability */
-    body {{ font-family: sans-serif; background: #181818; color: #f8f8f8; margin: 0; }}
-    header, footer {{ background: #222; padding: 1em; text-align: center; }}
-    aside {{ background: #232323; padding: 1em; width: 220px; float: left; height: 100vh; overflow-y: auto; }}
-    main {{ margin-left: 220px; padding: 2em; min-height: 80vh; }}
-    @media (max-width: 700px) {{
-      aside {{ width: 100%; float: none; height: auto; }}
-      main {{ margin-left: 0; }}
-    }}
+    body {{{{ font-family: sans-serif; background: #181818; color: #f8f8f8; margin: 0; }}}}
+    header, footer {{{{ background: #222; padding: 1em; text-align: center; }}}}
+    aside {{{{ background: #232323; padding: 1em; width: 220px; float: left; height: 100vh; overflow-y: auto; }}}}
+    main {{{{ margin-left: 220px; padding: 2em; min-height: 80vh; }}}}
+    @media (max-width: 700px) {{{{
+      aside {{{{ width: 100%; float: none; height: auto; }}}}
+      main {{{{ margin-left: 0; }}}}
+    }}}}
   </style>
 </head>
 <body>
@@ -66,7 +66,7 @@ const COLLECTION_INDEX = '.collection_index.json';
 const BAND_METADATA_SUFFIX = '.band_metadata.json';
 const CSS_PATH = '{css_path}';
 
-let state = {{
+let state = {{{{
   currentView: 'overview',
   selectedBand: null,
   selectedAlbum: null,
@@ -74,66 +74,68 @@ let state = {{
   filters: {{}},
   collection: null,
   bandData: null
-}};
+}}}};
 
-function showLoading(msg) {{
+function showLoading(msg) {{{{
   document.getElementById('main-content').innerHTML = `<div id=\"loading\">${{msg}}</div>`;
-}}
-function showError(msg) {{
+}}}}
+function showError(msg) {{{{
   document.getElementById('main-content').innerHTML = `<div id=\"error\">${{msg}}</div>`;
-}}
+}}}}
 
-function fetchJSON(path, cb) {{
+function fetchJSON(path, cb) {{{{
   // Try fetch, fallback to XMLHttpRequest for file://
-  fetch(path).then(r => {{
+  fetch(path).then(r => {{{{
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
-  }}).then(cb).catch(() => {{
+  }}}}).then(cb).catch(() => {{{{
     // Fallback for file://
-    try {{
+    try {{{{
       const xhr = new XMLHttpRequest();
       xhr.open('GET', path, true);
-      xhr.onreadystatechange = function() {{
-        if (xhr.readyState === 4) {{
-          if (xhr.status === 200 || xhr.status === 0) {{
-            try {{ cb(JSON.parse(xhr.responseText)); }} catch (e) {{ showError('Corrupt JSON: ' + path); }}
-          }} else {{
+      xhr.onreadystatechange = function() {{{{
+        if (xhr.readyState === 4) {{{{
+          if (xhr.status === 200 || xhr.status === 0) {{{{
+            try {{{{ cb(JSON.parse(xhr.responseText)); }}}} catch (e) {{{{ showError('Corrupt JSON: ' + path); }}}}
+          }}}} else {{{{
             showError('Failed to load: ' + path);
-          }}
-        }}
+          }}}}
+        }}}}
       }};
       xhr.send();
-    }} catch (e) {{ showError('Cannot load: ' + path); }}
-  }});
-}}
+    }}}} catch (e) {{{{ showError('Cannot load: ' + path); }}}}
+  }}}});
+}}}}
 
-function renderOverview() {{
+function renderOverview() {{{{
   const c = state.collection;
   if (!c) return;
+  // Use stats from the loaded JSON
+  const stats = c.stats || {{}};
   document.getElementById('main-content').innerHTML = `
     <h2>Collection Overview</h2>
-    <div>Bands: ${{c.total_bands}} | Albums: ${{c.total_albums}} | Completion: ${{c.completion_percentage || '?' }}%</div>
-    <div>Genres: ${{Object.keys(c.genre_distribution || {{}}).join(', ')}}</div>
+    <div>Bands: ${{stats.total_bands}} | Albums: ${{stats.total_albums}} | Completion: ${{stats.completion_percentage || '?' }}%</div>
+    <div>Genres: ${{Object.keys(stats.top_genres || {{}}).join(', ')}}</div>
   `;
-}}
+}}}}
 
-function renderBandList() {{
+function renderBandList() {{{{
   const nav = document.getElementById('band-list');
   if (!state.collection) return;
   let bands = state.collection.bands || [];
-  if (state.searchQuery) {{
+  if (state.searchQuery) {{{{
     const q = state.searchQuery.toLowerCase();
-    bands = bands.filter(b => b.band_name.toLowerCase().includes(q));
-  }}
-  nav.innerHTML = bands.map(b => `<div class=\"band-link\" tabindex=\"0\" data-band=\"${{b.band_name}}\">${{b.band_name}}</div>`).join('') || '<div>No bands found.</div>';
+    bands = bands.filter(b => (b.name || '').toLowerCase().includes(q));
+  }}}}
+  nav.innerHTML = bands.map(b => `<div class=\"band-link\" tabindex=\"0\" data-band=\"${{b.name}}\">${{b.name}}</div>`).join('') || '<div>No bands found.</div>';
   // Add click listeners
-  nav.querySelectorAll('.band-link').forEach(el => {{
+  nav.querySelectorAll('.band-link').forEach(el => {{{{
     el.onclick = () => selectBand(el.dataset.band);
-    el.onkeydown = e => {{ if (e.key === 'Enter') selectBand(el.dataset.band); }};
-  }});
-}}
+    el.onkeydown = e => {{{{ if (e.key === 'Enter') selectBand(el.dataset.band); }}}};
+  }}}});
+}}}}
 
-function renderBandDetails() {{
+function renderBandDetails() {{{{
   const b = state.bandData;
   if (!b) return;
   document.getElementById('main-content').innerHTML = `
@@ -152,59 +154,61 @@ function renderBandDetails() {{
     <h4>Similar Bands Not in Collection</h4>
     <ul>${{(b.analysis && b.analysis.similar_bands_missing || []).map(s => `<li>${{s}}</li>`).join('')}}</ul>
   `;
-}}
+}}}}
 
-function selectBand(bandName) {{
+function selectBand(bandName) {{{{
   state.currentView = 'band';
   state.selectedBand = bandName;
   state.selectedAlbum = null;
   showLoading('Loading band...');
-  fetchJSON(bandName + BAND_METADATA_SUFFIX, data => {{
+  fetchJSON(bandName + BAND_METADATA_SUFFIX, data => {{{{
     state.bandData = data;
     renderBandDetails();
     window.location.hash = 'band=' + encodeURIComponent(bandName);
-  }});
-}}
+  }}}});
+}}}}
 
-function handleHashChange() {{
+function handleHashChange() {{{{
   const hash = window.location.hash.replace(/^#/, '');
-  if (!hash) {{
+  if (!hash) {{{{
     state.currentView = 'overview';
     state.selectedBand = null;
     state.selectedAlbum = null;
     renderOverview();
     return;
-  }}
+  }}}}
   const params = Object.fromEntries(hash.split('&').map(s => s.split('=')));
-  if (params.band) {{
+  if (params.band) {{{{
     selectBand(decodeURIComponent(params.band));
-  }} else {{
+  }}}} else {{{{
     state.currentView = 'overview';
     renderOverview();
-  }}
-}}
+  }}}}
+}}}}
 
-document.getElementById('band-search').oninput = function(e) {{
+document.getElementById('band-search').oninput = function(e) {{{{
   state.searchQuery = e.target.value;
   renderBandList();
-}};
+}}}};
 
-document.getElementById('docs-link').onclick = function() {{
+document.getElementById('docs-link').onclick = function() {{{{
   alert('See README.md for documentation.');
-}};
+}}}};
 
 window.onhashchange = handleHashChange;
 
 // Initial load
 showLoading('Loading collection...');
-fetchJSON(COLLECTION_INDEX, data => {{
+fetchJSON(COLLECTION_INDEX, data => {{{{
   state.collection = data;
+  // Use stats for title/stats
+  const stats = data.stats || {{}};
   document.getElementById('collection-title').textContent = data.title || 'Music Collection';
-  document.getElementById('collection-stats').textContent = `Bands: ${{data.total_bands}} | Albums: ${{data.total_albums}}`;
-  document.getElementById('version-info').textContent = 'Version: ' + (data.version || 'N/A');
+  document.getElementById('collection-stats').textContent = `Bands: ${{stats.total_bands}} | Albums: ${{stats.total_albums}}`;
+  document.getElementById('version-info').textContent = 'Version: ' + (data.metadata_version || 'N/A');
   renderBandList();
   handleHashChange();
-}});
+}}}});
   </script>
 </body>
 </html>

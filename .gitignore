@@ -142,3 +142,5 @@ cython_debug/
 *.backup_*
 *.json.backup*
 *.json.backup_* 
+**/_index.css
+**/_index.html
