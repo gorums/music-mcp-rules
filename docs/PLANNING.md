@@ -186,8 +186,8 @@ The system now uses separated arrays for optimal album management and performanc
 #### 2. Enhanced Data Models (`src/models/`)
 
 **Core Models**:
-- **`BandMetadata`** - Enhanced band model with separated album arrays and analytics
-- **`Album`** - Advanced album model with type, edition, and compliance tracking
+- **`BandMetadata`** - Enhanced band model with separated album arrays, analytics, and a `gallery` field for band images
+- **`Album`** - Advanced album model with type, edition, compliance tracking, and a `gallery` field for album images
 - **`AlbumType`** - 8-type enumeration with auto-detection capabilities
 - **`StructureType`** - 5-pattern folder organization classification
 - **`FolderStructure`** - Compliance scoring and recommendation system
@@ -198,6 +198,7 @@ The system now uses separated arrays for optimal album management and performanc
 - **📊 Compliance Tracking**: Folder organization scoring and recommendations
 - **🎯 Type Detection**: Intelligent classification with confidence scoring
 - **💾 Atomic Operations**: Thread-safe storage with backup and recovery
+- **🖼️ Image Gallery Support**: Each band and album can now include a `gallery` field listing image file paths (e.g., covers, band photos) found in their respective folders. This enables UI galleries and richer metadata displays.
 - **📈 Analytics Integration**: Built-in collection health and maturity assessment
 
 #### 3. Core Services Layer

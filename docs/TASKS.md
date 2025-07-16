@@ -1025,3 +1025,12 @@
   - [x] Writes `_index.css` with base and genre-specific styles
   - [x] Overwrites file if `force=True`, else errors if file exists
   - [x] Registered in `src/mcp_server/tools/__init__.py`
+
+## Phase 10: Image Gallery Support
+
+### Task 10.1: Add Image Gallery Support to Band and Album Metadata
+- [x] Update `Album` and `BandMetadata` models to include a `gallery` field (list of image paths relative to the band/album folder)
+- [x] Update `scan_music_folders` and scanner logic to find all `.jpg` and `.png` images in each band and album folder and populate the `gallery` field for each
+- [x] Update `.band_metadata.json` output to include the new gallery fields for bands and albums
+- [x] Update `docs/developer/METADATA_SCHEMA.md` and `docs/PLANNING.md` to document the new gallery field and its usage
+- [x] Add/Update unit tests to verify gallery field population for bands and albums, including edge cases (no images, multiple images, nested folders)

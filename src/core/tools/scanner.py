@@ -351,6 +351,8 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     Scan a single band folder for album information with enhanced metadata detection.
     Also updates or creates .band_metadata.json with folder structure information and local albums.
     
+    Populates the 'gallery' field with image files found in the band folder (excluding album subfolders).
+    
     Args:
         band_folder: Path to the band folder
         music_root: Path to music collection root
@@ -360,21 +362,19 @@ def _scan_band_folder(band_folder: Path, music_root: Path) -> Optional[Dict]:
     """
     band_name = band_folder.name
     logging.debug(f"Scanning band folder: {band_name}")
-    
     try:
+        # Find images in the band folder (not in subfolders)
+        band_gallery = [f.name for f in band_folder.iterdir()
+                        if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png'}]
         # Initialize scanning components and discover albums
         albums, total_tracks = _scan_band_albums(band_folder)
-        
         # Detect folder structure and load/create metadata
-        folder_structure, metadata = _process_band_metadata(band_folder, band_name, albums)
-        
+        folder_structure, metadata = _process_band_metadata(band_folder, band_name, albums, band_gallery)
         # Check metadata status
         has_metadata = _check_band_metadata_status(band_folder / '.band_metadata.json', band_name)
-        
         # Create result with enhanced information
         return _create_band_scan_result(band_name, band_folder, music_root, albums, 
                                        total_tracks, has_metadata, folder_structure)
-        
     except Exception as e:
         logging.error(f"Error scanning band folder {band_name}: {e}")
         return None
@@ -409,9 +409,10 @@ def _scan_band_albums(band_folder: Path) -> Tuple[List[Dict], int]:
     return albums, total_tracks
 
 
-def _process_band_metadata(band_folder: Path, band_name: str, albums: List[Dict]) -> Tuple[Any, Any]:
+def _process_band_metadata(band_folder: Path, band_name: str, albums: List[Dict], band_gallery=None) -> Tuple[Any, Any]:
     """
     Detect folder structure and load/create/update band metadata.
+    Sets the 'gallery' field in BandMetadata if provided.
     
     Args:
         band_folder: Path to the band folder
@@ -424,18 +425,16 @@ def _process_band_metadata(band_folder: Path, band_name: str, albums: List[Dict]
     # Detect band folder structure
     structure_detector = BandStructureDetector()
     folder_structure = structure_detector.detect_band_structure(str(band_folder))
-    
     # Load or create metadata
     metadata = _load_or_create_band_metadata(band_folder, band_name)
-    
     # Update metadata with current state
     metadata.folder_structure = folder_structure
     metadata = _synchronize_metadata_with_local_albums(metadata, albums, band_name)
+    if band_gallery is not None:
+        metadata.gallery = band_gallery
     metadata.update_timestamp()
-    
     # Save updated metadata
     _save_band_metadata_file(band_folder, band_name, metadata)
-    
     return folder_structure, metadata
 
 
@@ -544,6 +543,17 @@ def _create_band_scan_result(band_name: str, band_folder: Path, music_root: Path
     Returns:
         Dictionary with band scan results
     """
+    # Try to load .band_metadata.json to get the gallery field, else fallback to []
+    band_gallery = []
+    metadata_file = band_folder / '.band_metadata.json'
+    if metadata_file.exists():
+        try:
+            from src.core.tools.storage import JSONStorage
+            metadata_dict = JSONStorage.load_json(metadata_file)
+            band_gallery = metadata_dict.get('gallery', [])
+        except Exception:
+            band_gallery = []
+    # If not found, try to get from BandMetadata if available in memory (not shown here)
     return {
         'band_name': band_name,
         'folder_path': str(band_folder.relative_to(music_root)),
@@ -554,7 +564,8 @@ def _create_band_scan_result(band_name: str, band_folder: Path, music_root: Path
         'last_scanned': datetime.now().isoformat(),
         'folder_structure': folder_structure.model_dump() if folder_structure else None,
         'album_types_distribution': _calculate_album_types_distribution(albums),
-        'compliance_summary': _calculate_compliance_summary(albums)
+        'compliance_summary': _calculate_compliance_summary(albums),
+        'gallery': band_gallery
     }
 
 
@@ -880,6 +891,7 @@ def _discover_album_folders_enhanced(band_folder: Path, album_parser: AlbumFolde
 def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFolderParser) -> Optional[Dict]:
     """
     Scan a single album folder with enhanced metadata detection.
+    Populates the 'gallery' field with image files found in the album folder.
     
     Args:
         album_folder_info: Dictionary with album folder path and metadata
@@ -890,30 +902,27 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
     """
     album_folder = album_folder_info['path']
     album_name = album_folder.name
-    
     try:
         # Count music files
         tracks_count = _count_music_files(album_folder)
-        
         # Only include folders that actually contain music
         if tracks_count == 0:
             return None
-        
         # Parse album folder name for enhanced metadata
         parsed_info = album_parser.parse_album_folder(album_name)
-        
         # Determine album type
         album_type = album_folder_info.get('album_type')
         if album_type is None:
             # Detect type from folder name if not determined by type folder
             album_type = album_parser.detect_album_type_from_folder(album_name, album_folder_info['type_folder'])
-        
         # Determine folder path - include type folder for enhanced structure
         if album_folder_info['in_type_folder'] and album_folder_info['type_folder']:
             folder_path = f"{album_folder_info['type_folder']}/{album_name}"
         else:
             folder_path = album_name
-        
+        # Find images in the album folder (not recursive)
+        album_gallery = [f.name for f in album_folder.iterdir()
+                         if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png'}]
         return {
             'album_name': parsed_info.get('album_name', album_name),
             'year': parsed_info.get('year', ''),
@@ -923,9 +932,9 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
             'missing': False,  # Found in folder, so not missing
             'duration': '',    # Will be filled by metadata tools
             'genres': [],      # Will be filled by metadata tools
-            'folder_path': folder_path
+            'folder_path': folder_path,
+            'gallery': album_gallery
         }
-        
     except Exception as e:
         logging.warning(f"Error scanning album folder {album_name}: {e}")
         return None
@@ -1150,32 +1159,27 @@ def _detect_missing_albums(collection_index: CollectionIndex) -> int:
 def _scan_album_folder(album_folder: Path) -> Optional[Dict]:
     """
     Scan a single album folder for track information (backward compatibility).
-    
-    Args:
-        album_folder: Path to the album folder
-        
-    Returns:
-        Dictionary with album information or None if invalid
+    Adds a 'gallery' field with all .jpg/.jpeg/.png images found in the album folder.
     """
     album_name = album_folder.name
-    
     try:
         # Count music files
         tracks_count = _count_music_files(album_folder)
-        
         # Only include folders that actually contain music
         if tracks_count == 0:
             return None
-            
+        # Find images in the album folder (not recursive)
+        album_gallery = [f.name for f in album_folder.iterdir()
+                         if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png'}]
         return {
             'album_name': album_name,
             'track_count': tracks_count,
             'duration': '',    # Will be filled by metadata tools
             'year': '',        # Will be filled by metadata tools
             'genres': [],      # Will be filled by metadata tools
-            'folder_path': album_name  # Store the folder name
+            'folder_path': album_name,  # Store the folder name
+            'gallery': album_gallery
         }
-        
     except Exception as e:
         logging.warning(f"Error scanning album folder {album_name}: {e}")
         return None 

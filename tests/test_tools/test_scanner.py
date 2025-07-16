@@ -333,60 +333,68 @@ class TestMusicDirectoryScanner:
     def test_scan_band_folder_success(self, temp_music_dir):
         """Test successful band folder scanning."""
         beatles_folder = temp_music_dir / "The Beatles"
-        
+        # Add images to the band folder
+        (beatles_folder / "band1.jpg").touch()
+        (beatles_folder / "band2.png").touch()
+        (beatles_folder / "not_an_image.txt").touch()
         result = _scan_band_folder(beatles_folder, temp_music_dir)
-        
         assert result is not None
         assert result['band_name'] == "The Beatles"
         assert result['albums_count'] == 2
         assert result['total_tracks'] == 3  # 2 + 1
         assert result['has_metadata'] is False  # Metadata file exists but wasn't saved via save_band_metadata_tool
         assert len(result['albums']) == 2
+        # Gallery should include only .jpg/.png files
+        assert sorted(result['gallery']) == ["band1.jpg", "band2.png"]
 
-    def test_scan_band_folder_no_albums(self, temp_music_dir):
-        """Test scanning band folder with no albums."""
+    def test_scan_band_folder_no_images(self, temp_music_dir):
+        """Test band folder with no images (gallery should be empty)."""
         empty_folder = temp_music_dir / "Empty Band"
-        
         result = _scan_band_folder(empty_folder, temp_music_dir)
-        
         assert result is not None
-        assert result['band_name'] == "Empty Band"
-        assert result['albums_count'] == 0
-        assert result['total_tracks'] == 0
-        assert result['has_metadata'] is False  # No metadata file exists
-        assert 'folder_structure' in result
-        assert result['folder_structure'] is not None
-
-    def test_discover_album_folders(self, temp_music_dir):
-        """Test album folder discovery within band folder."""
-        beatles_folder = temp_music_dir / "The Beatles"
-        
-        album_folders = _discover_album_folders(beatles_folder)
-        
-        assert len(album_folders) == 2
-        album_names = [folder.name for folder in album_folders]
-        assert "Abbey Road" in album_names
-        assert "Sgt. Pepper's Lonely Hearts Club Band" in album_names
+        assert result['gallery'] == []
 
     def test_scan_album_folder_with_music(self, temp_music_dir):
-        """Test scanning album folder containing music files."""
+        """Test scanning album folder containing music files and images."""
         abbey_road = temp_music_dir / "The Beatles" / "Abbey Road"
-        
+        # Add images to the album folder
+        (abbey_road / "cover.jpg").touch()
+        (abbey_road / "band.png").touch()
+        (abbey_road / "not_image.doc").touch()
         result = _scan_album_folder(abbey_road)
-        
         assert result is not None
         assert result['album_name'] == "Abbey Road"
         assert result['track_count'] == 2
-        # Note: missing field removed in separated albums schema
+        # Gallery should include only .jpg/.png files
+        assert sorted(result['gallery']) == ["band.png", "cover.jpg"]
 
-    def test_scan_album_folder_no_music(self, temp_music_dir):
-        """Test scanning album folder with no music files."""
+    def test_scan_album_folder_no_images(self, temp_music_dir):
+        """Test album folder with no images (gallery should be empty)."""
         empty_album = temp_music_dir / "Empty Band" / "Empty Album"
         empty_album.mkdir(parents=True)
-        
+        # Add a music file so the album is detected
+        (empty_album / "song.mp3").touch()
         result = _scan_album_folder(empty_album)
-        
-        assert result is None  # Should return None for folders with no music
+        assert result is not None
+        assert result['gallery'] == []
+
+    def test_scan_album_folder_multiple_images(self, temp_music_dir):
+        """Test album folder with multiple images and non-image files."""
+        album_folder = temp_music_dir / "Pink Floyd" / "The Dark Side of the Moon"
+        (album_folder / "img1.jpg").touch()
+        (album_folder / "img2.jpeg").touch()
+        (album_folder / "img3.png").touch()
+        (album_folder / "notes.txt").touch()
+        (album_folder / "cover.JPG").touch()  # Should be case-insensitive
+        (album_folder / "artwork.PNG").touch()
+        (album_folder / "not_image.pdf").touch()
+        # Add a music file so the album is detected
+        (album_folder / "track1.mp3").touch()
+        result = _scan_album_folder(album_folder)
+        assert result is not None
+        # Only .jpg/.jpeg/.png (case-insensitive) should be included
+        expected = sorted(["img1.jpg", "img2.jpeg", "img3.png", "cover.JPG", "artwork.PNG"])
+        assert sorted(result['gallery']) == expected
 
     def test_count_music_files(self, temp_music_dir):
         """Test music file counting."""

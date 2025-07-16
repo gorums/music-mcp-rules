@@ -36,6 +36,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
   "members": ["array of strings (optional)"],
   "albums_count": "integer (auto-calculated)",
   "description": "string (optional)",
+  "gallery": ["array of image file paths (optional, relative to band folder)"],
   "albums": [
     {
       "album_name": "string (required)",
@@ -46,6 +47,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
       "track_count": "integer (optional)",
       "duration": "string (e.g., '45min', optional)",
       "folder_path": "string (relative path from band folder, optional)",
+      "gallery": ["array of image file paths (optional, relative to album folder)"],
       "track_count_missing": "integer (optional, only present if local album has fewer tracks than expected)",
       "not_found" : "boolean (optional, only present if local album was not found from the imput)" 
     }
@@ -113,6 +115,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `members` | array | No | Each string max 100 chars | Band members |
 | `albums_count` | integer | Auto | ≥ 0 | Total albums (auto-calculated) |
 | `description` | string | No | Max 2000 chars | Band description |
+| `gallery` | array | No | Each string is a file path | List of image file paths (relative to band folder) found in the band folder |
 | `last_updated` | string | Auto | ISO 8601 format | Last modification timestamp |
 
 #### Enhanced Album Information
@@ -128,6 +131,7 @@ The Music Collection MCP Server uses a comprehensive JSON-based metadata schema 
 | `duration` | string | No | Format: "\d+min" | Album duration |
 | `missing` | boolean | No | true/false | Whether album is missing locally |
 | `folder_path` | string | No | Valid path | Relative path from band folder |
+| `gallery` | array | No | Each string is a file path | List of image file paths (relative to album folder) found in the album folder |
 | `track_count_missing` | integer | No | 1-999 | Number of missing tracks (only present if local album has fewer tracks than expected) |
 | `not_found` | boolena| No | true/false | Whether album is found locally |
 

@@ -37,7 +37,7 @@ class AlbumType(str, Enum):
 
 class Album(BaseModel):
     """
-    Enhanced album metadata model with type, edition, and track information.
+    Enhanced album metadata model with type, edition, track information, and image gallery.
     
     Attributes:
         album_name: Name of the album
@@ -50,6 +50,7 @@ class Album(BaseModel):
         folder_path: Original folder name/path for this album
         track_count_missing: Number of missing tracks (if local album has fewer than expected)
         not_found: True if album is not found locally
+        gallery: List of image paths (relative to album folder) found in the album folder
     """
     album_name: str = Field(..., description="Name of the album")
     year: str = Field(default="", pattern=r"^\d{4}$|^$", description="Release year in YYYY format")
@@ -58,9 +59,10 @@ class Album(BaseModel):
     track_count: int = Field(default=0, ge=0, description="Number of tracks in album")
     duration: str = Field(default="", description="Album duration (e.g., '67min')")
     genres: List[str] = Field(default_factory=list, description="List of album genres")
-    folder_path: str = Field(default="", description="Original folder name/path")
+    folder_path: str = Field(default="", description="Original folder name/path for this album")
     track_count_missing: Optional[int] = Field(default=None, description="Number of missing tracks (if local album has fewer than expected)")
     not_found: bool = Field(default=False, description="True if album is not found locally")
+    gallery: List[str] = Field(default_factory=list, description="List of image paths (relative to album folder) found in the album folder")
 
     @field_serializer('type')
     def serialize_album_type(self, value: AlbumType) -> str:
@@ -254,7 +256,7 @@ class BandAnalysis(BaseModel):
 
 class BandMetadata(BaseModel):
     """
-    Complete band metadata including basic information, albums, analysis, and folder structure.
+    Complete band metadata including basic information, albums, analysis, folder structure, and image gallery.
     
     Attributes:
         band_name: Name of the band
@@ -270,6 +272,7 @@ class BandMetadata(BaseModel):
         last_metadata_saved: ISO datetime when metadata was last saved via save_band_metadata_tool
         analyze: Optional analysis data with reviews and ratings
         folder_structure: Optional folder structure analysis data
+        gallery: List of image paths (relative to band folder) found in the band folder
     """
     band_name: str = Field(..., description="Band name")
     formed: str = Field(default="", pattern=r"^\d{4}$|^$", description="Formation year (YYYY)")
@@ -284,6 +287,7 @@ class BandMetadata(BaseModel):
     last_metadata_saved: Optional[str] = Field(default=None, description="Last metadata save timestamp via save_band_metadata_tool")
     analyze: Optional[BandAnalysis] = Field(default=None, description="Band analysis data")
     folder_structure: Optional['FolderStructure'] = Field(default=None, description="Folder structure analysis data")
+    gallery: List[str] = Field(default_factory=list, description="List of image paths (relative to band folder) found in the band folder")
 
     @model_validator(mode='before')
     @classmethod
