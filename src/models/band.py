@@ -89,6 +89,8 @@ class Album(BaseModel):
         # Remove not_found field if it's True
         if 'not_found' in data and data['not_found'] == False:
             del data['not_found']
+        if 'gallery' in data and (not data['gallery'] or data['gallery'] == []):
+            del data['gallery']
         return data
 
     @field_validator('type')
@@ -336,6 +338,8 @@ class BandMetadata(BaseModel):
                     del album_data['track_count_missing']
                 if 'not_found' in album_data and album_data['not_found'] == False:
                     del album_data['not_found']
+                if 'gallery' in album_data and (not album_data['gallery'] or album_data['gallery'] == []):
+                    del album_data['gallery']
                 processed_albums.append(album_data)
             data['albums'] = processed_albums
         
@@ -352,6 +356,8 @@ class BandMetadata(BaseModel):
                     del album_data['track_count_missing']
                 if 'not_found' in album_data and album_data['not_found'] == False:
                     del album_data['not_found']
+                if 'gallery' in album_data and (not album_data['gallery'] or album_data['gallery'] == []):
+                    del album_data['gallery']
                 processed_missing.append(album_data)
             data['albums_missing'] = processed_missing
         

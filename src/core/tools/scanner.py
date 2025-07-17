@@ -611,7 +611,7 @@ def _synchronize_metadata_with_local_albums(metadata: 'BandMetadata', local_albu
     )
 
 
-def _prepare_album_synchronization(local_albums: List[Dict]) -> Tuple[Dict[str, Dict], set]:
+def _prepare_album_synchronization(local_albums: List[Dict]) -> Tuple[Dict[tuple, Dict], set]:
     """
     Prepare data structures needed for album synchronization.
     
@@ -621,8 +621,10 @@ def _prepare_album_synchronization(local_albums: List[Dict]) -> Tuple[Dict[str, 
     Returns:
         Tuple of (local_albums_lookup, processed_local_albums_set)
     """
-    # Create a lookup of local albums by name (case-insensitive)
-    local_albums_lookup = {album['album_name'].lower(): album for album in local_albums}
+    # Create a lookup of local albums by (album_name, edition) (case-insensitive)
+    def album_key(album):
+        return (album['album_name'].lower(), album.get('edition', '').lower())
+    local_albums_lookup = {album_key(album): album for album in local_albums}
     
     # Track which local albums we've processed
     processed_local_albums = set()
@@ -630,14 +632,14 @@ def _prepare_album_synchronization(local_albums: List[Dict]) -> Tuple[Dict[str, 
     return local_albums_lookup, processed_local_albums
 
 
-def _process_existing_albums(metadata: 'BandMetadata', local_albums_lookup: Dict[str, Dict], 
+def _process_existing_albums(metadata: 'BandMetadata', local_albums_lookup: Dict[tuple, Dict], 
                            processed_local_albums: set, band_name: str) -> Tuple[List, List]:
     """
     Process existing albums from metadata and separate into local and missing arrays.
     
     Args:
         metadata: BandMetadata object being updated
-        local_albums_lookup: Dictionary mapping lowercase album names to album data
+        local_albums_lookup: Dictionary mapping (album_name, edition) to album data
         processed_local_albums: Set to track which local albums have been processed
         band_name: Name of the band for logging
         
@@ -653,21 +655,21 @@ def _process_existing_albums(metadata: 'BandMetadata', local_albums_lookup: Dict
     all_existing_albums = list(metadata.albums) + list(metadata.albums_missing)
     
     for existing_album in all_existing_albums:
-        album_name_lower = existing_album.album_name.lower()
+        album_key = (existing_album.album_name.lower(), getattr(existing_album, 'edition', '').lower())
         
-        if album_name_lower in local_albums_lookup:
+        if album_key in local_albums_lookup:
             # Album exists locally - update and add to local albums array
             updated_album = _update_existing_album_with_local_data(
-                existing_album, local_albums_lookup[album_name_lower]
+                existing_album, local_albums_lookup[album_key]
             )
             updated_local_albums.append(updated_album)
-            processed_local_albums.add(album_name_lower)
-            logging.debug(f"Updated existing album in local array: {existing_album.album_name}")
+            processed_local_albums.add(album_key)
+            logging.debug(f"Updated existing album in local array: {existing_album.album_name} [{getattr(existing_album, 'edition', '')}]")
         else:
             # Album not found locally - add to missing albums array
             missing_album = _prepare_missing_album(existing_album)
             updated_missing_albums.append(missing_album)
-            logging.debug(f"Moved album to missing array: {existing_album.album_name}")
+            logging.debug(f"Moved album to missing array: {existing_album.album_name} [{getattr(existing_album, 'edition', '')}]")
     
     return updated_local_albums, updated_missing_albums
 
@@ -705,6 +707,10 @@ def _update_existing_album_with_local_data(existing_album, local_album: Dict):
     if local_album.get('year') and not existing_album.year:
         existing_album.year = local_album['year']
     
+    # Update gallery if detected
+    if 'gallery' in local_album:
+        existing_album.gallery = local_album['gallery']
+    
     return existing_album
 
 
@@ -731,7 +737,7 @@ def _process_new_local_albums(local_albums: List[Dict], processed_local_albums: 
     
     Args:
         local_albums: List of all local album dictionaries
-        processed_local_albums: Set of already processed album names (lowercase)
+        processed_local_albums: Set of already processed album (name, edition) tuples
         band_name: Name of the band for logging
         
     Returns:
@@ -741,14 +747,16 @@ def _process_new_local_albums(local_albums: List[Dict], processed_local_albums: 
     
     new_local_albums = []
     
+    def album_key(album):
+        return (album['album_name'].lower(), album.get('edition', '').lower())
+    
     for local_album in local_albums:
-        album_name_lower = local_album['album_name'].lower()
-        
-        if album_name_lower not in processed_local_albums:
+        key = album_key(local_album)
+        if key not in processed_local_albums:
             # This is a new album not in metadata
             new_album = _create_new_album_from_local_data(local_album)
             new_local_albums.append(new_album)
-            logging.debug(f"Added new local album: {new_album.album_name}")
+            logging.debug(f"Added new local album: {new_album.album_name} [{local_album.get('edition', '')}]")
     
     return new_local_albums
 
@@ -779,7 +787,8 @@ def _create_new_album_from_local_data(local_album: Dict):
         track_count=local_album['track_count'],
         duration=local_album.get('duration', ''),
         genres=local_album.get('genres', []),
-        folder_path=local_album['folder_path']
+        folder_path=local_album['folder_path'],
+        gallery=local_album.get('gallery', [])  # PATCH: ensure images are saved
     )
 
 
@@ -920,8 +929,8 @@ def _scan_album_folder_enhanced(album_folder_info: Dict, album_parser: AlbumFold
             folder_path = f"{album_folder_info['type_folder']}/{album_name}"
         else:
             folder_path = album_name
-        # Find images in the album folder (not recursive)
-        album_gallery = [f.name for f in album_folder.iterdir()
+        # Find images in the album folder (recursive, include subfolders)
+        album_gallery = [str(f.relative_to(album_folder)) for f in album_folder.rglob('*')
                          if f.is_file() and f.suffix.lower() in {'.jpg', '.jpeg', '.png'}]
         return {
             'album_name': parsed_info.get('album_name', album_name),
