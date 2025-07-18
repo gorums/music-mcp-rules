@@ -95,6 +95,101 @@ class TestMetadataFunctions:
         with pytest.raises(StorageError):
             save_collection_insight(None)
 
+    def test_save_band_metadata_preserves_gallery(self):
+        """Test that existing gallery data is preserved when saving band metadata."""
+        import os
+        import json
+        from pathlib import Path
+        from src.models.band import BandMetadata
+        from src.di import get_config
+        
+        band_name = "Gallery Band"
+        gallery_data = ["Cover.jpg", "BandPhoto.png"]
+        # Create initial metadata with gallery
+        initial_metadata = BandMetadata(
+            band_name=band_name,
+            formed="1999",
+            genres=["Rock"],
+            gallery=gallery_data.copy()
+        )
+        band_dir = Path(self.temp_dir) / band_name
+        band_dir.mkdir(parents=True, exist_ok=True)
+        metadata_file = band_dir / ".band_metadata.json"
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            f.write(initial_metadata.to_json())
+
+        # Patch get_config to use temp_dir as MUSIC_ROOT_PATH
+        class DummyConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+        
+        with patch("src.core.tools.storage.get_config", return_value=DummyConfig()):
+            # Save new metadata (without gallery)
+            new_metadata = BandMetadata(
+                band_name=band_name,
+                formed="1999",
+                genres=["Rock"]
+                # No gallery field set
+            )
+            result = save_band_metadata(band_name, new_metadata)
+            assert result["status"] == "success"
+            # Load the file and check gallery is preserved
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+            assert "gallery" in saved
+            assert saved["gallery"] == gallery_data
+
+    def test_save_band_metadata_preserves_album_gallery(self):
+        """Test that existing album.gallery is preserved when saving band metadata."""
+        import os
+        import json
+        from pathlib import Path
+        from src.models.band import BandMetadata, Album
+        from src.di import get_config
+
+        band_name = "Gallery Album Band"
+        album1_gallery = ["cover1.jpg", "back1.png"]
+        album2_gallery = ["cover2.jpg"]
+        # Create initial metadata with albums that have gallery
+        initial_metadata = BandMetadata(
+            band_name=band_name,
+            albums=[
+                Album(album_name="Album One", year="2001", gallery=album1_gallery.copy()),
+                Album(album_name="Album Two", year="2002", gallery=album2_gallery.copy()),
+            ]
+        )
+        band_dir = Path(self.temp_dir) / band_name
+        band_dir.mkdir(parents=True, exist_ok=True)
+        metadata_file = band_dir / ".band_metadata.json"
+        with open(metadata_file, "w", encoding="utf-8") as f:
+            f.write(initial_metadata.to_json())
+
+        # Patch get_config to use temp_dir as MUSIC_ROOT_PATH
+        class DummyConfig:
+            MUSIC_ROOT_PATH = self.temp_dir
+        with patch("src.core.tools.storage.get_config", return_value=DummyConfig()):
+            # Save new metadata with same albums but no gallery fields
+            new_metadata = BandMetadata(
+                band_name=band_name,
+                albums=[
+                    Album(album_name="Album One", year="2001"),
+                    Album(album_name="Album Two", year="2002"),
+                ]
+            )
+            result = save_band_metadata(band_name, new_metadata)
+            assert result["status"] == "success"
+            # Load the file and check album galleries are preserved
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+            assert "albums" in saved
+            found1 = found2 = False
+            for album in saved["albums"]:
+                if album["album_name"] == "Album One":
+                    assert album["gallery"] == album1_gallery
+                    found1 = True
+                if album["album_name"] == "Album Two":
+                    assert album["gallery"] == album2_gallery
+                    found2 = True
+            assert found1 and found2, "Both albums should be present and have their galleries preserved"
 
 class TestIntegrationScenarios:
     """Test integration scenarios with different data combinations."""

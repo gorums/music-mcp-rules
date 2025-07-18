@@ -387,8 +387,9 @@ def _get_band_metadata_paths(band_name: str) -> Tuple[Path, Path]:
 
 def _preserve_existing_metadata(metadata: BandMetadata, metadata_file: Path, band_name: str) -> None:
     """
-    Preserve existing analyze and folder_structure data if file exists.
-    
+    Preserve existing analyze, folder_structure, and gallery data if file exists.
+    Also preserves the 'gallery' field inside each album if not present in the new data.
+
     Args:
         metadata: BandMetadata instance to update with preserved data
         metadata_file: Path to existing metadata file
@@ -396,25 +397,55 @@ def _preserve_existing_metadata(metadata: BandMetadata, metadata_file: Path, ban
     """
     if not metadata_file.exists():
         return
-    
+
     try:
         existing_metadata_dict = JSONStorage.load_json(metadata_file)
         existing_metadata = BandMetadata(**existing_metadata_dict)
-        
+
         # Preserve existing analyze data
         if existing_metadata.analyze is not None:
             try:
                 metadata.analyze = existing_metadata.analyze
             except Exception as e:
                 logger.warning(f"Could not preserve analyze data for {band_name}: {e}")
-        
+
         # Preserve existing folder_structure data
         if existing_metadata.folder_structure is not None:
             try:
                 metadata.folder_structure = existing_metadata.folder_structure
             except Exception as e:
                 logger.warning(f"Could not preserve folder_structure data for {band_name}: {e}")
-                
+
+        # Preserve existing gallery data (band-level)
+        if hasattr(existing_metadata, 'gallery') and existing_metadata.gallery:
+            try:
+                metadata.gallery = list(existing_metadata.gallery)
+            except Exception as e:
+                logger.warning(f"Could not preserve gallery data for {band_name}: {e}")
+
+        # --- PATCH: Always preserve album.gallery from existing metadata, ignore new data's gallery ---
+        def album_key(album):
+            if isinstance(album, dict):
+                name = album.get('album_name', '').strip().lower()
+                edition = album.get('edition', '')
+                edition = (edition or '').strip().lower()
+            else:
+                name = getattr(album, 'album_name', '').strip().lower()
+                edition = getattr(album, 'edition', '')
+                edition = (edition or '').strip().lower()
+            return (name, edition)
+
+        # Build lookup for existing albums by key
+        existing_album_lookup = {album_key(a): a for a in getattr(existing_metadata, 'albums', [])}
+        for album in getattr(metadata, 'albums', []):
+            k = album_key(album)
+            if k in existing_album_lookup:
+                existing_gallery = getattr(existing_album_lookup[k], 'gallery', None)
+                if hasattr(album, 'gallery'):
+                    album.gallery = list(existing_gallery) if existing_gallery else []
+                elif isinstance(album, dict):
+                    album['gallery'] = list(existing_gallery) if existing_gallery else []
+
     except Exception as e:
         # If loading fails, continue without preserving (file might be corrupted)
         logger.warning(f"Could not load existing metadata for {band_name}: {e}")
